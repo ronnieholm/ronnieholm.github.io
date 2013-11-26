@@ -1,0 +1,87 @@
+---
+layout: post
+title: "ASP.NET error handling by HttpModule"
+date: 2008-08-30 12:00 UTC
+tags: [C#, ASP.NET, SharePoint]
+---
+<div id="post">
+  <p>
+    Download <a href="/content/EmailingExceptionModule-1.0.zip">EmailingExceptionModule-1.0.zip</a>.
+  </p>
+  <p>In any real-world application, unhalted exceptions are an unavoidable fact of life. Such exceptions should occur relatively infrequently, but when they do some kind of supporting infrastructure better be in place to capture the when and why of the exceptions. As a developer, you should have the ability to perform a postmortem analysis on what went wrong and learn from it. Paramount to such analysis is capturing and logging sufficient information at the point of failure.</p>
+  <p>What this post covers is the thoughts and development of an Asp.Net HttpModule that captures and emails such unhalted exception information to a designated email address.</p>
+  <p>To be clear, the goal of the EmailingExceptionModule isn&#8217;t to prevent unhalted exception from occurring per se. Within code, a developer may not know how to handle an exception, and so the exception should rightfully propagate the call stack. In case no caller steps in and handles the exception, the best choice is most likely to terminate the application. It&#8217;s almost always better to be upfront with the user than conceal the possibly inconsistent state of the application.</p>
+  <p>
+    So when does the EmailingExceptionModule come in handy then? One scenario is that of <a href="http://msdn.microsoft.com/en-us/vcsharp/aa336812.aspx">C# unchecked exceptions</a>, where the compiler doesn&#8217;t force the caller to catch all types of exceptions thrown by the callee. Unchecked exceptions may materialize as type cast or null reference exceptions when accessing variables. What unchecked exceptions boil down to is that, given the <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">cyclomatic complexity</a> of some methods, it&#8217;s impractical to manually work through every conceivable path of execution ahead of time. Another scenario is problems with the runtime environment, such as out of disk space or database server down. Nonetheless, some map of the path to failure is helpful in preventing others going down that same path.
+  </p>
+  <p>
+    <img src="/content/emailexceptionmoduleexample.png" /><br /> (Summary part of example email. Click <a href="/content/emailexceptionmoduleexample.html" target="_blank">here</a> for complete output.)
+  </p>
+  <p>
+    With web applications, we can take advantage of the application running in a centralized environment. In the spirit of Microsoft&#8217;s <a href="http://en.wikipedia.org/wiki/Dr._Watson_(debugger)">Doctor Watson</a> technology, we can register our own web application error handler and hook it into the Http request pipeline, and have the application execute our code on unhalted exceptions. In practice, such an error handler is implemented either through the Application_Error method of an application&#8217;s <a href="http://en.wikipedia.org/wiki/Global.asax">Global.asax</a> or by loading an <a href="http://msdn.microsoft.com/en-us/library/bb398986.aspx">HttpModule</a> into the application.
+  </p>
+  <p>
+    Hinted by the title, I went for the HttpModule. The reason may best be understood by taking a peak behind the .Net curtains: Global.asax is a filename hardwired into the framework so that whenever an application is first hit, the framework asks HttpApplicationFactory, an internal <a href="http://www.ondotnet.com/pub/a/dotnet/2003/08/11/factorypattern.html">factory</a> class, for an <a href="http://msdn.microsoft.com/en-us/library/system.web.httpapplication.aspx">HttpApplication</a> representing the application (there&#8217;s a unique one for each virtual application). As part of manufacturing the HttpApplication, the factory locates the application&#8217;s Global.asax, compiles it into a dynamically generated DLL, loads the DLL, and reflects over the Global.asax class looking for methods adhering to the convention of modulename_eventname. Methods found, such as Application_Error, are then stored in a list of <a href="http://msdn.microsoft.com/en-us/library/system.reflection.methodinfo.aspx">MethodInfo</a>s and passed along to HttpApplication. Then, during HttpApplication initialization, events are bound to the methods within Global.asax.
+  </p>
+  <p>
+    That&#8217;s how Application_Error of Global.asax gets called even though the method isn&#8217;t overriding a base class implementation as is typical for the <a href="http://en.wikipedia.org/wiki/Template_method_pattern">template pattern</a>. That&#8217;s also why code within global.asax isn&#8217;t binary reusable across applications. An HttpModule, on the other hand, can be loaded into any number of applications.
+  </p>
+  <p>
+    In practice, implementing an HttpModule it a matter of creating a class that implements the <a href="http://msdn.microsoft.com/en-us/library/system.web.ihttpmodule.aspx">IHttpModule</a> interface:
+  </p>
+  <pre class="prettyprint lang-cs">
+public interface IHttpModule {
+    void Init(HttpApplication context);
+    void Dispose();
+}</pre>
+  <p>
+    The crux of error handling with Asp.Net is the <a href="http://msdn.microsoft.com/en-us/library/system.web.httpapplication.error.aspx">Error</a> event of HttpApplication. The easiest way to hook up the event to a method is within the <a href="http://msdn.microsoft.com/en-us/library/system.web.ihttpmodule.init.aspx">Init</a> method of the class. In addition, we assign the application object to a field so that later we can access the most recently thrown exception through it:
+  </p>
+  <pre class="prettyprint lang-cs">
+public class EmailingExceptionModule : IHttpModule {
+    private HttpApplication _application;
+
+    public void Init(HttpApplication a) {
+        _application = a;
+        _application.Error += OnUnhaltedException;
+    }
+
+   public void Dispose() {}
+   
+   private void OnUnhaltedException(object sender, EventArgs e) {
+       Exception ex = _application.Server.GetLastError().InnerException;
+       // Implementation left out for brevity. Please download source 
+   }
+}</pre>
+  <p>The OnUnhaltedException method is where to add code that collects information about the exception and the environment, and that composes and ships the email. Depending on the environment, you may find the need to include additional information in the email. Given the source code, adding to the email is a matter of adding key/value pairs in the form of labels and values to a dictionary. Each dictionary then gets rendered as a table of the key and value columns.</p>
+  <p>To have an Asp.Net application load the EmailingExceptionModule and to configure its email related settings, add the following nodes to the application&#8217;s web.config:</p>
+  <pre class="prettyprint lang-xml">
+&lt;configuration&gt;
+    &lt;appSettings&gt;
+        &lt;add key="EmailingExceptionModule_SenderAddress" value="sender@domain.com"/&gt;
+        &lt;add key="EmailingExceptionModule_ReceiverAddress" value="receiver@domain.com"/&gt;
+        &lt;add key="EmailingExceptionModule_SmtpServer" value="mail.domain.com"/&gt;
+        &lt;add key="EmailingExceptionModule_SubjectPrefix" value="MyApp: "/&gt;
+    &lt;/appSettings&gt;
+    &lt;system.web&gt;
+        &lt;httpModules&gt;
+            &lt;add name="EmailingExceptionModule" type="Holm.AspNet.EmailingExceptionModule,
+                    EmailingExceptionModule, Version=1.0.0.0, Culture=neutral, 
+                    PublicKeyToken=13806f613f05e959"/&gt;
+        &lt;/httpModules&gt;
+    &lt;/system.web&gt;                                    
+&lt;/configuration&gt;</pre>
+  <p>
+    So what&#8217;s the user experience of unhalted exceptions? Outside the confines of the EmailingExceptionModule, there&#8217;s no indication that the application took note of what happened. Depending on the user&#8217;s profile, it might be helpful to prompt for additional information at the crash point. Or perhaps turn to the <a href="http://blogs.msdn.com/angus_logan/archive/2007/11/07/announcment-windows-live-messenger-im-control-presence-api-conversations-from-web-to-client-querying-presence.aspx">Windows Live Messenger IM Control &amp; Presence API</a> and have the user engage in an MSN conversation with a developer.
+  </p>
+  <p>What&#8217;s the advantage of emailing developers unhalted exceptions over storing the information in the file system or a database? I believe in keeping things simple and practical, and handing off information to the file system or a database isn&#8217;t. Most likely the information will end up gathering virtual dust on some server. The email approach, on the other hand, is a proactive, visible, and efficient means to the end of rapidly course-correcting for wrong assumptions.</p>
+  <p>
+    <b>Update, Sep 15</b>: While you <a href="http://www.elumenotion.com/Blog/Lists/Posts/Post.aspx?ID=23">don&#8217;t need a PDB file to debug code</a> through Visual Studio (that&#8217;s what &lt;compilation debug=&#8221;true&#8221;&gt; in web.config is for), the PDB file is required for the <a href="http://timstall.dotnetdevelopersjournal.com/deploying_pdbs_to_get_the_exact_line_number_of_an_exception.htm">stack trace to contain line numbers</a>. Since the PDB file typically has to reside next to the corresponding DLL for the .Net runtime to pick it up, the PDB file may need to be deployed to the GAC along with the DLL. Refer to the first three paragraphs of the &#8220;Debugging assemblies that live in the GAC&#8221; section of <a href="http://blogs.msdn.com/markarend/archive/2008/09/09/debugging-web-parts-and-other-sharepoint-custom-code.aspx">this</a> post for how to GAC deploy PDB files.
+  </p>
+  <p>
+    For a centrally deployed Asp.Net application, it may be acceptable to ship and deploy the PDB file with the application. Keep in mind, though, that because the PDB file is a mapping of locations in the IL to the source file, having access to the PDB file makes it easier for someone to reverse engineer the code. It&#8217;s also possible to <a href="http://timstall.dotnetdevelopersjournal.com/getting_file_and_line_numbers_without_deploying_the_pdb_file.htm">get at line numbers without the PDB file</a> being deployed, but the approach is somewhat involved. Based on the mapping nature of the PDB file, the idea is to write out IL offsets as part of the exception and to post-process the offsets using a PDB file at a separate location.
+  </p>
+  <p>
+    Yet another alternative to shipping the PDB file is to setup a symbol server. With <a href="http://blogs.msdn.com/rmbyers/archive/2007/06/21/customizing-pdb-lookup-for-source-information-in-stacktrace.aspx">this</a> nifty piece of code, the <a href="http://msdn.microsoft.com/en-us/library/system.diagnostics.stacktrace.aspx">StackTrace</a> class loads the PDB file of the symbol server, adding line numbers to the stack trace.
+  </p>
+</div>

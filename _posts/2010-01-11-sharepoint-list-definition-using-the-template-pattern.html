@@ -1,0 +1,116 @@
+---
+layout: post
+title: "SharePoint list definition using the Template pattern"
+date: 2010-01-11 12:00 UTC
+tags: [SharePoint]
+---
+<div id="post">
+  <p>
+See also: <a href="/blog/2010/01/18/sharepoint-list-access-using-the-repository-pattern/">SharePoint list access using the Repository pattern</a>.
+  </p>
+  <p>Books on SharePoint often show how to create lists from code by calling the SharePoint API from directly within a feature receiver. This receiver would then contain in-place string literals for column names, create the columns, update the default view, and so on. While such an approach provides for an nice demonstration of the SharePoint API, it tends to carry over into production code.</p>
+  <p>My take on feature receivers, however, is that they should contain the least possible amount of code. Staying true to object-orientation and separation of concerns, list definition and creation should instead consist of a common set of classes and methods to be called from the receiver:</p>
+  <pre class="prettyprint lang-cs">public override void FeatureActivated(SPFeatureReceiverProperties p) {
+    using (var site = p.Feature.Parent as SPWeb) {
+        var employees = new EmployeesDefinition();
+        if (!ListDefinition.ListExists(site, employees.ListName)) 
+            employees.CreateOnSite(site);            
+    }
+}</pre>
+  <p>
+    The first area to improve on is that of string literal field names getting duplicated across the code base. String literals make it impossible for the compiler to enforce a consistent naming of columns. As column names are used in defining the list, in <a href="/blog/2008/07/03/code-based-dynamic-caml-query-composition">forming CAML queries</a> against it, and in accessing the result, misspelled column names is a common source of runtime errors. The second area to improve on is that of duplication of code for doing common list operations, like checking for the existence of the list or removing its title column. Lastly, we want to get rid of duplicate control logic, i.e., verifying preconditions and calling the same series of methods with every list definition.
+  </p>
+  <p>
+    One approach to improving on these areas is to start by defining a base class for list definitions. The base class combines helper methods, working on lists, with the <a href="http://en.wikipedia.org/wiki/Template_method_pattern">Template pattern</a> for defining the common steps of list creation:
+  </p>
+  <pre class="prettyprint lang-cs">public abstract class ListDefinition {
+    public string ListName;
+    public string ListDescription;
+    protected SPList List;
+
+    public void CreateOnSite(SPWeb site) {
+        if (string.IsNullOrEmpty(ListName))
+            throw new ArgumentException(&quot;Expected not null or not empty list name member&quot;);
+        if (site == null) throw new NullReferenceException(&quot;Expected valid site&quot;);
+        CreateList(site);
+        if (List == null) throw new NullReferenceException(&quot;Expected list member not null&quot;);
+        CreateFields(List);
+        UpdateDefaultView(List);
+        SetAdditionalProperties(List);
+    }
+
+    protected abstract void CreateList(SPWeb site);
+    protected virtual void CreateFields(SPList l) {}
+    protected virtual void UpdateDefaultView(SPList l) {}
+    protected virtual void SetAdditionalProperties(SPList l) {}
+
+    public static void HideAndMakeTitleFieldNotRequiredOnItemNewAndEditPage(SPList l) {
+        var title = l.Fields.GetField(&quot;Title&quot;);
+        title.Required = false;
+        title.Hidden = true;
+        title.Update();
+    }
+
+    public static bool ListExists(SPWeb site, string listName) {
+        if (string.IsNullOrEmpty(listName))
+            throw new ArgumentException(&quot;ListNameMustNotBeNullOrEmpty&quot;, listName);
+        SPList list = null;
+        try {
+            list = site.Lists[listName];
+        }
+        catch (ArgumentException) {
+            // list not found            
+        }
+        return list != null ? true : false;
+    }
+}</pre>
+  <p>
+    At the core of the Template pattern is the template method. It defines the steps of an algorithm through a series of method calls. Each either abstract or virtual depending on if the step is mandatory or voluntary in the algorithm. Subclasses then specify the behavior of individual steps by implementing or overriding methods. In case of the ListDefinition class, CreateOnSite is our template method. It ensures that context, in the form of an <a href="http://msdn.microsoft.com/en-us/library/dd587308%28office.11%29.aspx">SPList</a> instance, is passed along to each step in the algorithm.
+  </p>
+  <p>Each subclass defines the specific characteristics of a list. It defines constants for column names and their data types, the views and which column to index, and so on. This makes for a concise, easy to read, and consistent list definition:</p>
+  <pre class="prettyprint lang-cs">public class EmployeesDefinition : ListDefinition {
+    public const string EmployeeId = &quot;EmployeeId&quot;;
+    public const string Name = &quot;Name&quot;;
+    public const string HireDate = &quot;HireDate&quot;;
+    public const string Remarks = &quot;Remarks&quot;;
+
+    public EmployeesDefinition() {
+        ListName = &quot;AcmeEmployees&quot;;
+        ListDescription = &quot;Employees at Acme Corp.&quot;;
+    }
+
+    protected override void CreateList(SPWeb site) {
+        var guid = site.Lists.Add(ListName, ListDescription, SPListTemplateType.GenericList);
+        List = site.Lists[guid];
+    }
+
+    protected override void CreateFields(SPList l) {
+        l.Fields.Add(EmployeeId, SPFieldType.Integer, true);
+        l.Fields.Add(Name, SPFieldType.Text, true);
+        l.Fields.Add(HireDate, SPFieldType.DateTime, true);
+        var remarks = (SPFieldMultiLineText) l.Fields[l.Fields.Add(Remarks, SPFieldType.Note, false)];
+        remarks.RichText = true;
+        remarks.RichTextMode = SPRichTextMode.FullHtml;
+        remarks.Update();
+        l.Update();
+    }
+
+    protected override void UpdateDefaultView(SPList l) {
+        var v = l.DefaultView;
+        v.ViewFields.Delete(&quot;LinkTitle&quot;);
+        v.ViewFields.Add(EmployeeId);
+        v.ViewFields.Add(Name);
+        v.ViewFields.Add(HireDate);
+        v.ViewFields.Add(Remarks);
+        v.Update();
+    }
+
+    protected override void SetAdditionalProperties(SPList l) {
+        HideAndMakeTitleFieldNotRequiredOnItemNewAndEditPage(l);
+        l.Fields[HireDate].Indexed = true;
+        l.Update();
+    }
+}</pre>
+  <p>Since the string literals have now become public constants, we get IntelliSense and compile-time checking referencing them. In addition, by defining common operations on the base class and using the Template pattern, we reduce the amount of code that would otherwise have to go into each definition. Finally, the base class asserts, on behalf of all subclasses, that the list name is set before attempting to create the list and that the SPList field is set after calling the CreateList method.</p>
+</div>
+

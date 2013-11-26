@@ -1,0 +1,22 @@
+---
+layout: post
+title: "The su of Windows"
+date: 2007-02-25 12:00 UTC
+tags: [Tips, Tool]
+---
+<div id="post">
+  <p>
+    On Linux based system, it&#8217;s a common idiom to impersonate the root user whenever you have to perform a privileged operation. This is typically accomplished using the <code>su</code> command, which, although used less frequently, has a Windows equivalent, called <code>runat.exe</code>.
+  </p>
+  <p>
+    <code>runat.exe</code> turned out to be quite useful when I had to do some work with MS SQL 2005 Server, Analysis Service. The thing with Analysis Service is that it&#8217;s <a href="http://msdn2.microsoft.com/en-us/library/ms144288.aspx">Windows authentication only</a>, whereas MS SQL 2005 Server supports <a href="http://msdn2.microsoft.com/en-us/library/ms144284.aspx">mixed mode authentication</a>.
+  </p>
+  <p>My only option for getting in touch with Analysis Service was using SQL Server Management Studio by impersonating an existing Windows user, who is allowed access to Analysis Service (I didn&#8217;t have the option of creating a new account on the machine running Analysis Service and the machine wasn&#8217;t allowed to trust the domain my desktop computer was on (it&#8217;s a tough world out there)).</p>
+  <p>
+    So, using <code>runat.exe</code>, I ran the command below (on one line, from a shortcut), in effect causing the display of a prompt asking for the password for my_impersonated_user. Upon entering the password <code>sqlwb.exe</code> starts up as if it was run from the local my_impersonated_user account.
+  </p>
+  <pre>
+C:\Windows\System32\runas.exe /user:my_impersonated_user "c:\Program Files\Microsoft SQL Server\90\Tools\Binn\VSShell\Common7\IDE\sqlwb.exe"</pre>
+  <p>For the command to succeed my_impersonated_user have to be a user on the local machine with a username and password identical to the user that is allowed access to MS SQL 2005 Server/Analysis service. </p>
+  <p>Now Windows lets you logon to Analysis Service even if your local machine is on a different domain than the MS SQL 2005 Server.</p>
+</div>

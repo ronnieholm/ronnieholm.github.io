@@ -1,0 +1,39 @@
+---
+layout: post
+title: "SharePoint Saturday EMEA virtual conference"
+date: 2010-04-04 12:00 UTC
+tags: [SharePoint]
+---
+<div id="post">
+  <p>
+    Back in January, I attended the one-day virtual <a href="http://www.sharepointsaturday.org/emea/default.aspx">SharePoint Saturday EMEA conference</a>. It was my first virtual conference so I was excited to see how it would work out. Presenting through Office Live Meeting and interacting with the audience through text-only is definitely a challenge compared to live presentations. But I’d say it went well with 50-60 attendees at each of the three parallel tracks.
+  </p>
+  <p>
+    Here’re the talks that I attended, all <a href="http://www.endusersharepoint.com/2010/02/19/sharepoint-saturday-emea-20-hours-of-recordings-available">recorded and available with slides</a>.
+  </p>
+  <h4>SharePoint 2010 Planning and Best Practice Approaches to Upgrade</h4>
+  <p>
+    Upgrading to SharePoint 2010, you should first establish a copy of your existing environment on the latest patch level. Then run the stsadm command with the new PreUpgradeChecker option. Make sure your environment has no unused features, site templates, and so on, and identify everything that has changed from out-of-the-box by running a tool like <a href="http://winmerge.org">WinMerge</a> on the 12 hive. Also, assert that no pages has been ghosted, and don’t attempt to upgrade your SharePoint 2007 master page. Start with the 2010 ones and add in your 2007 modifications. SharePoint 2010 ships with both 2007 and 2010 master pages, but SharePoint 2007 and 2010 isn’t binary compatible.
+  </p>
+  <p>
+    Make sure all <a href="http://blogs.msdn.com/sharepoint/archive/2009/05/07/announcing-sharepoint-server-2010-preliminary-system-requirements.aspx">hardware requirements</a> are satisfied: 8 GB RAM at the minimum on the Windows 2008 servers running SharePoint and MS SQL Server. On the client you need Internet Explorer 7 or 8 or Firefox 3.x to author content. Internet Explorer 6 isn’t supported. Not even with a degraded reader experience. The <a href="http://msdn.microsoft.com/en-us/library/ee554869%28office.14%29.aspx">SharePoint 2010 development environment</a> should be setup with Visual Studio 2010 on Windows Vista or Windows 7 in order to compile, debug, build, and deploy right out of Visual Studio 2010.
+  </p>
+  <h4>Understanding, using, and customizing PowerShell for a SharePoint 2010 Environment</h4>
+  <p>This talk started with some PowerShell history and basics. PowerShell is made up of a shell that executes commands and an integrated scripting environment for development. .NET compiled code, called cmdlets, are the executable units combined using the PowerShell pipeline. The PowerShell language itself is dynamic and loosely typed, so being able to express yourself tops performance. Scripts may be compiled and deployed as a SnapIn, consisting of compiled DLLs and registry updates, or as a module using xcopy deployment.</p>
+  <p>SharePoint 2010 ships with 650 cmdlets, and its own base class for writing additional SharePoint cmdlets.</p>
+  <h4>Design and Manage Site Collections in SharePoint 2010</h4>
+  <p>By default every single site collection within a web application goes into one rapidly growing database (think about users migrating from file shares to site collections). Such a large database takes time to backup and restore. Hence, with SharePoint 2010, consider partitioning site collections into their own databases from the beginning. After a database is created, map it to one and only one site collection. Then, instead of putting a size limit on the web application, put it on the site collection itself.</p>
+  <p>In SharePoint 2007 you had to create multiple Shared Service Providers (SSP) if site collections had different needs or you didn’t want a site collection to access parts of an existing SSP. With SharePoint 2010, application services can now be shared between site collections.</p>
+  <p>With sandbox solutions, the solution is deployed to the database hosting the site, rather than to front-end servers. This makes it easier to deploy code, but the code is limited in what it can do, and you may have to set resource quotas across the site collection.</p>
+  <h4>SharePoint 2010, Getting Ready</h4>
+  <p>This talk provided an overview of SharePoint 2010. WSS 3.0 becomes SharePoint Foundation 2010 and MOSS 2007 becomes SharePoint Server 2010. Business Connectivity Services (BCS) are no longer part of the server edition, but has been moved to Foundation. A lot more services have been added, like state service, usage and health service, and Visio graphics service. Generally, with all the improvements to deployment and upgrade with PowerShell and the addition of multi-tenancy for the SSP, SharePoint 2010 is better in a hosting scenario. </p>
+  <p>The web user interface has been made more Office-like with the addition of the ribbon and the use of AJAX. In document libraries you can create document sets as a way to relate documents to each other and have versioning and workflow follow every document in the set. Through the BCS, you can expose external data as native SharePoint lists with full CRUD capabilities.</p>
+  <h4>SharePoint 2010 Development Tips and Tricks</h4>
+  <p>The focus of the first part this talk is on the SharePoint 2010 Foundation features. Instead of developing against the web services or the object model, you can use the new managed client object model. This way, you can work against SharePoint from .NET code, from a Silverlight application, or from JavaScript. Behind the scenes, the client object model works against a WCF service running on the SharePoint server, which talks to the server object model on the server, and returns JSON to the client. </p>
+  <p>The second part of this talk is about sandbox solutions. This feature provides site collection users with the ability to upload and deploy WSPs. Finally, the third part of the talk is about the fluid integration model, which solves the problem of accessing cross-domain resources, e.g., having a Silverlight application access information on a SharePoint server on a different domain. </p>
+  <h4>Installing and Configuring SharePoint Server 2010 in a Virtual Environment</h4>
+  <p>
+    This talk recommends that everyone read the MS whitepaper on <a href="http://download.microsoft.com/download/D/A/8/DA82C84A-1C3F-418A-BCC7-8A38CBBC1935/Virtualization_of_SharePoint_Products_and_Technologies_White_Paper_-_final1.docx">Virtualization of Microsoft SharePoint Products and Technologies</a>. Configuring a development environment, the dilemma is weather to create one virtual machine hosting everything or one virtual machine for the MS SQL Server, the Active Directory, and the SharePoint server each. The presenter suggests a middle ground. Still, it’s important to create a number of service accounts and use them in your development environment rather than running everything as administrator.
+  </p>
+  <p>The SharePoint 2010 installer comes with a prerequisite installer that goes onto the web and downloads required software. After that, you can run the SharePoint server installer. Here you can choose between Standalone and Server farm, but always pick server farm. Standalone should only be used for demo purposes.</p>
+</div>

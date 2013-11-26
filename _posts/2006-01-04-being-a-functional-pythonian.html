@@ -1,0 +1,73 @@
+---
+layout: post
+title: "Being a functional Pythonian"
+date: 2006-01-04 12:00 UTC
+tags: [Python]
+---
+<div id="post">
+  <p>
+    In my first blog post, I&#8217;ll give an example of how <a href="http://gnosis.cx/publish/programming/charming_python_13.html">functional programming (FP) in Python</a> results in shorter, cleaner, and more concise code, compared to the equivalent in an imperative language like C#.
+  </p>
+  <p>I&#8217;ll use a real-world build tool I&#8217;ve written as the driving example. Typical tasks for such a tool would include, but not be limited to, checking out sources from cvs, compiling the sources, and running NUnit against a number of generated targets.</p>
+  <p>Each such task may be defined as a function, taking any number of arguments and returning a list of the form:</p>
+  <pre>[status, [(command, output), (...)]]</pre>
+  <p>where status indicates binary success, command is the command run to complete the task and output is the output (stdout/stderr) of running the command. There may be more than one (command, output) tuple inside the sublist, if the task requires more than one command to complete.</p>
+  <p>
+    In FP the <a href="http://python.org/doc/2.4.2/tut/node7.html#SECTION007100000000000000000">list</a> and <a href="http://python.org/doc/2.4.2/tut/node7.html#SECTION007300000000000000000">tuple</a> are fundamental and very powerful concepts, because they can easily be used to define complex structures for you to use when passing data around. They also facilitate easy processing using <a href="http://python.org/doc/2.4.2/tut/node7.html#SECTION007140000000000000000">list comprehension</a>, the functions build <a href="http://python.org/doc/2.4.2/tut/node7.html#SECTION007130000000000000000">into</a> the language, or functions of your own, providing elegant syntax for common operations, such as insertion, deletion, searching, slicing, etc.
+  </p>
+  <p>These lists and tuples are more dynamic in nature than their array and struct counterparts in, say, C#. In fact, rather than creating user defined types, a list, or a tuple, or a combination often suffices, eliminating the need to write a lot of boilerplate code.</p>
+  <p>Now, to provide an example where Python&#8217;s FP support really kicks in with the build tool, is in the implementation of the code responsible for running NUnit against a number of targets:</p>
+  <pre>
+<font color="#a020f0">def</font> <font color="#0000ff">NUnit</font>(nunitconsole, projectsOrAssemblies):
+    results = [Run(<font color="#bc8f8f">"\""</font> + nunitconsole + <font color="#bc8f8f">"\" "</font> + source) 
+              <font color="#a020f0">for</font> source <font color="#a020f0">in</font> projectsOrAssemblies]
+    commands = [command[1][0] <font color="#a020f0">for</font> command <font color="#a020f0">in</font> results]
+    outputs = [output[1][1] <font color="#a020f0">for</font> output <font color="#a020f0">in</font> results]
+    failures = Sigma(re.findall(<font color="#bc8f8f">"Failures: (\d+)"</font>, <font color="#a020f0">str</font>(outputs)))
+    <font color="#a020f0">return</font> [<font color="#a020f0">not</font> <font color="#a020f0">bool</font>(int(failures)), <font color="#a020f0">zip</font>(commands, outputs)]</pre>
+  <p>This function relies heavily on the use of lists and list comprehension, rather than imperative style loops (which, of course, is also possible in Python). List comprehension is a construct that allows you to easily create a new list as a result of some processing on the elements of another.</p>
+  <p>A highlevel walk-through of the function: first the NUnit executable is invoked one target at a time. The Run function itself returns a list of the form [exitcode, (command, output)]; hence with n targets to test, the commands and outputs variables end up containing n commands and their output. The Failures variable counts the total number of failures accumulated across all targets, extracted as a list of strings matching the regular expression and summarized by the Sigma function.</p>
+  <p>Python doesn&#8217;t allow summing over a list of strings using its build-in Sum function. However, you can easily implement a Sum function that does in something along the lines of:</p>
+  <pre>
+<font color="#a020f0">def</font> <font color="#0000ff">Sigma</font>(list): 
+    <font color="#a020f0">return</font> <font color="#a020f0">reduce</font>(<font color="#a020f0">lambda</font> a, b: <font color="#a020f0">int</font>(a) + <font color="#a020f0">int</font>(b), list)</pre>
+  <p>where reduce is a function present in most, if not all, FP languages, which reduces a list of values to a single value by applying a user-defined operation to pairwise values of the list.</p>
+  <p>Finally, the zip function is a build-in function, merging the elements of two lists into one.</p>
+  <p>Another important construct in FP is the lambda notation. It enables you to create an anonymous function, a function without an explicitly name, leading us to another key characteristic of FP: functions are treated as first-class citizens, in the sense that they may be passed around as just another variable, e.g., you can create a list of functions with parameters and then do the actual invocation at a later stage.</p>
+  <p>Using deferred invocation, the build tool manages the overall build process; in a config file, similar to a makefile, a list of lambdas are defined, each defining a function that executes a task. This provides us with a generic way of annotating a task and for each task to be run by a central runner, which takes care of logging description, command, and outcome to a html report. The prefs used as parameters to each task is an associated array of associated arrays of &#8230; well as many levels as you require.</p>
+  <p>In effect the config file defines a domain specific language, using regular Python syntax, which can easily be loaded into what corresponds to the make utility by an import statement:</p>
+  <pre>
+prefs = {
+    <font color="#bc8f8f">"cvs"</font> :
+    {
+        <font color="#bc8f8f">"cvs"</font> : <font color="#bc8f8f">"C:\\Program Files\\cvsnt\\cvs.exe"</font>, 
+        <font color="#bc8f8f">"workingDirectory"</font> : <font color="#bc8f8f">"C:\\Inetpub\\wwwroot"</font>,
+        <font color="#bc8f8f">"root"</font> : <font color="#bc8f8f">":pserver:foo:bar@1.2.3.4:/foobar"</font>,
+        <font color="#bc8f8f">"module"</font> : <font color="#bc8f8f">"baz"</font>,
+        <font color="#bc8f8f">"revision"</font> : <font color="#bc8f8f">"HEAD"</font>    
+    },
+    <font color="#bc8f8f">"nunit"</font> :  
+    {
+        <font color="#bc8f8f">"nunitconsole"</font> : <font color="#bc8f8f">"C:\\...\\nunit-console.exe"</font>,
+        <font color="#bc8f8f">"projectsOrAssemblies"</font> : [C:\\Inetpub\\...\\foobar.nunit<font color="#bc8f8f">" ]
+    },
+    ...
+}
+
+tasks = [ ("</font>Checkout Foobar <font color="#a020f0">from</font> cvs<font color="#bc8f8f">",
+    lambda: Task.CvsCheckout(prefs["</font>cvs<font color="#bc8f8f">"]["</font>cvs<font color="#bc8f8f">"],
+                             prefs["</font>cvs<font color="#bc8f8f">"]["</font>workingDirectory<font color="#bc8f8f">"],
+                             prefs["</font>cvs<font color="#bc8f8f">"]["</font>root<font color="#bc8f8f">"],
+                             prefs["</font>cvs<font color="#bc8f8f">"]["</font>module<font color="#bc8f8f">"],
+                             prefs["</font>cvs<font color="#bc8f8f">"]["</font>revision<font color="#bc8f8f">"])),
+    ...,
+    ("</font>Running NUnit<font color="#bc8f8f">",
+    lambda: Task.NUnit(prefs["</font>nunit<font color="#bc8f8f">"]["</font>nunitconsole<font color="#bc8f8f">"],
+                       prefs["</font>nunit<font color="#bc8f8f">"]["</font>projectsOrAssemblies<font color="#bc8f8f">"]))
+]</font></pre>
+  <p>
+    This example, using the basic concepts of FP such as lists, list comprehension, tuples, build-in functions, and nice syntax, hopefully provided you with a glimpse of how a lot can be achieved in relatively few lines of Python code. Also, if you really want to explore FP from a Python perspective, I suggest you take a look at the <a href="http://sourceforge.net/projects/xoltar-toolkit">Xoltar Toolkit</a> (unfortunately, though, it isn&#8217;t under active development), described in David Mertz&#8217;s columns <a href="http://gnosis.cx/publish/programming/charming_python_16.html">More Functional Programming in Python</a> and <a href="http://gnosis.cx/publish/programming/charming_python_19.html">Even More Functional Programming in Python</a>
+  </p>
+  <p>Bottom line is that the use of FP style in your programs, although it takes time getting use to, leads to fewer lines of code, which leads to fewer places where things can go wrong.</p>
+  <p>This is not to say that your entire program should be written using the FP style (as is the case with Haskell). However, learning the basic concepts, and how Python exposes these to the developer, you&#8217;ll know which patterns to look for in your code that may be better solved using FP constructs.</p>
+</div>

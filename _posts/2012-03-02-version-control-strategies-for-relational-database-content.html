@@ -1,0 +1,46 @@
+---
+layout: post
+title: "Version control strategies for relational database content"
+date: 2012-03-02 12:00 UTC
+tags: [SQL]
+---
+<div id="post">
+  <p>I recently had to design a relational database in which content had to be versioned. Changes to more of less every record in every table in the database must be tracked. For just about any record, a user should be able to retrieve a report detailing the list of changes made to it, when they were made, and by whom.</p>
+  <p>I considered a few strategies for how to implement these requirements:</p>
+  <ol>
+    <li>
+      <strong>Use one table and clone rows before change</strong>. Every time a record is modified, a copy of it is made beforehand. I use the Active attribute of a record to denote which records are active vs. which make up the history. This approach, however, requires that you make the primary key a combination of Id and VersionId columns. Likewise, for relationships between tables, you must make the foreign key be a combination of ForeignId and ForeignVersionId. Referential integrity now becomes relatively straightforward to maintain, but the table may grow large and may likely contain a lot redundant information.
+    </li>
+    <li>
+      <strong>Create one history table for each source table</strong>. A variation of #1 where each source table would have en corresponding history table with a close to identical schema, but with its own primary key. While this ensures that the source table only contains current rows, it effectively doubles the number of tables. Not to mention that every structural change to the source table would have to be propagated to the history table.
+    </li>
+    <li>
+      <strong>Create a generic and conceptually separate history database</strong>. This approach consists of a history table serving any number of source tables. Conceptually, it’s a audit trail database of its own that the rest of the database need not know about. Each row in this history table would hold before and after values for changed columns only. You may even take it so far as to start with an empty source and a some history and replay every change made to the source up to some point in time. It would require special care to be taken for non-additive schema changes.
+    </li>
+  </ol>
+  <p>I decided to go with the third option. To make it concrete, say I have a Contacts table. Besides the primary key, I store the name of the contact and possibly a comment:</p>
+  <pre class="prettyprint">CREATE TABLE [dbo].[Contacts](
+  [Id] [int] IDENTITY(1,1) NOT NULL,
+  [Name] [nvarchar](255) NOT NULL,
+  [Comment] [nvarchar](max) NULL,
+  [CreatedBy] [nvarchar](30) NOT NULL,
+  [CreatedAt] [datetime] NOT NULL,
+  [ModifiedBy] [nvarchar](30) NOT NULL,
+  [ModifiedAt] [datetime] NOT NULL,
+  [UniqueRowGuid] [uniqueidentifier] NOT NULL,
+  [Active] [bit] NOT NULL)</pre>
+  <p>The remaining fields are system fields that I add to almost every table in the database. You could argue that the created and modified columns should really be part of the history table, but I prefer for the source table to be self-contained. UniqueRowGuid provides a unique identity of any row in any table and is useful for creating weak relationships between tables in the same database or across databases.</p>
+  <p>If it weren’t for the fact that a primary key of type Guid makes for bad clustered index performance, I could’ve made the primary key in every table be the UniqueRowGuid &#8212; MS SQL Server even has a special type of sequential Guid for this very purpose. But I stuck with the traditional integer-based key. The Active column is used to denote if a row has been deleted. I want to keep every row for some period of time, even though to the user it appears to have been deleted.</p>
+  <p>Jumping straight to the history schema, here’s what I decided to store for each change.</p>
+  <pre class="prettyprint">CREATE TABLE [dbo].[History](
+  [Id] [int] IDENTITY(1,1) NOT NULL,
+  [ChangeCorrelationGuid] [uniqueidentifier] NOT NULL,
+  [UniqueRowGuid] [uniqueidentifier] NOT NULL,
+  [ColumnName] [nvarchar](255) NOT NULL,
+  [BeforeValue] [nvarchar](max) NOT NULL,
+  [AfterValue] [nvarchar](max) NOT NULL,
+  [CreatedAt] [datetime] NOT NULL,
+  [Comment] [nvarchar](max) NULL)</pre>
+  <p>The ChangeCorrelationGuid allows for a grouping of related history entries. Suppose in one transaction you modified both the Name and Comment of a contact. Using this ChangeCorrelationGuid, you effectively create different versions of the row. Next comes the UniqueRowGuid which contains the row-value from the source table, resulting in a loose coupling between History and Contacts. Think of it as identifying the source row whereas ColumnName identifying the source column.</p>
+  <p>Strictly speaking, I don’t need to store both the BeforeValue and an AfterValue, since the AfterValue of one change becomes the Before version of the next. But this piece of controlled redundency makes querying for the summary easier and less costly.</p>
+</div>

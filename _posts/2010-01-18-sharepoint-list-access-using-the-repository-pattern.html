@@ -1,0 +1,225 @@
+---
+layout: post
+title: "SharePoint list access using the Repository pattern"
+date: 2010-01-18 12:00 UTC
+tags: [SharePoint]
+---
+<div id="post">
+  <p>
+See also: <a href="/blog/2010/01/11/sharepoint-list-definition-using-the-template-pattern/">SharePoint list definition using the Template pattern</a>.
+  </p>
+  <p>
+    Maybe it’s that the SharePoint API is hard to use. Maybe it’s that coding against SharePoint is about making smaller additions here and there. Maybe it’s that the <a href="http://spg.codeplex.com">Patterns &amp; Practices SharePoint Guidance</a> isn’t widely known. Whatever the reason, developing for SharePoint requires equal attention to the separation of presentation, business, and data access code. Hence, starting with data access, we may want to create a repository and route queries through it (the SharePoint Guidance outlines a <a href="http://msdn.microsoft.com/en-us/library/ee413961.aspx">more sophisticated</a> implementation than the one below):
+  </p>
+  <pre class="prettyprint lang-cs">[TestClass]
+public class EmployeesRepositoryTest {
+    private SPSite _siteCollection;
+    private SPWeb _site;
+    private EmployeesRepository _repository;
+
+    private readonly Employee _duffyDuck = new Employee {
+        Id = 1000, Name = &quot;Duffy Duck&quot;, HireDate = new DateTime(2009, 12, 1),
+        Remarks = &quot;Looks like a duck, quacks like a duck, probably is a duck&quot;
+    };
+    private readonly Employee _porkyPig = new Employee {
+        Id = 1001, Name = &quot;Porky Pig&quot;, HireDate = new DateTime(2010, 2, 1)
+    };
+    private readonly Employee _sylvesterTheCat = new Employee {
+        Id = 1002, Name = &quot;Sylvester the Cat&quot;, HireDate = new DateTime(2010, 3, 1)
+    };
+    private readonly Employee _bugsBunny = new Employee {
+        Id = 1100, Name = &quot;Bugs Bunny&quot;, HireDate = new DateTime(2010, 1, 1)
+    };
+
+    public void AddEmployees() {
+        _repository.AddEmployee(_site, _duffyDuck);
+        _repository.AddEmployee(_site, _porkyPig);
+        _repository.AddEmployee(_site, _sylvesterTheCat);
+    }
+
+    public void ClearEmployees() {
+        var definition = new EmployeesDefinition();
+        var employees = _site.Lists[definition.ListName];
+        while (employees.Items.Count &gt; 0)
+            employees.Items.Delete(0);
+    }
+
+    [TestInitialize]
+    public void Initialize() {
+        _siteCollection = new SPSite(&quot;http://localhost&quot;);
+        _site = _siteCollection.OpenWeb(&quot;/&quot;);
+        _repository = new EmployeesRepository();
+        ClearEmployees();
+        AddEmployees();
+    }
+
+    [TestCleanup]
+    public void Cleanup() {
+        _site.Dispose();
+        _siteCollection.Dispose();
+    }
+
+    [TestMethod]
+    public void AddEmployee_should_add_valid_employee() {
+        _repository.AddEmployee(_site, _bugsBunny);
+        var e = _repository.GetEmployeeById(_site, _bugsBunny.Id);
+        Assert.AreEqual(_bugsBunny.Id, e.Id);
+        Assert.AreEqual(_bugsBunny.Name, e.Name);
+        Assert.AreEqual(_bugsBunny.HireDate, e.HireDate);
+        Assert.AreEqual(_bugsBunny.Remarks, e.Remarks);
+    }
+
+    [TestMethod]
+    public void GetEmployeesHiredBetween_should_return_2010_hires() {
+        var from = new DateTime(2010, 1, 1);
+        var to = new DateTime(2010, 12, 31);
+        var employees = _repository.GetEmployeesHiredBetween(_site, from, to);
+        Assert.AreEqual(2, employees.Count);
+        Assert.AreEqual(_porkyPig.Id, employees[0].Id);
+        Assert.AreEqual(_sylvesterTheCat.Id, employees[1].Id);
+    }
+}</pre>
+  <p>
+    In the words of Martin Fowler, here’s the <a href="http://martinfowler.com/eaaCatalog/repository.html">essence of the Repository pattern</a>:
+  </p>
+  <blockquote>
+    <p>A Repository mediates between the domain and data mapping layers, acting like an in-memory domain object collection. Client objects construct query specifications declaratively and submit them to Repository for satisfaction. Objects can be added to and removed from the Repository, as they can from a simple collection of objects, and the mapping code encapsulated by the Repository will carry out the appropriate operations behind the scenes. Conceptually, a Repository encapsulates the set of objects persisted in a data store and the operations performed over them, providing a more object-oriented view of the persistence layer.</p>
+  </blockquote>
+  <p>
+    In SharePoint terms, business logic should query a repository which in turn queries a SharePoint list. Within the repository, the weakly typed items returned are then mapped to strongly typed <a href="http://en.wikipedia.org/wiki/Data_Transfer_Object">data transfer objects</a>, which are returned to the business layer.
+  </p>
+  <p>
+    <img src="/content/sharepoint-repository-pattern.png" />
+  </p>
+  <p>
+    With this approach to data access comes a number of advantages: (1) duplicate data access code is eliminated. Only within the repository do we setup the query and transform the weakly typed <a href="http://msdn.microsoft.com/en-us/library/microsoft.sharepoint.splistitemcollection.aspx">SPListItemCollection</a> into strongly typed data transfer objects. (2) The list definition classes introduced in <a href="http://www.bugfree.dk/blog/2010/01/11/sharepoint-list-definition-using-the-template-pattern">SharePoint list definition using the Template pattern</a> may be used to construct CAML queries from strongly typed field names. Lastly, (3) accessing data through a repository makes it easier to mock the data access part of the application and to integration test that part.
+  </p>
+  <p>
+    The code below is a simple, yet usable, implementation of the Repository pattern. The idea is to have all repositories inherit from a common base class. Its purpose is to wrap the querying of a list and to <a href="http://www.bugfree.dk/blog/2009/07/22/basic-logging-guidelines">log what’s going on</a>. Because it’s a base class, it shouldn’t know how to transform the weakly typed result into strongly data transfer objects or which CRUD operations a particular repository supports:
+  </p>
+  <pre class="prettyprint lang-cs">public abstract class ListRepository {
+    protected ListDefinition Definition { get; set; }
+    protected SPListItemCollection Result { get; set; }
+
+    protected void Query(SPWeb site, string caml) {
+        AssertValidSite(site);
+        AssertValidCaml(caml);
+        AssertListExistence(site);
+        AssertListDefinitionSetBySubclass();
+
+        var watch = new Stopwatch();
+        var list = site.Lists[Definition.ListName];
+        var query = new SPQuery {Query = caml};
+        Debug.WriteLine(
+            string.Format(&quot;About to run query against list '{0}': {1}&quot;, list, caml));
+        watch.Start();
+        Result = list.GetItems(query);
+        watch.Stop();
+        Debug.WriteLine(
+            string.Format(&quot;Query against '{0}' returned {1} rows in {2} ms&quot;, 
+                          list, Result.Count, watch.ElapsedMilliseconds));
+    }
+
+    protected void AssertListExistence(SPWeb site) {
+        if (!ListDefinition.ListExists(site, Definition.ListName))
+            throw new ArgumentException(
+                string.Format(&quot;No '{0}' list on site '{1}'&quot;, Definition.ListName, site.Url));
+    }
+
+    protected void AssertListDefinitionSetBySubclass() {
+        if (Definition == null)
+            throw new NullReferenceException(
+                string.Format(
+                    &quot;Subclass must set Definition property prior querying '{0}' list&quot;, 
+                    Definition.ListName));
+    }
+
+    protected void AssertValidCaml(string query) {
+        if (string.IsNullOrEmpty(query))
+            throw new NullReferenceException(&quot;Query must not be null or empty&quot;);
+    }
+
+    protected void AssertValidSite(SPWeb site) {
+        if (site == null)
+            throw new NullReferenceException(&quot;Site must not be null&quot;);
+    }
+}</pre>
+  <p>Each ListRepository connects to a corresponding ListDefinition, holding the name of the list to query and its strongly typed field names. It’s the responsibility of a concrete repository to set the Definition property prior to doing any querying. After running a query, the Result property holds the weakly typed result, which a concrete repository can then transform into data transfer objects to be passed to the business layer.</p>
+  <p>As an example, add to the concrete EmployeeRepository any CRUD method you see necessary to fulfill the business requirements:</p>
+  <pre class="prettyprint lang-cs">public class EmployeesRepository : ListRepository {
+    public EmployeesRepository() {
+        Definition = new EmployeesDefinition();
+    }
+
+    public void AddEmployee(SPWeb site, Employee e) {
+        var list = site.Lists[Definition.ListName];
+        var item = list.Items.Add();
+        item[EmployeesDefinition.EmployeeId] = e.Id;
+        item[EmployeesDefinition.Name] = e.Name;
+        item[EmployeesDefinition.HireDate] = e.HireDate;
+        item[EmployeesDefinition.Remarks] = e.Remarks;
+        item.Update();
+    }
+
+    public Employee GetEmployeeById(SPWeb site, int id) {
+        var caml =
+            string.Format(@&quot;
+                  &lt;Where&gt;
+                    &lt;Eq&gt;
+                      &lt;FieldRef Name=&quot;&quot;{0}&quot;&quot; /&gt;
+                      &lt;Value Type=&quot;&quot;Integer&quot;&quot;&gt;{1}&lt;/Value&gt;
+                    &lt;/Eq&gt;
+                  &lt;/Where&gt;&quot;,
+                EmployeesDefinition.EmployeeId, id);
+        Query(site, caml);
+
+        IList&lt;Employee&gt; employees = Map(Result);
+        if (employees.Count == 0)
+            throw new ArgumentException(string.Format(&quot;No employee with id = {0} exists&quot;, id));
+        return employees[0];
+    }
+
+    public ReadOnlyCollection&lt;Employee&gt; GetEmployeesHiredBetween(SPWeb site, DateTime from, DateTime to) {
+        var caml =
+            string.Format(@&quot;
+                  &lt;Where&gt;
+                    &lt;And&gt;
+                        &lt;Geq&gt;
+                          &lt;FieldRef Name=&quot;&quot;{0}&quot;&quot; /&gt;
+                          &lt;Value IncludeTimeValue=&quot;&quot;TRUE&quot;&quot; Type=&quot;&quot;DateTime&quot;&quot;&gt;{1}&lt;/Value&gt;
+                        &lt;/Geq&gt;
+                        &lt;Leq&gt;
+                          &lt;FieldRef Name=&quot;&quot;{0}&quot;&quot; /&gt;
+                          &lt;Value IncludeTimeValue=&quot;&quot;TRUE&quot;&quot; Type=&quot;&quot;DateTime&quot;&quot;&gt;{2}&lt;/Value&gt;
+                        &lt;/Leq&gt;
+                    &lt;/And&gt;
+                  &lt;/Where&gt;&quot;,             
+                EmployeesDefinition.HireDate, 
+                SPUtility.CreateISO8601DateTimeFromSystemDateTime(from),
+                SPUtility.CreateISO8601DateTimeFromSystemDateTime(to));
+        Query(site, caml);
+        return new ReadOnlyCollection&lt;Employee&gt;(Map(Result));
+    }
+
+    protected IList&lt;Employee&gt; Map(SPListItemCollection items) {
+        var employees = new List&lt;Employee&gt;();
+        foreach (SPItem item in items) {
+            var e = new Employee {
+                            Id = (int)item[EmployeesDefinition.EmployeeId],
+                            Name = (string)item[EmployeesDefinition.Name],
+                            HireDate = (DateTime)item[EmployeesDefinition.HireDate],
+                            Remarks = (string)item[EmployeesDefinition.Remarks]
+                        };
+            employees.Add(e);
+        }
+        return employees;
+    }
+}</pre>
+  <p>Calling the GetEmployeeById or GetEmployeesHiredBetween methods, the caller is required to pass in an SPWeb instance pointing to the the site holding the list to query. Outside the SharePoint context, you have to manually create this instance, like with the integration tests above. But within the SharePoint context, callers are likely to just pass in SPContext.Current.Web.</p>
+  <p>
+    The above repository implementation deliberately ignores any issue of caching. If you find the need for it, however, you can replace <a href="http://msdn.microsoft.com/en-us/library/microsoft.sharepoint.splist.getitems.aspx">SPList.GetItem</a> with <a href="http://msdn.microsoft.com/en-us/library/microsoft.sharepoint.publishing.navigation.portalsitemapprovider.getcachedlistitemsbyquery.aspx">PortalSiteMapProvider.GetCachedListItemsByQuery</a>. The advantage of <a href="http://blogs.msdn.com/ecm/archive/2007/05/23/increased-performance-for-moss-apps-using-the-portalsitemapprovider.aspx">using the PortalSiteMapProvider</a> over Asp.Net caching of the result is that the provider takes care of invalidating cache entries when items are modified. The disadvantage is that the provider is part of the SharePoint publishing API, which isn’t part of WSS 3.0. In addition, it’s only available from code running within SharePoint, and likely requires cache settings to be tweaked.
+  </p>
+  <p>
+    Another, non-trivial, improvement would include the use of the <a href="http://martinfowler.com/eaaCatalog/unitOfWork.html">Unit of Work</a> pattern. A commonly used pattern in ORMs because it offers a way to “keep track of everything you do during a business transaction that can affect the database. When you&#8217;re done, it figures out everything that needs to be done to alter the database as a result of your work&quot;. Like with the <a href="http://msdn.microsoft.com/en-us/library/system.data.linq.datacontext.aspx">DataContext</a> class in LINQ to SQL or the <a href="http://msdn.microsoft.com/en-us/library/system.data.dataset.aspx">DataSet</a> class in ADO.NET, it could add transaction support to SharePoint lists.
+  </p>
+</div>

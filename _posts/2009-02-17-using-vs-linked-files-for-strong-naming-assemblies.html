@@ -1,0 +1,59 @@
+---
+layout: post
+title: "Using VS linked files for strong naming assemblies"
+date: 2009-02-17 12:00 UTC
+tags: [Tips]
+---
+<div id="post">
+  <p>
+    Visual Studio has the ability to add a file as a link, making other parts of Visual Studio believe the file is actually located where it&#8217;s added. One useful application of the link feature is for signing assemblies by way of a key file. Signing an assembly using a digital signature may serve one or more purposes: It&#8217;s a precondition for deploying an assembly to the Global Assembly Cache (GAC), sharing an assembly among applications, and making <a href="http://msdn.microsoft.com/en-us/library/fdhkd3a5.aspx">side-by-side execution</a> possible. Also, signing an assembly is useful for asserting its integrity, GAC deployed or otherwise.
+  </p>
+  <p>The reason for bringing up the linked file feature in conjunction with assembly signing is that to me the feature seems particularly well-suited for linking one and only key file into multiple Visual Studio projects. Yet people seem to be unaware of the feature and so common approaches to signing is to either create a new key file for each assembly &#8212; most likely because Visual Studio makes it so easy to create a new key file from the Project Settings dialog &#8212; or signing assemblies by creating one key file and then copy/paste it to other projects in the solution.</p>
+  <p>
+    Below is an example from the GAC showcasing how assemblies related to <a href="http://research.microsoft.com/en-us/projects/pex/">Pex</a> naturally go together and are therefore signed using the same key (they share 76a274db078248c8, their public key token). The same goes for  assemblies relating to other Microsoft products, such as the ones comprising a particular version of the .Net framework (because of the side-by-side execution, different versions of .Net framework assemblies are signed using different keys). So why not apply the same principle to what you deploy to the GAC?
+  </p>
+  <p>
+    <img src="/content/example-of-public-key-from-the-gac.png" />
+  </p>
+  <p>
+    While using the same key (copy or not) makes it possible to differentiate your assemblies from everyone else and for your <a href="http://en.csharp-online.net/.NET_CLR_Components%E2%80%94Assembly_Names">four-part assembly name</a> in web.config and spread around the code to be uniform &#8212; SharePoint developers often need to provide the four-part name for their assemblies to other parts of the solution &#8212; copying the key around is still a violation of the <a href="http://en.wikipedia.org/wiki/Don%27t_repeat_yourself">DRY principle</a> and as such is indicative of a <a href="http://martinfowler.com/bliki/CodeSmell.html">code smell</a>. More importantly, using the link feature of Visual Studio, there&#8217;s no reason to keep the bad smell around.
+  </p>
+  <p>
+    Assuming you&#8217;ve already created a solution (in Visual Studio 2008) and added a project to it, the way to share a key file is to first create one by right clicking a project in Solution Explorer and selecting Properties. Now click the Signing tab and check the Sign the assembly check box. The dropdown lets you create a new key file by selecting New and filling out the information in the Create Name Key window. Alternatively, a key file is created using <a href="http://msdn.microsoft.com/en-us/library/k5b5tt23.aspx">sn.exe</a>, the strong name utility that comes with the <a href="http://blogs.msdn.com/windowssdk/archive/2008/09/25/winsdk-in-vs2008-sp1-patch-what-changed.aspx">Microsoft Windows SDK</a>. On my machine, sn.exe is located in C:\Program Files\Microsoft SDKs\Windows\v6.0A\Bin and is invoked like so:
+  </p>
+  <pre>% sn -k MySharedKeyPair.snk</pre>
+  <p>How the key file is created isn&#8217;t particularly relevant to the rest of this post. Just make sure to place the key file in a common location, e.g., the top-level directory holding the Visual Studio solution file. Now go to Solution Explorer, right click on your project, and select Add existing Item. Then locate the key file within the solution directory and make sure to click the arrow on the Add button and select Add as Link. Note how the file is added to the project and marked by an arrow indicating it&#8217;s a link:</p>
+  <p style="margin: 0px; padding: 0px;">
+    <img style="float:left;" src="/content/add-existing-item-as-link.png" />&nbsp;&nbsp;&nbsp;<img style="float:" src="/content/linked-file-in-solution-explorer.png" />
+  </p>
+  <p>Returning to the Signing tab and selecting the dropdown, it now includes the linked key file. Don&#8217;t mind the absolute path; once you select MySharedKeyPair.snk, Visual Studio converts the path to a relative one (close and reopen the Signing tab and see for yourself). Also note that if you select Browse, the key file you select is copied to the project folder and added to the project as a regular file.</p>
+  <p>
+    <img src="/content/select-linked-file-in-signing-tab-of-project-properties.png" />
+  </p>
+  <p>
+    Another way to associate a key file with an assembly is through the <a href="http://msdn.microsoft.com/en-us/library/system.reflection.assemblykeyfileattribute.aspx">AssemblyKeyFile</a> attribute. The attribute instructs the compiler of where to look for the key file and, although not used by the runtime, the attribute is included in the assembly along with any other attribute for everyone to see.
+  </p>
+  <p>
+    <img src="/content/key-file-attribute-in-assembly-info.png" />
+  </p>
+  <p>
+    Using AssemblyKeyFile is probably the simplest approach to sharing a key file between projects, but now compiling the assembly results in a compiler warning as displayed above. The <a href="http://msdn.microsoft.com/en-us/library/xh3fc3x0(VS.80).aspx">use of the AssemblyKeyFile attribute has been deprecated</a> by Microsoft because it may lead to you inadvertently disclosing sensitive information through the embedded path and because working with a relative path may confuse users and the build system (the relative path is retained in the assembly, though). However, it appears AssemblyKeyFile is still the preferred way for MS to sign their assemblies. Inspecting a couple of .Net 3.5 assemblies with Reflector, here&#8217;s what their AssemblyKeyFile looks like:
+  </p>
+  <pre class="prettyprint lang-cs">
+[assembly: AssemblyKeyFile(@"f:\\dd\\tools\\devdiv\\EcmaPublicKey.snk")]
+[assembly: AssemblyKeyFile(@"f:\\dd\\tools\\devdiv\\35MSSharedLib1024.snk")]
+[assembly: AssemblyKeyFile(@"f:\\dd\\tools\\devdiv\\FinalPublicKey.snk")]
+...</pre>
+  <p>
+    To come full circle, the question of how Visual Studio, or rather MSBuild, actually signs an assembly using the information provided in the Properties dialog (real file or link) remains to be answered. Since a Visual Studio project file acts as input to MSBuild, we can see what&#8217;s going on under the hood of MSBuild by invoking a compile from the command line. On my machine <a href="http://msdn.microsoft.com/en-us/library/ms164311.aspx">msbuild.exe</a> is located in C:\Windows\Microsoft.NET\Framework\v3.5 and assuming you have a console window open with its current directory set to the directory of your project file, msbuild is invoked like so:
+  </p>
+  <pre>
+% msbuild /verbosity:diagnostic &gt; log.txt</pre>
+  <p>
+    Bring up log.txt in your favorite editor and eventually you&#8217;ll come across where <a href="http://msdn.microsoft.com/en-us/library/78f4aasd.aspx">csc.exe</a>, the C# compiler, is invoked:
+  </p>
+  <p>
+    <img src="/content/key-file-and-msbuild.png" />
+  </p>
+  <p>As you might have guessed, MSBuild carries over the location of the key file by passing the /keyfile argument to csc.exe.</p>
+</div>

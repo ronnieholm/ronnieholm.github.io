@@ -1,0 +1,36 @@
+---
+layout: post
+title: "Parallel page processing with ASP.NET"
+date: 2009-11-26 12:00 UTC
+tags: [ASP.NET]
+---
+<div id="post">
+  <p>
+    (This post grew out of a presentation I did on the subject. Turn to the <a href="/content/Parallel page processing with ASP.NET.pdf">slides</a> for more details, including code.)
+  </p>
+  <p>With Asp.Net, by default a page is rendered synchronously, one control at a time. The thread rendering the page comes from the thread pool within the world wide web worker process (w3wp.exe) and is assigned to the request when it comes in on the web server. Only when the page has fully rendered can the thread go back in the pool waiting for the next request.</p>
+  <p>Processing a complex page using only one thread, however, may cause the page to render slowly. The page may hold controls that require calls to web services, databases, or other external resources for it to render. Whenever the worker thread encounters such a control, it goes idle waiting for data to come back from the external resource. Only when data is received can the worker thread resume processing.</p>
+  <p>One way to speed up page processing would be for the page or control to explicitly make use of threads. Depending on the situation, this may be a cumbersome task that requires a significant amount of boiler-plate code. A simpler approach might be to turn to the Asp.Net 2.0 feature for asynchronous page processing. At its core is an extension to the page or control lifecycle.</p>
+  <p style="padding-bottom: 0px; margin: 0px; padding-left: 0px; padding-right: 0px; padding-top: 0px">
+    <img src="/content/Comparable-page-lifecycles.gif" />
+    <br/>
+  </p>
+  <p>
+    Except for the <a href="http://msdn.microsoft.com/en-us/library/system.web.begineventhandler.aspx">Begin</a> and <a href="http://msdn.microsoft.com/en-us/library/system.web.endeventhandler.aspx">End</a> events, the flow is the same in both models. But while the synchronous model executes all code on a single thread, the asynchronous model makes implicit use of multiple worker threads to speed up page processing. With multiple threads, some threads still go idle waiting for input, but at least the main worker thread continues to work its way through the controls.
+  </p>
+  <p>In the asynchronous model, we hook into the Begin and End handlers in one of the events preceding the call to Begin. Following PreRender, Asp.Net will then execute our Begin handler, where we call out to some method that carries out the long-running task. When that method exists the End handler is called and processing carries on as in the synchronous model.</p>
+  <p>To illustrate the flow and timing of the asynchronous model (turn to the slides for the complete code sample), suppose we add five controls to a page. Each control takes five seconds to render so using the synchronous model the page would take 25 seconds to render. Using the asynchronous model, and writing out trace information about which thread each method executes on, here&#8217;s what happens:</p>
+  <pre>1: Page_Load: 10            9: DoWork: 8
+2: Page_Load: 10           10: DoWork: 11
+3: Page_Load: 10           11: Render: 11 15:16:13 15:16:18
+4: Page_Load: 10           12: Render: 11 15:16:13 15:16:18
+5: Page_Load: 10           13: Render: 11 15:16:13 15:16:18
+6: DoWork: 4               14: Render: 11 15:16:13 15:16:18
+7: DoWork: 10              15: Render: 11 15:16:13 15:16:19 
+8: DoWork: 9</pre>
+  <p>The user control&#8217;s Page_Load and the code making up the Begin handler executes on the main worker thread. But the method carrying out the long-running task, and the code for the End handler, executes in parallel on different worker threads. Finally, after End is called, another worker thread takes over and executes the remaining parts of the control. Now page rendering has decreased from 25 to about five seconds.</p>
+  <p>All in all, little effort is required to make more efficient, and implicit, use of the thread pool, thereby decreasing the time required processing a page. Asynchronous page processing should be used judiciously, though. Optimizing away a bottleneck in the processing of a page may well lead to bottlenecks appearing elsewhere, e.g., the number of simultaneous calls made to a web service may be too much for it to handle.</p>
+  <p>
+    For more details and examples, turn to <a href="http://www.wintellect.com/cs/blogs/jprosise/default.aspx">Jeff Prosise</a>&#8216;s article on <a href="http://msdn.microsoft.com/en-us/magazine/cc163725.aspx">Asynchronous Pages in ASP.NET 2.0</a>.
+  </p>
+</div>

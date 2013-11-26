@@ -1,0 +1,81 @@
+---
+layout: post
+title: "Using a generic command-line runner for utility tasks"
+date: 2011-11-23 12:00 UTC
+tags: [C#]
+---
+<div id="post">
+  <p>
+    Most enterprise projects have one or more console applications for utility tasks such as cleaning up or importing data into the database. These utilities tend to be project-specific and small in terms of code size, and instead of several smaller assemblies, it makes sense to combine these into a single assembly. The generic runner would read the utility, called the command, and arguments from the command-line and use the <a href="http://en.wikipedia.org/wiki/Command_pattern">command pattern</a> to create and execute it.
+  </p>
+  <p>For the generic runner to work, each command has to fulfill the contract.</p>
+  <pre class="prettyprint lang-cs">public enum ExitCode {
+    Success = 0,
+    Failure
+};
+
+public interface ICommand {
+    string Usage { get; }
+    string Description { get; }
+    ExitCode Execute(string[] args);
+}</pre>
+  <p>
+    I want the runner to adhere to the <a href="http://en.wikipedia.org/wiki/Open/closed_principle">open/closed principle</a>. For its behavior to be modified without altering its core delegation logic. This requires the use of reflection to retrieve and instantiate a command based on command-line arguments.
+  </p>
+  <pre class="prettyprint lang-cs">class Program {
+    static IEnumerable&lt;ICommand&gt; GetCommands() {
+        var iCommand = typeof (ICommand);
+        return System.Reflection.Assembly.GetExecutingAssembly().GetTypes().ToList()
+            .Where(t =&gt; iCommand.IsAssignableFrom(t) &amp;&amp; t != iCommand)
+            .Select(t =&gt; Activator.CreateInstance(t) as ICommand);
+    }
+
+    static void DisplayHelp() {
+        Console.WriteLine(&quot;Console [Command] [Arg1] [Arg2] [ArgN]\n\n&quot;);
+        GetCommands().ToList().ForEach(command =&gt; 
+            Console.WriteLine(command.Usage + &quot;\n&quot; + command.Description + &quot;\n\n&quot;));
+    }
+
+    static int Main(string[] args) {
+        if (args.Length == 0) {
+            DisplayHelp();
+            return (int)ExitCode.Failure;
+        }
+
+        var commandName = args[0];
+        var command = GetCommands().SingleOrDefault(t =&gt; t.GetType().Name == commandName);
+        if (command == null)
+            throw new ArgumentException(string.Format(&quot;Command '{0}' not found&quot;, commandName));
+
+        var executeArguments = new List&lt;string&gt;(args);
+        executeArguments.RemoveAt(0);
+
+        var exitCode = command.Execute(executeArguments.ToArray());
+        return (int)exitCode;
+    }
+}</pre>
+  <p>A trivial example of a command that adds two numbers would be the following:</p>
+  <pre class="prettyprint lang-cs">// $&gt; GenericRunner.exe Calculator 2 3 =&gt; 2 + 3 = 5
+public class Calculator : ICommand {
+    public string Usage {
+        get { return &quot;Calculator [Op1] [Op2]&quot;; }
+    }
+
+    public string Description {
+        get { return &quot;World's simplest calculator&quot;; }
+    }
+        
+    public ExitCode Execute(string[] args) {
+        try {
+            Console.WriteLine(              
+                &quot;{0} + {1} = {2}&quot;,
+                args[0], args[1], int.Parse(args[0]) + int.Parse(args[1]));
+            return ExitCode.Success;
+        } catch (Exception e) {
+            Console.WriteLine(e.ToString());
+            return ExitCode.Failure;
+        }
+    }
+}</pre>
+  <p>Now multiple smaller assemblies can be grouped into one, with a description of all commands automatically being assembled, and without commands interfering (too much) with each other.</p>
+</div>

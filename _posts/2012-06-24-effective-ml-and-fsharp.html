@@ -1,0 +1,76 @@
+---
+layout: post
+title: "Effective ML (and F#)"
+date: 2012-06-24 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+  <p>
+    This is a summary of <a href="http://twitter.com/#!/yminsky">Yaron Minsky</a>'s nine pieces of advice from the <a href="http://vimeo.com/14313378">Effective ML</a> video. Since ML is a predecessor of F#, most of the advice applies to F# as well.
+  </p>
+  <p>
+    <strong>1. Favor readers over writers (10:20)</strong>. There're systematic differences in opinion between those who spent their time reading code and those who spent it writing code. Whenever there's a difference in opinion between these two groups, the readers are always right and the writers are always wrong. The readers will always push in the direction of clarity and simplicity and the ability to change behavior easily. At least if you're building software that's going to last.
+  </p>
+  <p>
+    <strong>2. Create uniform interfaces (12:15)</strong>. Always create an interface to your code to make it easier on the reader. When you build interfaces, you should have standards that apply uniformly across your code base to build solid expectations. Those who use your code should know what to provide and what to expect when interfacing with your codebase.
+  </p>
+  <p>
+    <strong>3. Make illegal states unrepresentable (18:03)</strong>. Use the type system as a tool to enforce invariants on the code you write. Choose your data types such that states that are illegal don't show up as legal states in the program. Take this code representing various connection information as an example. It keeps track of relevant information in a fairly readable manner:
+  </p>
+  <pre class="prettyprint lang-ml">
+type connection_state =
+  | Connecting
+  | Connected
+  | Disconnected
+
+type connection_info = {
+    state:             connection_state
+    server:            IPAddress
+    last_ping_time:    DateTime option
+    last_ping_id:      int option
+    session_id:        string option
+    when_initiated:    DateTime option
+    when_disconnected: DateTime option
+}</pre>
+  <p>On the surface these types look reasonable, but there're some tricky invariants that need to hold about the data. For instance, if you have a last_ping_time, you should probably also have a last_ping_id and vice versa. And the session_id and when_initiated probably only makes sense when you're connected. Similarly, when_disconnected only makes sense if and when you've been disconnected.</p>
+  <p>The key is that there's nothing about the types that help you enforce all these invariants. A better approach would be to refactor the connection_info into a series of types where the invariants would be inherent in the types themselves rather than being implicit in the logic surrounding the types:</p>
+  <pre class="prettyprint lang-ml">
+type connecting = { when_initiated: DateTime }
+type connected = { last_ping: (DateTime * int) option
+                   session_id: string }
+type disconnected = { when_connected: DateTime }
+
+type connection_state =
+  | Connecting of connecting
+  | Connected of connected
+  | Disconnected of disconnected
+
+type connection_info = {
+    state: connection_state
+    server: IPAddress
+}</pre>
+  <p>server remains in connection_info because it applies to any of the states. The other information have been grouped together with the state it related to. The different connection_states are no longer merely a simple enumerated type but each of the different tags have content. Note also how the last_ping is now both the last_ping_time and last_ping_id. Either both are present, and grouped together, or not.</p>
+  <p>
+    <strong>4. Code for exhaustiveness (28:33)</strong>. This one is closely related to making illegal states unrepresentable in that you should write your code aiming at exhaustiveness guarantees. For instance, when you have a match statement, the compiler will warn you if the match is not exhaustive. The key benefit is as a refactoring tool because it guides changes in the code base. Don't use the match all because it means that if you expand on the discriminated union the compiler will not warn you.
+  </p>
+  <p>
+    <strong>5. Open few modules (34:08)</strong>. When you open a module, it makes your code a bit shorter, and that's great for the guy who wrote the code, but not the guy reading it. Now you can no longer just look at the code and tell where the value came from. In F#, with Visual Studio integration and IntelliSense, this is less of a problem. But the key advice is to respect the cognitive limitation of the people reading the code. If you want people to remember something, make them remember only for a short period of time.
+  </p>
+  <p>
+    <strong>6. Make common errors obvious (38:10)</strong>. Use exceptions for exceptional conditions is what people often tell you. But whether something is a common case depends on context. For instance, in one context it's an error if an element isn't in a list, whereas in others it's perfectly acceptable. For your API it may depend on the caller if a case is exceptional or not. To better support the caller, you could create two versions depending on how you want to communicate an error:
+  </p>
+  <pre class="prettyprint lang-ml">
+val hd : 'T list -&gt; 'T option
+val hd_exn : 'T list -&gt; 'T</pre>
+  <p>Now you can tell from the name of the function weather it throws an exception or not. For people reading the code it makes it easier to understand the error behavior of the code.</p>
+  <p>
+    <strong>7. Avoid boilerplate (40:52)</strong>. Avoid repeating the same code, or almost the same code, in multiple places. Boilerplate appears, in general, because people have a cut and paste template they use to do almost the same thing in multiple spots and because their language isn't good enough to encode what they want to do in a clean way. You want to get rid of boilerplate because the structure you're repeating is there for a reason, and your code evolves. At that point you're not going to remember all the places where the repetition shows up. It also goes back to readability. It's hard to convince people to read code if it's dull. And nothing is duller than boilerplate, even though the code is critical.
+  </p>
+  <p>Interestingly, reducing boilerplate doesn't always make code less verbose. The goal isn't to make the code shorter but to separate out which parts of the code is the same and which parts vary.</p>
+  <p>
+    <strong>8. Avoid complex type hackery (45:30)</strong>. The enemy of good code, of correctness, is not dynamic guarantees, properties about the code that cannot be proved at compile time, but complexity. Refrain from making your code more complex (using <a href="http://mlton.org/PhantomType">phantom types</a>, for instance), just so you can have the type system verify additional properties of the code.
+  </p>
+  <p>
+    <strong>9. Don't be puritanical about purity (47:10)</strong>. Avoiding side-effect is generally worth striving for, because code without side-effects tends to be easier to reason about. But sometimes it's also just easier to code with side-effects. There may even be performance reasons for allowing side-effects so don't be embarrassed about it. In reality, programs don't just compute things, they do things like write files, send messages, and so on. All this doing involves side-effects. Again, remember that the enemy of correctness is complexity. Don't jump through hoops to make your code too complex just to make it pure.
+  </p>
+</div>

@@ -1,0 +1,50 @@
+---
+layout: post
+title: "Notes from Geek Night talk on SOA Done Right Using NServiceBus"
+date: 2010-12-11 12:00 UTC
+tags: [Tool]
+---
+<div id="post">
+  <p>
+    My notes from a <a href="https://secure.trifork.com/aarhus-2010/freeevent/index.jsp?eventOID=2758">talk on NServiceBus</a> by <a href="http://mookid.dk/oncode">Mogens Heller Grabe</a> which I attended this week. <a href="http://dl.dropbox.com/u/8614955/SOA%20Done%20Right%21%20-%20H%C3%B8je%20Taastrup.pdf">Slides</a> and <a href="http://dl.dropbox.com/u/8614955/SOA%20Done%20Right%21.zip">code</a> are available through Dropbox, but I don’t know for how long.
+  </p>
+  <ul>
+    <li>
+      Enterprise service bus
+      <ul>
+        <li>An architectural pattern rather than a specific technology or product </li>
+        <li>The ethernet of SOA </li>
+      </ul>
+    </li>
+    <li>
+      Types of service bus
+      <ul>
+        <li>Centralized: a broker more than a bus, e.g., BizTalk </li>
+        <li>
+          Decentralized: a real service bus, e.g., <a href="http://www.nservicebus.com">NServiceBus</a>, <a href="http://code.google.com/p/masstransit">Mass Transit</a>, <a href="http://ayende.com/Blog/archive/2008/12/17/rhino-service-bus.aspx">Rhino Service Bus</a>, <a href="http://msdn.microsoft.com/en-us/magazine/dd569756.aspx">MS .NET Service bus</a>
+        </li>
+      </ul>
+    </li>
+    <li>The current version 2.0 of NServiceBus is free whereas the binary version 2.5 will contain limitations. The limitations can be disabled by downloading and compiling the source code yourself </li>
+    <li>
+      NServiceBus is designed to address the <a href="http://en.wikipedia.org/wiki/Fallacies_of_Distributed_Computing">fallacies of distributed computing</a>
+      <ul>
+        <li>It primarily addresses the fallacies through the use of reliable one-way messaging </li>
+        <li>Reliable means messages are stored in a queue, such a MSMQ, which is part of all recent Windows installations. The assumption being that the queue is always present and ready to receive messages </li>
+        <li>One-way means messages are asynchronous and fire-and-forget. The destination service doesn’t have to be online when a message goes into its queue, which makes services temporally independent. At some point in the future the service may post a reply to the client’s queue </li>
+        <li>Messaging means that any action is accomplished by posting a self-contained message, containing the type of operation and its parameters, to the queue of a service </li>
+        <li>With NServiceBus, a class is marked with an interface to describe that it’s a type of message. Instances of the class are then serialized using a standard XML or binary serializer and stored in a queue </li>
+      </ul>
+    </li>
+    <li>
+      NServiceBus service != traditional web service
+      <ul>
+        <li>An NServiceBus service is a class that implements an interface </li>
+        <li>
+          Using a message queue is more reliable when the service has to make calls to other services as part of its operation. With a traditional web service, calling other services from within makes the service slower and less reliable. If only one dependent service is down it’s like with old Christmas lights wired in series: the entire stack may be down. Queues on the other hand introduce a save place, a <a href="http://elegantcode.com/2010/12/17/christmas-light-architectures-are-not-that-shiny">stabilization point</a>, to temporarily store messages
+        </li>
+        <li>A service is typically configured with an input queue that identifies it to others and an error queue that messages are routed to after some number of retries. In addition, each service may be configured with a number of threads to use to parallelize message processing </li>
+      </ul>
+    </li>
+  </ul>
+</div>

@@ -1,0 +1,79 @@
+---
+layout: post
+title: "Downloading RSS enclosures with PowerShell"
+date: 2012-04-21 12:00 UTC
+tags: [PowerShell]
+---
+<div id="post">
+  <p>Say you subscribe to a number of podcasts and would like new episodes to be downloaded and put in a special folder as they become available. You could go and inspect the URLs to the episodes and see if there's a pattern and then periodically scan for new files. A better alternative, though, would be to extract the URLs from the RSS feed, an XML file organized as follows:</p>
+  <ul>
+    <li>
+      rss
+      <ul>
+        <li>
+          channel
+          <ul>
+            <li>title</li>
+            <li>link</li>
+            <li>description</li>
+            <li></li>
+            <li>
+              item
+              <ul>
+                <li>title</li>
+                <li>link</li>
+                <li>pubdate</li>
+                <li>
+                  enclosure
+                  <ul>
+                    <li>url</li>
+                    <li></li>
+                  </ul>
+                </li>
+                <li></li>
+              </ul>
+            </li>
+            <li></li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+  </ul>
+  <p>Assuming the feed points to a blog, the initial channel tags would hold general information about the blog and each item would represent a blog post. Files would be associated with posts through the enclosure tag and this is how you'd download episodes. Using PowerShell to parse the XML file, it's fairly straightforward to download either the most recent enclosures or all episodes.</p>
+  <pre class="prettyprint">
+function Get-RssEnclosures([String]$rssUrl, 
+                           [DateTime]$moreRecentThan, 
+                           [String]$destinationFolder) {
+  # directory where WebClient will download files to
+  [Environment]::CurrentDirectory = $destinationFolder 
+
+  $feed = [xml](new-object Net.WebClient).DownloadString($rssUrl)
+  $feed.rss.channel.item | foreach {
+    $enclosureUrl = $_.enclosure.url    
+    
+    # some feeds I download contain empty enclosure urls
+    if ($enclosureUrl -ne "") {
+      $enclosureUrl = new-object Uri($enclosureUrl)
+      $filename = $enclosureUrl.Segments[-1]
+      
+      # some items I download have non-parsable 'EDT' as part of pubdate 
+      $pubDate = [DateTime]::Parse($_.pubdate.Replace("EDT", ""))
+
+      if (($pubDate -ge $moreRecentThan) -and 
+          (-not (test-path (join-path $destinationFolder $fileName)))) {
+        (new-object Net.WebClient).DownloadFile($enclosureUrl, $filename)
+      }
+    }
+  } 
+}
+
+@("http://feeds.feedburner.com/HanselminutesCompleteMP3",
+  "http://www.pwop.com/feed.aspx?show=dotnetrocks&amp;filetype=master",
+  "http://feeds.feedburner.com/DnrtvWmv",
+  "http://thisdeveloperslife.com/rss",
+  "http://feeds.feedburner.com/herdingcode",
+  "http://feeds.feedburner.com/anugcast") | foreach {
+  Get-RssEnclosures $_ ([DateTime]::Now.AddDays(-7)) "E:\Podcasts"
+}</pre>
+  <p>The nice thing about PowerShell is that you can dot your way through the XML hierarchy and use regular .NET classes for date parsing and file download. Now you can setup this script to execute at regular intervals and go to the destination folder whenever you feel like listening to a podcast.</p>
+</div>

@@ -1,0 +1,117 @@
+---
+layout: post
+title: "F# + SharePoint = a list attachment versioning event receiver"
+date: 2011-11-21 12:00 UTC
+tags: [F#, SharePoint]
+---
+<div id="post">
+  <p>
+    It’s been a while since I last took a serious look at F#. Back then I did a simple <a href="http://www.bugfree.dk/blog/2009/03/06/generating-2d-random-fractal-terrains-with-fsharp/">random fractal terrain generator</a> which, even though the algorithm is simple, I found challenging to do. Nevertheless, functional programming is just one of those areas that I keep returning to. This time around I want to use the event receiver for <a href="http://www.bugfree.dk/blog/2011/11/17/versioning-attachments-in-a-sharepoint-list-using-snapshotting/">versioning attachments in SharePoint lists</a> to get familiar with object-oriented F#. Of course, translating a C# class to an F# class, the result will look like C# with different syntax and better type inference. The point here is to use classes in F# as a way to expose functionality to other .NET languages. In a real-world F# application the core logic would likely not be object-oriented.
+  </p>
+  <pre class="prettyprint lang-ml">namespace Dk.Bugfree
+
+open System
+open System.Globalization
+open Microsoft.SharePoint
+
+type public ListAttachmentVersioningEventReceiver() =
+    inherit SPItemEventReceiver()
+    
+    member private r.CustomVersion = &quot;CustomVersion&quot;
+    member private r.ShadowLibrary = &quot;ShadowLibrary&quot;
+
+    // override ItemAdded : properties:SPItemEventProperties -&gt; unit
+    override r.ItemAdded properties =
+        base.ItemAdded properties
+        r.SetCustomVersionLabel properties.ListItem
+        r.CreateSnapshot properties
+
+    // override ItemUpdated : properties:SPItemEventProperties -&gt; unit
+    override r.ItemUpdated properties =
+        base.ItemUpdated properties
+        let item = properties.ListItem
+
+        if r.RollbackHappened item then
+            r.RestoreSnapshot properties
+            r.SetCustomVersionLabel item
+            r.CreateSnapshot properties
+        else
+            r.CreateSnapshot properties
+            r.SetCustomVersionLabel item
+
+    // member private CreateSnapshot : properties:SPItemEventProperties -&gt; unit
+    member private r.CreateSnapshot properties =
+        use site = properties.OpenWeb()
+        let item = properties.ListItem
+        let shadowLibrary = site.Lists.[r.ShadowLibrary] :?&gt; SPDocumentLibrary
+        let path = String.Format(&quot;Versions/{0}/{1}&quot;, item.ID, r.GetOfficialVersionLabel(item))
+        let shadowFolder = r.CreateFolderPath shadowLibrary path
+        
+        item.Attachments |&gt; Seq.cast |&gt; Seq.iter (fun fileName -&gt;            
+            let existingFile = item.ParentList.ParentWeb.GetFile(item.Attachments.UrlPrefix + fileName)
+            let newFile = shadowFolder.Files.Add(fileName, existingFile.OpenBinaryStream())
+            newFile.Item.Update())
+    
+    // member private RollbackHappened : item:SPListItem -&gt; bool
+    member private r.RollbackHappened item =
+        let culture = CultureInfo.InvariantCulture
+        let currentVersion = Single.Parse(r.GetOfficialVersionLabel(item), culture)
+        let lastVersion = Single.Parse(r.GetCustomVersionLabel(item), culture)
+        currentVersion &gt; lastVersion + 1.0f
+
+    // member private RestoreSnapshot : properties:SPItemEventProperties -&gt; unit
+    member private r.RestoreSnapshot properties =
+        let item = properties.ListItem
+        let restoreVersion = r.GetCustomVersionLabel item
+        r.EventFiringEnabled &lt;- false    
+
+        item.Attachments |&gt; Seq.cast |&gt; Seq.map (fun fileName -&gt; unbox&lt;string&gt; fileName) |&gt; Seq.toList
+                         |&gt; Seq.iter (fun fileName -&gt; item.Attachments.Delete(fileName))
+        
+        use site = properties.OpenWeb()
+        let path = String.Format(&quot;Versions/{0}/{1}&quot;, item.ID, restoreVersion)
+        let shadowLibrary = site.Lists.[r.ShadowLibrary] :?&gt; SPDocumentLibrary
+        let source = r.CreateFolderPath shadowLibrary path
+
+        source.Files |&gt; Seq.cast |&gt; Seq.iter (fun file -&gt;
+            let unboxedFile = unbox&lt;SPFile&gt; file
+            item.Attachments.Add(unboxedFile.Name, unboxedFile.OpenBinary()))
+
+        item.SystemUpdate false
+        r.EventFiringEnabled &lt;- true
+
+    // member private CreateFolderPath : list:SPDocumentLibrary -&gt; path:string -&gt; SPFolder
+    member private r.CreateFolderPath list path : SPFolder =
+        r.CreateFolderPathRecursive list.RootFolder (path.Split [|'/'|] |&gt; Array.toList)
+
+    // member private CreateFolderPathRecursive : folder:SPFolder -&gt; pathComponents:string list -&gt; SPFolder
+    member private r.CreateFolderPathRecursive folder pathComponents =                
+        match pathComponents with
+        | [] -&gt; folder
+        | head :: tail -&gt; 
+            try
+                let existingFolder = folder.SubFolders.[head]
+                r.CreateFolderPathRecursive existingFolder tail
+            with
+                :? ArgumentException -&gt;
+                    let newFolder = folder.SubFolders.Add head
+                    r.CreateFolderPathRecursive newFolder tail
+
+    // member private SetCustomVersionLabel : item:SPListItem -&gt; unit
+    member private r.SetCustomVersionLabel item =
+        r.EventFiringEnabled &lt;- false
+        item.[r.CustomVersion] &lt;- r.GetOfficialVersionLabel item
+        item.SystemUpdate false
+        r.EventFiringEnabled &lt;- true  
+
+    // member private GetCustomVersionLabel : item:SPListItem -&gt; string
+    member private r.GetCustomVersionLabel item =
+        item.[r.CustomVersion] :?&gt; string
+
+    // member private GetOfficialVersionLabel : item:SPListItem -&gt; string
+    member private r.GetOfficialVersionLabel item =
+        item.Versions.[0].VersionLabel</pre>
+  <p>
+    A couple of things to note about the F# implementation: first, it hardly specifies any types. They’re inferred by the compiler. Where type names do appear, it’s mainly because they’re required to unbox elements of an IEnumerable collection. Secondly, F# has <a href="http://stackoverflow.com/questions/5355334/what-are-the-benefits-of-such-flexible-self-identifiers-in-f">flexible self identifiers</a>. Methods must explicitly specify the name of the this reference in C# and use it when accessing members. Thirdly, arguments to general .NET methods are passed as a tuple value, i.e., as comma-delimited arguments surrounded by parenthesis.
+  </p>
+</div>

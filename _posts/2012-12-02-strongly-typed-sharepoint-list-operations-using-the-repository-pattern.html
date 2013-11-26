@@ -1,0 +1,219 @@
+---
+layout: post
+title: "Strongly typed SharePoint list operations using the repository pattern"
+date: 2012-12-02 12:00 UTC
+tags: [C#, Pattern]
+---
+<div id="post">
+  <p>
+    This post is part of series:
+  </p>
+  <p>
+    Part 4 &#8211; <a href="http://www.bugfree.dk/blog/2012/12/24/strongly-typed-sharepoint-list-operations-using-the-repository-pattern-in-fsharp/">Strongly typed SharePoint list operations using the repository pattern in F#</a><br />
+    Part 3 &#8211; <a href="http://www.bugfree.dk/blog/2012/12/06/bringing-together-repository-and-tree-structure-in-business-layer/">Bringing together repository and tree structure in business layer</a><br />
+    Part 2 &#8211;  <a href="http://www.bugfree.dk/blog/2012/12/03/creating-and-working-with-a-custom-tree-data-structure-in-csharp/">Creating and working with a custom tree data structure in C#</a><br />
+    Part 1 &#8211; Strongly typed SharePoint list operations using the repository pattern
+  </p>
+  <p>
+    I first wrote about <a href="http://www.bugfree.dk/blog/2010/01/18/sharepoint-list-access-using-the-repository-pattern/">accessing SharePoint lists using the repository pattern</a> about three years ago. Since then I&#8217;ve reused that approach, with a few improvements, on almost every SharePoint project I&#8217;ve worked on. The improvements include generating CAML queries using LINQ to XML, taking a more functional approach to mapping from loosely typed to strongly typed data, passing in more specific arguments, not tying the repository to a definition class, and removing assertions to focus more on <a href="http://simpleprogrammer.com/2012/04/16/validate-user-input-not-developer-input/">validating user rather than developer input</a>.
+  </p>
+  <p>
+    Depicted graphically, here's what I want my repository to do, albeit in a less sophisticated way than the <a href="http://msdn.microsoft.com/en-us/library/ff649690.aspx">SharePoint guidance</a> by the Patterns &amp; Practices team:
+  </p>
+  <p>
+    <img src="/content/sharepoint-repository-pattern.png"/>
+  </p>
+  <p>
+    As an example, suppose I have a SharePoint list containing the internal fields below. Accessing field values through the <a href="http://msdn.microsoft.com/en-us/library/ms464204.aspx">SPListItem.Item property</a> yields results of type object, which may then be cast to the type of the input type column. For some fields, such as Location_Legal and Url, I not only want to project it onto a differently named field but also a different type as indicted by the Output type column. The type may be changed to one that is more precise and/or easier to work with, given the client&#8217;s requirements. As a final note, observe how the internal names are inconsistently named. The repository can help bring some order to the naming and type chaos:
+  </p>
+  <table width="756">
+    <tbody>
+      <tr>
+        <th width="176">
+          <p align="left">Internal name</p>
+        </th>
+        <div align="left"></div>
+        <th width="167">Strongly typed name</th>
+        <div></div>
+        <div align="left"></div>
+        <th width="220">Input type</th>
+        <div></div>
+        <th width="191">
+          <p align="left">Output type</p>
+        </th>
+      </tr>
+      <tr>
+        <td width="176">LinkFilename</td>
+        <td width="167">Title</td>
+        <td width="220">string</td>
+        <td width="191">string</td>
+      </tr>
+      <tr>
+        <td width="176">_ModerationStatus</td>
+        <td width="167">ApprovalStatus</td>
+        <td width="220">string</td>
+        <td width="191">string</td>
+      </tr>
+      <tr>
+        <td width="176">Location_Legal</td>
+        <td width="167">Locations</td>
+        <td width="220">TaxonomyFieldValueCollection</td>
+        <td width="191">IList&lt;string&gt;</td>
+      </tr>
+      <tr>
+        <td width="176">ProcessHierarchyLevel</td>
+        <td width="167">Level</td>
+        <td width="220">string</td>
+        <td width="191">int</td>
+      </tr>
+      <tr>
+        <td width="176">Url</td>
+        <td width="167">Url</td>
+        <td width="220">string</td>
+        <td width="191">Uri</td>
+      </tr>
+      <tr>
+        <td width="176">ProcessHierarchyLegal</td>
+        <td width="167">ProcessHierarchy</td>
+        <td width="220">TaxonomyFieldValueCollection</td>
+        <td width="191">IDictionary&lt;Guid, string&gt;</td>
+      </tr>
+      <tr>
+        <td width="176">_dlc_DocId</td>
+        <td width="167">DocumentId</td>
+        <td width="220">string</td>
+        <td width="191">string</td>
+      </tr>
+      <tr>
+        <td width="176">Parent Document Id</td>
+        <td width="167">ParentDocumentId</td>
+        <td width="220">string</td>
+        <td width="191">string</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>Here&#8217;s an example of a simple repository with read operations only. It&#8217;s easily extended with create, update, and delete operations. Don&#8217;t pay too much attention to the concrete fields. They&#8217;re meant as&#160; examples:</p>
+  <pre class="prettyprint lang-cs">
+public class LegalDocument {
+    public string Title;
+    public string ApprovalStatus;
+    public IList&lt;string&gt; Locations;
+    public int Level;
+    public Uri Url;
+    public IDictionary&lt;Guid, string&gt; ProcessHierarchy;
+    public string DocumentId;
+    public string ParentDocumentId;
+}
+
+public class LegalDocumentRepository {
+    const string LinkFilename = &quot;LinkFilename&quot;;
+    const string FileLeafRef = &quot;FileLeafRef&quot;;
+    const string ModerationStatus = &quot;_ModerationStatus&quot;;
+    const string Location = &quot;Location_Legal&quot;;
+    const string ProcessHierarchyLevel = &quot;ProcessHierarchyLevel&quot;;
+    const string ProcessHierarchyLegal = &quot;ProcessHierarchyLegal&quot;;
+    const string DocumentId = &quot;_dlc_DocId&quot;;
+    const string ParentDocumentId = &quot;Parent_x0020_Document_x0020_Id&quot;;
+
+    protected SPListItemCollection Query(SPList list, XElement caml) {
+        var query = new SPQuery { 
+            Query = caml.ToString(),
+            ViewFields = new[] { 
+                LinkFilename, 
+                ModerationStatus, 
+                Location,
+                ProcessHierarchyLevel, 
+                ProcessHierarchyLegal,
+                DocumentId,
+                ParentDocumentId }
+                    .Aggregate(&quot;&quot;, (acc, fld) =&gt;
+                        acc + (new XElement(&quot;FieldRef&quot;, new XAttribute(&quot;Name&quot;, fld)).ToString())),
+            ViewAttributes = @&quot;Scope=&quot;&quot;RecursiveAll&quot;&quot;&quot;
+        };
+
+        var result = list.GetItems(query);      
+        return result;
+    }
+
+    public LegalDocument GetByFilename(SPList list, string filename) {
+        var caml =
+            new XElement(&quot;Where&quot;,
+                new XElement(&quot;Eq&quot;,
+                    new XElement(&quot;FieldRef&quot;, new XAttribute(&quot;Name&quot;, FileLeafRef)),
+                    new XElement(&quot;Value&quot;, new XAttribute(&quot;Type&quot;, &quot;Text&quot;), filename)));
+        var result = Query(list, caml);
+        return Map(result).Single();
+    }
+
+    public IEnumerable&lt;LegalDocument&gt; GetApprovedDocuments(SPList list) {
+        var caml =
+            new XElement(&quot;Where&quot;,
+                new XElement(&quot;Eq&quot;,
+                    new XElement(&quot;FieldRef&quot;, new XAttribute(&quot;Name&quot;, ModerationStatus)),
+                    new XElement(&quot;Value&quot;, new XAttribute(&quot;Type&quot;, &quot;ModStat&quot;), &quot;Approved&quot;)));
+        var result = Query(list, caml);
+        return Map(result);
+    }
+
+    private IEnumerable&lt;LegalDocument&gt; Map(SPListItemCollection items) {
+        Func&lt;object, int&gt; levelMapper = o =&gt; {
+            var s = (string) o;
+            if (string.IsNullOrEmpty(s))
+                return 0;
+            var v = s.Split(new[] { ':' });
+            return v.Length == 0 ? 0 : int.Parse(v[0]);
+        };
+
+        Func&lt;object, IList&lt;string&gt;&gt; locationMapper = o =&gt; {
+            var t = (TaxonomyFieldValueCollection) o;
+            return t.Select(f =&gt; f.Label).ToList();
+        };
+
+        Func&lt;object, IDictionary&lt;Guid, string&gt;&gt; processHierarchyMapper = o =&gt; {
+            var t = (TaxonomyFieldValueCollection) o;
+            var kvp = new Dictionary&lt;Guid, string&gt;();
+            t.ForEach(f =&gt; kvp.Add(new Guid(f.TermGuid), f.Label));
+            return kvp;
+        };
+
+        Func&lt;object, string&gt; parentDocumentId = o =&gt; {
+            var s = (string)o;
+            return string.IsNullOrEmpty(s) ? &quot;&quot; : s.Trim();
+        };
+
+        var urlPrefix = items.List.ParentWeb.Url + &quot;/&quot;;
+        var documents = 
+            from SPListItem i in items
+            select new LegalDocument {
+                Title = (string) i[LinkFilename], 
+                ApprovalStatus = (string) i[ModerationStatus], 
+                Locations = locationMapper(i[Location]), 
+                Level = levelMapper(i[ProcessHierarchyLevel]), 
+                ProcessHierarchy = processHierarchyMapper(i[ProcessHierarchyLegal]), 
+                DocumentId = (string) i[DocumentId], 
+                ParentDocumentId = parentDocumentId(i[ParentDocumentId]),
+                Url = new Uri(urlPrefix + i.Url)
+            };
+
+        return documents;
+    }
+}</pre>
+  <p>The repository code has a number of interesting points to be aware of:</p>
+  <ul>
+    <li>Only include the fields required by the client in the CAML query. Extra fields will have a negative impact on mapping performance and creates a high coupling between the repository and the SharePoint list. This coupling may prevent future updates to fields without updating and re-deploying the repository as well. </li>
+    <li>
+      Calling <a href="http://msdn.microsoft.com/en-us/library/ms457534.aspx">SPList.GetItems()</a> only takes a few milliseconds. The expensive part is materializing the result collection. Replacing the call with one to <a href="http://msdn.microsoft.com/en-us/library/microsoft.sharepoint.splist.getdatatable.aspx">SPList.GetDataTable()</a> doesn&#8217;t change anything, except that now the repository's Query method, rather than the Map method, is where the majority of the execution time is spent.
+    </li>
+    <li>Each of the repository access methods, such as GetApprovedDocuments, accepts a SPList instance. The calling code must take of getting hold of an appropriate SPList instance. In case a repository method require access to the list's parent SPWeb or SPSite instance, they&#8217;re available through the SPList instance. </li>
+    <li>The LINQ to XML code is more verbose than the equivalent string representation of a CAML query, but prevents certain types of syntax errors from creeping into the query. Complex structures, strings in this case, should generally be constructed by a builder that encapsulates the details of the structure. </li>
+    <li>
+      Whether to create many smaller repositories or a large one that combines all the operations on a list is a matter of taste and general application architecture. Maybe the architecture consists of multiple <a href="http://en.wikipedia.org/wiki/Domain-driven_design#Bounded_context">bounded context</a> in which case multiple repositories would make sense.
+    </li>
+    <li>
+      The mapping within the Map method is lazy. Only when the client enumerates the collection, or calls <a href="http://msdn.microsoft.com/en-us/library/bb342261.aspx">ToList()</a> on it to force immediate query evaluation, does the mapping of each item take place. Depending on how you plan to use the repository, it may or may not make sense to return an lazily evaluated collection.
+    </li>
+    <li>Unit testing code that makes use of a repository becomes simpler. The repository can implement an interface through which your clients access it, enabling you to inject a fake repository into your business logic. Alternatively, your mocking framework may be capable of mocking a concrete class. </li>
+    <li>LINQ to SharePoint could be used as an alternative to writing CAML queries by hand. I've refrained from using it because I think it adds unnecessary complexity and no value to the solution. </li>
+  </ul>
+  <p>With this simple repository abstraction, I&#8217;ve created a data access layer that the business layer can call into and get back objects and collections of objects almost as if they're in-memory objects, hiding away most of the SharePoint data access intricacies.</p>
+</div>

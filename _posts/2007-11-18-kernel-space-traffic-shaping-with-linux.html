@@ -1,0 +1,30 @@
+---
+layout: post
+title: "Kernel space traffic shaping with Linux"
+date: 2007-11-18 12:00 UTC
+tags: [Linux, Ruby]
+---
+<div id="post">
+
+  <p>Where I live, we have a Linux box sitting between the Internet and the local area network, providing Internet access to some 330 apartments.</p>
+  <p>With this many users, and even more computers, access to the Internet through our 30/30 mbit/s connection quickly turned bandwidth into a scarce resource. Not so much because users surf the web or check their email, but because P2P clients are in common use. And with this kind of software no amount of bandwidth can really satisfy its need, calling for a way to distribute bandwidth between users or computers that is fairer than the first come, first served one. </p>
+  <p>
+    For some time we counteracted the effect of P2P clients on our bandwidth by using <a href="http://www.ipp2p.org">ipp2p</a> on top of <a href="http://www.netfilter.org">Netfilter</a>. Unfortunately, popular P2P clients are able to sneak below the ipp2p radar using HTTP as their transport and obfuscating their traffic.
+  </p>
+  <p>
+    Thus, we turned our attention to the <a href="http://www.linux.org/docs/ldp/howto/Adv-Routing-HOWTO/lartc.qdisc.html">queuing disciplines</a> of the <a href="http://www.linux.org/docs/ldp/howto/Adv-Routing-HOWTO/">Linux Advanced Routing &#038; Traffic Control Howto</a>. The idea behind a queuing discipline, or qdisc for short, is to apply some processing on the queue of packets in the kernel waiting to be sent (either from the network interface on the local area network side to the network interface on the Internet side or vice versa). Generally speaking, processing involves moving around packets in the sent queue to allow for some packets to go out on the wire before others, based on the algorithm of the qdisc.
+  </p>
+  <p>
+    The net effect is that users whose packets get moved to the front of the queue will experience a lower latency, higher bandwidth connection. Conversely, owners of packets in the back of the queue may have their packets delayed to the point where their <a href="http://en.wikipedia.org/wiki/Transmission_Control_Protocol">TCP/IP</a> stack is forced to decrease the speed with which data is sent, simply because the receiver reports that not all packets arrived on schedule.
+  </p>
+  <p>
+    Experimenting with the simpler qdiscs, such as <a href="http://www.linux.org/docs/ldp/howto/Adv-Routing-HOWTO/lartc.qdisc.classless.html#AEN495">Token Bucket Filter</a href> (TBF), <a href="http://www.linux.org/docs/ldp/howto/Adv-Routing-HOWTO/lartc.qdisc.classless.html#LARTC.SFQ">Stochastic Fairness Queuing</a> (SFQ), and <a href="http://www.linux.org/docs/ldp/howto/Adv-Routing-HOWTO/lartc.qdisc.classful.html#AEN735">Class Based Queuing</a> (CBQ), we found quantifying their effects on the bandwidth consumption hard. Partly because these qdiscs aren&#8217;t intended for shaping individual computers, but rather a group of computers sharing some network usage characteristic. Sure, SFQ shapes each connection, but a computer may have any number of open connections, so shaping each connection independently is no good at limiting P2P traffic.
+  </p>
+  <p>
+    Therefore, we turned our attention to the <a href="http://www.linux.org/docs/ldp/howto/Adv-Routing-HOWTO/lartc.adv-qdisc.wrr.html">Weighted Round Robin</a> qdisc (which requires kernel patching and compilation). As opposed to the other qdiscs, WRR has the ability to shape traffic from individual computers by creating a CBQ for each one. Applying WRR to the sent queue of each network interface, WRR will assign an inbound and an outbound weight to each computer. Furthermore, the weight is adjusted as a function of the amount of data transmitted within some quantum of time. Then, when the demand for bandwidth exceeds what&#8217;s available, the computer with the highest weight gets to go first.
+  </p>
+  <p>On paper this is a great idea, but like with the other qdiscs, we found it hard to balance the various parameters and measure the net effect.</p>
+  <p>
+    In conclusion, a great deal of time went into experimenting with the various qdiscs, even in combination with ipp2p. But eventually we decided that none of the qdiscs were up to solving our network congestion problem. The research effort wasn&#8217;t all in vain, though, because we found that WRR provides us with a cost effective way of counting incoming and outgoing bytes on a computer by computer basis. Thus, in a way all this helped crystallize the idea of building a payload agnostic <a href="/blog/2008/04/12/user-space-traffic-shaping-with-ruby/">user space traffic shaper in Ruby</a>.
+  </p>
+</div>

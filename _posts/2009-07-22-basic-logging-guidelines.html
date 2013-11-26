@@ -1,0 +1,43 @@
+---
+layout: post
+title: "Basic logging guidelines"
+date: 2009-07-22 12:00 UTC
+tags: [Process]
+---
+<div id="post">
+  <p>
+    Next to <a href="/blog/2009/06/19/basic-unit-testing-guidelines/">unit testing</a> I believe in logging to improve the quality of an application. Instrumenting code with <a href="http://en.wikipedia.org/wiki/Data_logging">logging</a> (or <a href="http://en.wikipedia.org/wiki/Tracing_(software)">tracing</a> for that matter) should be an integral part of writing production code. Yet, I&#8217;ve often found it not to be the case or that what got logged only made sense to the developer who wrote the entry.
+  </p>
+  <p>
+    Not logging implies that debugging the application outside the development environment is largely based on guesswork. That’s interesting given that most applications spend the majority of their life running outside the development environment.
+  </p>
+  <h4>
+    Life in the sandbox<br />
+  </h4>
+  <p>
+    I suspect the absence or low quality of log statements can be, at least partially, explained by developers not finding them useful during development. The debugger available there is generally inferior to the print-lining approach of logging. That said, I&#8217;d argue that many developers don&#8217;t concern themselves enough with how their code behaves in a production environment. Rather than investing a small amount of time in adding log statements up-front, their focus is solely on satisfying functional customer requirements.
+  </p>
+  <p>
+    A related case could be made for exception handling. For instance, rather than asserting the validity of an argument up-front and throwing an appropriate exception, the code may later fail with a NullReferenceException. Not throwing the exception up-front, close to where the actual error occurred, one will have a hard time tracking down the issue. Especially since a stack trace with symbols and line numbers is rarely available in a production environment.
+  </p>
+  <p>For someone having to resolve the issue, almost any clue as to the cause would be most welcomed. Without a clue that someone would walk around in the dark in the hope of stumbling into a solution.</p>
+  <h4>
+    End users aren&#8217;t the only users<br />
+  </h4>
+  <p>
+    As software developers we have to acknowledge that end users aren&#8217;t the only users of our software. System administrators, developers, and the like should also be factored in during development. Especially since the cost of instrumenting code at key places, early on, doesn&#8217;t add significantly to the overall development cost. Focusing on what can go wrong and communicating it well saves time, money, and frustration down the line. And as a bonus you might create better self-documenting code.
+  </p>
+  <p>
+    That said it&#8217;s important to strike a balance between logging too little and too much information. A log should be detailed enough to reveal patterns of use. Ideally, the log should read like a story with short sentences detailing what&#8217;s about to happen, what did or didn&#8217;t happen, and possibly why.
+  </p>
+  <p>
+    I&#8217;m not suggesting that we turn logging into a runtime version of <a href="http://en.wikipedia.org/wiki/Literate_programming">literate programming</a>. But simply that sufficient contextual information be provided, i.e., instead of logging &#8220;URL = &#8216;bugfree.dk&#8217;&#8221;, consider the more elaborate &#8220;Retrieving URL for indexing: &#8216;http://bugfree.dk&#8217;&#8221;.
+  </p>
+  <h4>
+    Keep your statements clean<br />
+  </h4>
+  <p>
+    On the other hand, log statements shouldn&#8217;t be immune to the <a href="http://en.wikipedia.org/wiki/Don%27t_repeat_yourself">DRY principle</a>. So make sure to have the logging framework automatically capture common bits of contextual information, such as the date and time of the entry and the class and method within which the log statement originated. On a similar note, don&#8217;t explicitly log when a method is entered or existed. Instead, treat such a case as a cross-cutting concern and take an <a href="http://en.wikipedia.org/wiki/Aspect-oriented_programming">Aspect Oriented</a> approach to logging it.
+  </p>
+  <p>Lastly, not every method requires (extensive) logging. Figuring out when and what to log is key. Debugging the application, fixing bugs, and experience should provide guidance into what&#8217;s useful to log.</p>
+</div>

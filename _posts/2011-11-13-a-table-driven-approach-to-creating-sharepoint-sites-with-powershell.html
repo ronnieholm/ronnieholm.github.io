@@ -1,0 +1,69 @@
+---
+layout: post
+title: "A table-driven approach to creating SharePoint sites with PowerShell"
+date: 2011-11-13 12:00 UTC
+tags: [PowerShell, SharePoint]
+---
+<div id="post">
+  <p>While cleaning up some PowerShell installations scripts that I wrote some time ago, I come across the following piece of code (modified slightly for anonymity) for creating a hierarchy of SharePoint sites and setting the locale for a subset of the sites. It works but it sure doesn’t adhere to the DRY principle.</p>
+  <pre class="prettyprint">New-SPWeb -url $base_url -addtoquicklaunch -template "STS#1" -name "Base"
+New-SPWeb -url $base_url/Dk -addtoquicklaunch -template "STS#1" -name "Dk"
+New-SPWeb -url $base_url/Uk -addtoquicklaunch -template "STS#1" -name "Uk"
+New-SPWeb -url $base_url/Dk/BusinessUnit1 -addtoquicklaunch -template "STS#1" -name "BusinessUnit1"  
+New-SPWeb -url $base_url/Dk/BusinessUnit2 -addtoquicklaunch -template "STS#1" -name "BusinessUnit2"
+New-SPWeb -url $base_url/Uk/BusinessUnit1 -addtoquicklaunch -template "STS#1" -name "BusinessUnit1"
+New-SPWeb -url $base_url/Uk/BusinessUnit2 -addtoquicklaunch -template "STS#1" -name "BusinessUnit2"
+
+$dk = Get-SPWeb $base_url/Dk
+$dkBusinessUnit1 = Get-SPWeb $base_url/Dk/BusinessUnit1
+$dkBusinessUnit2 = Get-SPWeb $base_url/Dk/BusinessUnit2
+
+$locale = [System.Globalization.CultureInfo]::CreateSpecificCulture("da-DK")
+$dk.Locale = $locale
+$dk.Update()
+
+$dkBusinessUnit1.Locale = $locale
+$dkBusinessUnit1.Update()
+  
+$dkBusinessUnit2.Locale = $locale
+$dkBusinessUnit2.Update()</pre>
+  <p>How can we reduce this repetition? Well, it repeats because we’ve made the common mistake of mixing logic with data. One way to separate the two is using a table-driven approach, i.e., extract the varying parts, the data, into a table and rewrite the logic so it’s parameterized by the table. After some trial and error with PowerShell here’s the code I ended up with:</p>
+  <pre class="prettyprint">$sites = @( @("", "Base"), 
+            @("Dk", "Dk", "da-DK"),
+            @("Uk", "Uk"),
+            @("Dk/BusinessUnit1", "BusinessUnit1", "da-DK"),
+            @("Dk/BusinessUnit2", "BusinessUnit2", "da-DK"),
+            @("Uk/BusinessUnit1", "BusinessUnit1"),
+            @("Uk/BusinessUnit2", "BusinessUnit2") )
+
+$sites | foreach {
+  $url, $title, $culture = $_
+  $newSite = New-SPWeb -url "$base_url/$url" -addtoquicklaunch -template "STS#1" -name $title
+    
+  if ($culture -ne "") {
+    $locale = [System.Globalization.CultureInfo]::CreateSpecificCulture($culture)
+    $newSite.Locale = $locale
+    $newSite.Update()
+  }
+}</pre>
+  <p>So far so good. The un-installation part of the script, however, follows the same pattern of repetition:</p>
+  <pre class="prettyprint">Remove-SPWeb -identity $base_url/Uk/BusinessUnit2 -confirm:$false -ErrorAction SilentlyContinue
+Remove-SPWeb -identity $base_url/Uk/BusinessUnit1 -confirm:$false -ErrorAction SilentlyContinue
+Remove-SPWeb -identity $base_url/Dk/BusinessUnit2 -confirm:$false -ErrorAction SilentlyContinue
+Remove-SPWeb -identity $base_url/Dk/BusinessUnit1 -confirm:$false -ErrorAction SilentlyContinue
+Remove-SPWeb -identity $base_url/Dk -confirm:$false -ErrorAction SilentlyContinue
+Remove-SPWeb -identity $base_url/Uk -confirm:$false -ErrorAction SilentlyContinue
+Remove-SPWeb -identity $base_url -confirm:$false</pre>
+  <p>But now that we have the table of sites at hand, we can easily make the site removal table-driven as well:</p>
+  <pre class="prettyprint">function Reverse($array) {
+  $clone = $array.Clone()
+  [Array]::Reverse($clone)
+  $clone
+}
+
+Reverse($sites) | foreach {
+  $url = $_[0]  
+  Remove-SPWeb -identity "$base_url/$url" -confirm:$false -ErrorAction SilentlyContinue
+}</pre>
+  <p>I’m sure the code could be written more elegantly, but given my working knowledge of PowerShell I’m satisfied with the result. I especially like the functional programming style.</p>
+</div>

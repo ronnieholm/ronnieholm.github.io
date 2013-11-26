@@ -1,0 +1,106 @@
+---
+layout: post
+title: "Importing CSV term sets into SharePoint 2010 using F#"
+date: 2012-05-20 12:00 UTC
+tags: [F#, SharePoint]
+---
+<div id="post">
+  <p>
+    Source code <a href="https://github.com/ronnieholm/Bugfree.SharePoint">available</a> through Github.    <br />See also: <a href="http://www.bugfree.dk/blog/2011/11/27/importing-csv-term-sets-into-sharepoint-2010-using-powershell/">Importing CSV term sets into SharePoint 2010 using PowerShell</a>.
+  </p>
+  <p>
+    Here I provide an F# implementation of a <a href="http://www.bugfree.dk/blog/2011/11/27/importing-csv-term-sets-into-sharepoint-2010-using-powershell/">Powershell script</a> for populating the SharePoint 2010 term store with a term set. Each term set is stored in a CSV file (whose format is defined by Microsoft) that drives the calls made to the SharePoint .NET APIs to import it:
+  </p>
+  <pre class="prettyprint lang-none">
+|   |       0       |       5      |       6      | ... |      11      |
+|---|---------------|--------------|--------------|-----|--------------|
+| 0 | Term Set Name | Level 1 Term | Level 2 Term | ... | Level 7 Term |
+| 1 | TermSetName   |              |              | ... |              |
+| 2 |               | Term1        |              | ... |              |
+| 3 |               | Term2        | Term2.2      | ... |              |</pre>
+  <p>First the function signatures:</p>
+  <pre class="prettyprint lang-ml">
+// Program.fsi
+module Bugfree.SharePoint.TermSetImporter
+
+open Microsoft.SharePoint.Taxonomy
+
+val importCsv : string -&gt; seq&lt;string[]&gt;
+val removeTermGroup : TermStore -&gt; string -&gt; unit
+val getOrCreate : 'b -&gt; seq&lt;'a&gt; -&gt; ('a -&gt; bool) -&gt; ('b -&gt; 'a) -&gt; 'a
+val getOrCreateGroup : string -&gt; TermStore -&gt; Group
+val getOrCreateSet : string -&gt; Group -&gt; TermSet
+val getOrCreateTerm : string -&gt; TermSetItem -&gt; Term
+val importTerm : TermSetItem -&gt; string list -&gt; TermSetItem
+val importTermSet : TermStore -&gt; string -&gt; seq&lt;string[]&gt; -&gt; unit 
+val main : string[] -&gt; int</pre>
+  <p>Then the implementation:</p>
+  <pre class="prettyprint lang-ml">
+// Program.fs
+module Bugfree.SharePoint.TermSetImporter
+
+open System.IO
+open System.Collections.Generic
+open Microsoft.SharePoint
+open Microsoft.SharePoint.Taxonomy
+
+let importCsv path =
+    seq { use sr = File.OpenText(path)
+          while not sr.EndOfStream do                  
+            let line = sr.ReadLine()                  
+            let tokens = line.Split [|','|]                  
+            yield tokens }
+
+let removeTermGroup (store : TermStore) name =
+    store.Groups |&gt; Seq.filter(fun g -&gt; g.Name = name) 
+                 |&gt; Seq.iter(fun g -&gt; g.TermSets |&gt; Seq.iter(fun t -&gt; t.Delete())
+                                      g.Delete()
+                                      store.CommitAll())
+
+let getOrCreate name children predicate create =   
+    match (Seq.tryFind predicate children) with
+    | Some c -&gt; c
+    | None -&gt; create name
+
+let getOrCreateGroup name (store : TermStore) =
+    getOrCreate name store.Groups (fun g -&gt; g.Name = name) 
+                                  (fun name -&gt; store.CreateGroup(name))
+
+let getOrCreateSet name (group : Group) =
+    getOrCreate name group.TermSets (fun s -&gt; s.Name = name) 
+                                    (fun name -&gt; group.CreateTermSet(name))
+
+let getOrCreateTerm name (item : TermSetItem) =
+    getOrCreate name item.Terms (fun t -&gt; t.Name = name) 
+                                (fun name -&gt; item.CreateTerm(name, 1033))
+
+let rec importTerm (parent : TermSetItem) levels =       
+    match levels with
+    | [] -&gt; parent
+    | head::tail -&gt; let t = getOrCreateTerm head parent
+                    importTerm t tail
+                               
+let importTermSet (store : TermStore) groupName (rows : seq&lt;string[]&gt;) =  
+    let termSetName = (rows |&gt; Seq.nth 1).[0].Replace(&quot;\&quot;&quot;, &quot;&quot;)
+    let termSet = getOrCreateGroup groupName store |&gt; getOrCreateSet termSetName
+    
+    rows |&gt; Seq.skip 2 
+         |&gt; Seq.iter(fun r -&gt; r.[5..] |&gt; Array.filter(fun i -&gt; i &lt;&gt; &quot;&quot;) 
+                                      |&gt; Array.map(fun i -&gt; i.Replace(&quot;\&quot;&quot;, &quot;&quot;))
+                                      |&gt; Array.toList
+                                      |&gt; importTerm termSet
+                                      |&gt; ignore)
+    store.CommitAll()
+
+[&lt;EntryPoint&gt;]
+let main args =
+    let siteCollection = new SPSite(&quot;http://sp2010&quot;)
+    let session = new TaxonomySession(siteCollection)
+    let store = session.TermStores.[&quot;Managed Metadata Service&quot;]    
+    let rows = importCsv &quot;C:\Test.csv&quot;
+    let groupName = &quot;MyGroup&quot;
+    removeTermGroup store groupName
+    importTermSet store groupName rows
+    0</pre>
+  <p>Maybe it's implementing the population algorithm twice, but to me the F# implementation seems the easiest one to implement and follow. Not because PowerShell is a bad language, but because F#'s static typing and type inferencing makes it better suited for implementing something of this relative complexity.</p>
+</div>

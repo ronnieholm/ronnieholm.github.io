@@ -1,0 +1,70 @@
+---
+layout: post
+title: "How F# discriminated unions translate to C# code"
+date: 2012-06-23 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+  <p>
+    Here's another useful insight from <a href="http://hestia.typepad.com/flatlander">Ivan Towlson</a>'s <a href="http://channel9.msdn.com/Events/TechEd/NewZealand/2011/DEV311">A Practical Developer's Introduction to F#</a>.
+  </p>
+  <p>
+    <a href="http://www.bugfree.dk/blog/2012/06/22/how-fsharp-record-types-translate-to-csharp-code/">Record types</a> are limited by the fact that they have a single schema. In most applications, however, you want to store different shapes of data depending on different cases. In C#, we might do so using a class hierarchy with a base class keeping common state and subclasses keeping their own.
+  </p>
+  <p>F# models a similar concept of hierarchical types using the discriminated union type. For instance, this discriminated union represents the result of a function that might succeed or might fail:</p>
+  <pre class="prettyprint lang-ml">
+type Errorable&lt;'a&gt; =
+  | Success of 'a
+  | Error of string</pre>
+  <p>If you disassemble the generated IL, the result is a class hierarchy. It has compare, equals, and hash code methods, like record types, but they're placed on the base class. Factory methods are provided to create instances of the closed set of subtypes, and predicate methods are provided to check if an instance is of some type. In addition, each subtype has a constructor generated for it, accepting the argument following the "of" keyword, called the value constructor. Like record types, discriminated union types are immutable, which is why they've getter properties but no setters:</p>
+  <pre class="prettyprint lang-cs">
+[Serializable, CompilationMapping(SourceConstructFlags.SumType)]
+public abstract class Errorable&lt;a&gt; : IEquatable&lt;Errorable&lt;a&gt;&gt;, IStructuralEquatable,
+                      IComparable&lt;Errorable&lt;a&gt;&gt;, IComparable, IStructuralComparable {
+    // Methods
+    internal Errorable();
+    public sealed override int CompareTo(Errorable&lt;a&gt; obj);
+    public sealed override int CompareTo(object obj);
+    public sealed override int CompareTo(object obj, IComparer comp);
+    public sealed override bool Equals(Errorable&lt;a&gt; obj);
+    public sealed override bool Equals(object obj);
+    public sealed override bool Equals(object obj, IEqualityComparer comp);
+    public sealed override int GetHashCode();
+    public sealed override int GetHashCode(IEqualityComparer comp);
+    public static Errorable&lt;a&gt; NewError(string item);
+    public static Errorable&lt;a&gt; NewSuccess(a item);
+
+    // Properties
+    public bool IsError { get; }
+    public bool IsSuccess { get; }
+    public int Tag { get; }
+
+    // Nested Types
+    [Serializable]
+    public class Error : Errorable&lt;a&gt; {
+        internal readonly string item;
+        internal Error(string item);
+        public string Item { get; }
+    }
+
+    [Serializable]
+    public class Success : Errorable&lt;a&gt; {
+        internal readonly a item;
+        internal Success(a item);
+        public a Item { get; }
+    }
+
+    public static class Tags {
+        public const int Error = 1;
+        public const int Success = 0;
+    }
+}</pre>
+  <p>In an object-oriented language, you typically operate on a class hierarchy through virtual methods on the classes. Say you want to display the Errorable type, then you'd implement a virtual method on the Error and Success subclasses with behavior specific to the each type. In a functional language, the organizing principle is by function. You write one display function that use pattern matching to dispatch on the different cases:</p>
+  <pre class="prettyprint lang-ml">
+let display x =
+    match x with
+    | Error e -&gt; &quot;Oh no! &quot; + e
+    | Success a -&gt; a.ToString()</pre>
+  <p>The variable names &#8212; e and a &#8212; get bound to the content of the case at hand. For the Error case, e is the error message, while for the success case a is the success value, whatever generic type it is.</p>
+  <p>Provided you leave out the match all case, a powerful feature of discriminated unions and pattern matching over classes and virtual methods is that the compiler is able to enforce that no cases have been forgotten, that no redundant cases exist, and that there're no impossible cases. In C#, you'd encounter a missing case at runtime only if you remember to put in a catch all else or default case statement.</p>
+</div>

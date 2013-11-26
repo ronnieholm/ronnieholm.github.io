@@ -1,0 +1,63 @@
+---
+layout: post
+title: "Basic unit testing guidelines"
+date: 2009-06-19 12:00 UTC
+tags: [Process]
+---
+<div id="post">
+  <p>
+    <strong>Update, Nov 25, 2010:</strong> Rather than mimicking the directory structure of the assembly under test in a separate test assembly, I’m now more inclined to <a href="http://weblogs.asp.net/bsimser/archive/2008/04/09/unit-test-projects-or-not.aspx">keep code under test and test code in the same assembly</a>.
+  </p>
+  <p>
+    <b>Update, Aug 5, 2009</b>: This post grew out of a couple of presentations that I did on the subject back in May and June. Here are my slides from <a href="/content/Unit-testing-and-mocking.pdf">The Unit testing and mocking presentation</a>. Among other things, they contain a few C# samples elaborating on some of the points below.
+  </p>
+  <p>This post is born of the need to formalize a set of guidelines on how to write and organize tests. In the past I couldn’t help feeling that with the lack of guidelines I had to start over explaining my views on every new project. With no guidelines the tests written quickly grew unmaintainable, giving unit testing a bad name.</p>
+  <h4>Why unit test</h4>
+  <p>Unit testing done right helps build confidence in the code base and drives forward development. Both in terms of forcing one to reflect on the requirements by authoring tests, but also by providing a foundation for developing more modular and testable code.</p>
+  <p>
+    Given the <a href="http://en.wikipedia.org/wiki/Cyclomatic_complexity">cyclomatic complexity</a> of even simple methods, however, not every path through a method is worth exercising with a test. Instead, focus on writing representative unit tests for good and bad scenarios.
+  </p>
+  <h4>Unit test != integration test</h4>
+  <p>For object-oriented code a unit test is one that exercises a class in isolation, without the code under test relying on other classes to carry out its operation. Similarly, a unit test shouldn&#8217;t rely on the presence of a database or a key/value pair in a configuration file for it to run. If it did, it would be an integration test. Not that there&#8217;s anything wrong with integration tests. They just take on more dependencies and hence tend to be more brittle. And so they cause more false positives because some dependent part isn&#8217;t properly configured. The key point, though, is not to confuse unit testing with integration testing.</p>
+  <p>
+    Typically, an object delegates part of its operation to other objects. Writing modular and testable code therefore involves the application of design patterns, such as <a href="http://www.martinfowler.com/articles/injection.html#SignificantRevisions">Inversion of Control (IoC)</a>. With IoC a test can inject (fake) components into the object under test. The fake components share their interfaces with the real ones, but the test controls how they interact with the object under test and hence how the object under test behaves.
+  </p>
+  <h4>Keep up quality</h4>
+  <p>As tests are written it&#8217;s vital for the understandability and maintainability of the test suite to keep them small and focused. As a rule of thumb a test should amount to no more than 10-15 lines of code. Longer tests are indicative of too much functionality being tested at once or that code common to multiple tests should be refactored into helper methods.</p>
+  <p>
+    In terms of quality, the code comprising the tests should be of production code quality, i.e., the code must be kept clean and refactored as the need arises. Otherwise, tests will start to emit the <a href="http://martinfowler.com/bliki/CodeSmell.html">classic code smells</a>. In the longer run code smells lead to tests that are not maintainable and for the time that went into writing them to be wasted.
+  </p>
+  <h4>Organizing test code</h4>
+  <p>Assuming the use of Visual Studio (VS), for each VS project with code that one wants to test, create matching projects that host the various kinds of tests, i.e., for the Acme.Intranet.Search project, create the following test related projects:</p>
+  <pre>Acme.Intranet.Search.Common
+Acme.Intranet.Search.UnitTest
+Acme.Intranet.Search.IntegrationTest</pre>
+  <p>The Acme.Intranet.Common project is optional and may include code that is shared between test projects, such as custom assertions. As for the Acme.Intranet.Search.UnitTest project it should be fairly self-contained. One should be able to move the common assembly, the test assembly, and the business code assembly to another machine and have the tests execute there without further setup. Should a test rely on, say, a data file with test data, then include the file as an embedded resource within the test assembly.</p>
+  <p>Finally, within each test project, a class should be created for each class under test. In addition, the directory structure should match the namespace structure of the class under test, e.g., suppose the fully qualified name of a class is Acme.Intranet.Search.Business.Crawler, then create the following directory structure within the test assembly:</p>
+  <pre>Acme.Intranet.Search.UnitTest
+    Acme
+        Intranet
+            Search
+                Buesiness
+                    CrawlerTest.cs</pre>
+  <p>While it’s important to write tests, it’s even more important to know where to put and find tests for a given functional area.</p>
+  <h4>Naming tests</h4>
+  <p>As far as naming and structure goes, a test should look something along these lines:</p>
+  <pre class="prettyprint lang-cs">[TestClass]
+public class SomeClassTest {
+    [TestMethod]
+    public void SomeMethod_should_set_error_message_when_no_connection_string_is_configured() {
+        // arrange
+        // act
+        // assert
+    }
+}</pre>
+  <p>The test should generally start with the name of the method or property being tested, followed by the word &quot;should&quot; followed by the successful outcome in a descriptive form. Because names of tests tend to be longer than those of regular methods, underscores are used for ease of readability. In addition, the body of most tests should be composed of three parts: (1) the arrange part that sets up the object under test and possibly injects fake dependencies into it. (2) The act part then exercises the method under test, and finally (3) the assert part that verifies that expected state and/or behavioral changes did indeed take place.</p>
+  <h4>Gathering metrics</h4>
+  <p>Whenever a build is kicked of (on a build server) it should exercise all tests. Should a test fail, it should cause the entire build to fail, stressing the importance of keeping tests green at all times. Furthermore, a build report should include basic metrics such as code coverage, number of tests run, time spend running the tests, and so forth.</p>
+  <p>Keep in mind, though, that a high degree of code coverage isn&#8217;t a goal in itself. Instead, focus on writing solid, focused, and representative tests that eventually drive up code coverage.</p>
+  <h4>Tooling</h4>
+  <p>
+    As far as .Net and tooling goes, <a href="http://en.wikipedia.org/wiki/MSTest">MSTest</a> or <a href="http://nunit.org">NUnit</a> should be used in concert with <a href="http://www.bugfree.dk/blog/2009/02/11/an-example-of-unit-testing-using-typemock">TypeMock</a> or <a href="http://ayende.com/projects/rhino-mocks.aspx">Rhino Mocks</a>. The use of TypeMock may be preferred over Rhino Mocks because of its unique approach to mocking. TypeMock doesn&#8217;t create fake objects by emitting MSIL and dynamically loading a runtime-generated assembly into the test runner. Instead, TypeMock hooks into the CLR APIs and intercepts calls as the unit test executes. From a coding point of view the TypeMock approach may not change much, but from a functionality point of view it enables the testing of legacy code or new code not written with IoC in mind.
+  </p>
+</div>

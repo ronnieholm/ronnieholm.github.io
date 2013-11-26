@@ -1,0 +1,56 @@
+---
+layout: post
+title: "Essential requirements for a developer automation tool"
+date: 2010-09-26 12:00 UTC
+tags: [Powershell, Python, Ruby, SharePoint, tool]
+---
+<div id="post">
+  <p>
+    Developer automation is a subject that I&#8217;ve always felt passionate about. Unit testing may be the most common example, but other tasks may include check-out of source code, build, deploy, setup, and warm-up of an application. I may even want <a href="http://simpleprogrammer.com/2010/09/03/one-build-to-rule-them-all">one system rule them all</a> and have the same automation drive <a href="http://martinfowler.com/articles/continuousIntegration.html">continuous integration</a>. Whatever the use, to fully reap the benefits of automation, a developer should master at least one automation tool the same way he masters other developer tools. This and later posts capture my experiences with a few such automation tools centered around Windows and .NET, starting with why the ubiquitous <a href="http://en.wikipedia.org/wiki/Batch_files">batch file</a> is best avoided and how to characterize better solutions in terms of it.
+  </p>
+  <p>
+    Although Visual Studio, in tandem with the <a href="http://en.wikipedia.org/wiki/Msbuild">MSBuild engine</a>, generally takes good care of compilation, I rarely want to rely on it solely. Instead, I’d prefer that any developer task be easily run from the command-line. This ensures that no magic is going on, that the task is kept simple and flexibility, and that it doesn’t rely on Visual Studio to work. The challenge, however, is which of the many tools available to pick. It must be one that’s flexible enough to meet most requirements with relative ease or the automation will likely not be a valid documentation medium in itself.
+  </p>
+  <h4>Why not to use Windows batch files</h4>
+  <p>
+    As a general example, consider the deployment of a <a href="http://www.bugfree.dk/blog/2010/03/31/getting-started-with-sharepoint-presentation">SharePoint 2007 solution</a>. With SharePoint a good deal more than compiling is needed to bring new functionality into a SharePoint installation. Whereas Visual Studio and MSBuild may still compile the code and <a href="http://wspbuilder.codeplex.com">WSPBuilder</a> create the WSP installation package, both from within Visual Studio and from the command-line, getting everything setup cries for automation, even locally. A common approach (possibly inspired by <a href="http://www.amazon.com/Microsoft-Windows-SharePoint-Services-Developer/dp/0735623201/ref=sr_1_1?ie=UTF8&amp;s=books&amp;qid=1285960936&amp;sr=8-1">popular</a> SharePoint 2007 literature) is that of the batch file applying various operations to a WSP. For the sake of brevity, I&#8217;ve kept the example short, but imagine extending it with a check-out source code task, a compilation task, a WSPBuilder task, and a feature deactivation and activation task, and possibly a warm-up task. Add to this a master script that orchestrate the whole thing. In the end, I’d end up with scripts that become increasingly harder to maintain as they grow in number and size.
+  </p>
+  <pre class="prettyprint lang-sh">@set STSADM=&quot;c:\program files\common files\microsoft shared\web server extensions\12\bin\stsadm&quot;
+
+if &quot;%1&quot; == &quot;uninstall&quot; goto uninstall
+if &quot;%1&quot; == &quot;install&quot; goto install
+if &quot;%1&quot; == &quot;&quot; goto reinstall
+
+:uninstall
+    %STSADM% -o retractsolution -name Foo.wsp -immediate
+    %STSADM% -o execadmsvcjobs
+    %STSADM% -o deletesolution -name Foo.wsp -override
+    goto end
+
+:install  
+    %STSADM% -o addsolution -filename Foo.wsp
+    %STSADM% -o deploysolution -name Foo.wsp -immediate -allowGacDeployment -force
+    %STSADM% -o execadmsvcjobs
+    goto end
+
+:reinstall
+    call Foo uninstall
+    call Foo install
+    goto end
+	
+:end</pre>
+  <p>
+    Still, because of the ubiquitous nature of command.com and cmd.exe, the batch file interpreters, batch files are everywhere. Regardless that the technology is a left-over from the days of MS DOS and haven&#8217;t evolved much since. Not only are the branching and looping constructs limited, so are the <a href="http://technet.microsoft.com/en-us/library/dd560674(WS.10).aspx">available commands</a>. Suppose I want to find out if a command was indeed successful. This turns out to be really hard when all I have to work with is the <a href="http://en.wikipedia.org/wiki/Errorlevel">errorlevel</a> of the most recently executed command. Assuming the command adheres to the errorlevel convention, for the script to fail as early and as close to the real error as possible, I’d have to inspect the property after each command, causing the batch file to grow quite verbose. Sadly, batch files lack the equivalent of <a href="http://www.davidpashley.com/articles/writing-robust-shell-scripts.html#id2399158">set -o errexit</a> of <a href="http://en.wikipedia.org/wiki/Bash_(Unix_shell)">Bash</a>, where the interpreter checks for success after each command and aborts immediately on error. Relying solely on the errorlevel is oftentimes insufficient anyway. To determine success, I’d typically have to parse actual command output or inspect some system property by downloading additional commands or building my own.
+  </p>
+  <h4>Essential vs. incidental requirements</h4>
+  <p>
+    Unless I plan to sit idle and stare at the screen and be a human error detector while the batch file run, I think it’s safe to say that it’s mostly unsuitable for developer automation. Hence in late 2005 I <a href="http://www.bugfree.dk/blog/2006/01/04/being-a-functional-pythonian">rolled my own automation tool in Python</a>. With Python or Ruby or a similar dynamic language acting as the glue that ties everything together, almost any task can be automated in a robust way. Of course, I could also automate with a static language like C# (it&#8217;s surprisingly common). But for script-like tasks, I don’t particularly fancy the long cycle of editing source code in Visual Studio, compiling it, deploying it, and having a hard time debugging it in environment without Visual Studio. A dynamic language, on the other hand, short-circuits the development cycle and allows for interactive programming through a <a href="http://en.wikipedia.org/wiki/REPL">REPL</a>.
+  </p>
+  <p>
+    With a dynamic language that interacts with .NET, such as <a href="http://en.wikipedia.org/wiki/Ironpython">IronPython</a>, <a href="http://en.wikipedia.org/wiki/IronRuby">IronRuby</a>, or <a href="http://en.wikipedia.org/wiki/Powershell">Powershell</a>, possibly with supporting DSLs like <a href="http://www.blueskyonmars.com/projects/paver">Paver</a>, <a href="http://en.wikipedia.org/wiki/Rake_(software)">Rake</a>, or <a href="http://en.wikipedia.org/wiki/Psake">psake</a> on top, the need for writing custom commands to interact with the operating system or the application almost vanishes. The question, then, is which of the dynamic languages to go with when at their technical core they’re so much alike. Besides sharing the concept of a REPL, the notion of a tuple, a list, a map, and operations on each are baked into their syntax, making code quite terse. It even makes it convenient to express any configuration in the language itself and not in XML where I’d first have to come up with a schema, and then create an instance of it before parsing it. On Windows, however, Powershell is gradually becoming the next ubiquitous interpreter, with applications shipping with cmdlets, whereas IronPython or IronRuby is a separate download.
+  </p>
+  <h4>Conclusion</h4>
+  <p>
+No matter the tool, what I end up doing is defining tasks, form dependencies between tasks, and have the tool execute tasks in an order that satisfies their dependencies. As the tool traverses the dependency graph and executes tasks, it’s up to each task to detect success, and up to the tool to report on progress. A good tool is therefore characterized by the ease with which I can express these things, the available language constructs, the ease of debugging, and the tool’s ability to converse in foreign languages.
+  </p>
+</div>

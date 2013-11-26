@@ -1,0 +1,26 @@
+---
+layout: post
+title: "Wireless routers wreaking havoc on LAN"
+date: 2009-05-18 12:00 UTC
+tags: [Tips]
+---
+<div id="post">
+  <p>
+    With the ubiquity of wireless routers follow a surprising network instability issue. It turns out that wireless routers at many of the 330 apartments connected to network where I live bring with them rogue DHCP servers that make the network unstable.
+  </p>
+  <p>
+    Non-authoritative DHCP servers on the network have posed a challenge for years. At first, I attributed the DHCP servers to badly configured Windows machines. However, the number of DHCP servers suggested that another explanation might be closer to the truth. Users accidentally installing DHCP servers are just not that common, and inspecting a couple of machines in question they were acquitted. What else could be the source of the DHCP traffic, then? Common to the machines were that wireless routers sat between them and the LAN.
+  </p>
+  <p>
+    After much investigation, it turns out that a lot, if not all, wireless routers expose their DHCP server on all ports of the router, when it&#8217;s only necessary to expose it on inward-facing ports. I guess vendors don&#8217;t bother limiting the exposure because generally it&#8217;s of no concern to consumers. ISPs provide the wireless router with the necessary configuration parameters (IP address, subnet mask, default gateway, DNS servers, and so on) in addition to blocking DHCP traffic originating from the wireless router.
+  </p>
+  <p>
+    On our network &#8212; equipped with eight aging 48-port <a href="http://www.cisco.com/en/US/products/hw/switches/ps637/">Cisco Catalyst 3500 XL</a> switches &#8212; DHCP traffic cannot be prevented from escaping the wireless router and making its way into the switches and onto LAN. The configuration parameters of rogue DHCP servers, intended for internal use only, are transmitted to external DHCP clients. Clients for which the supplied gateway, DNS server, and so on are only internally available. The DHCP client, unable to discern the rogue servers from the authoritative one, passes the parameters on to the network stack, setting itself up for network disconnectivity.
+  </p>
+  <p>
+    The essence of the issue is that whenever a client requests configuration parameters, it, by definition of the <a href="http://tools.ietf.org/html/rfc2131">DHCP protocol</a>, broadcasts a message to be picked up by any DHCP server on the network. The client then awaits an offering of configuration parameters from one or more DHCP servers. Then, still according to specification, the DHCP client may use any strategy to accept one of several offerings. I can only guess as to how Windows makes its decision, but randomness and first responder probably play a key role. In any event, Windows may keep accepting offerings from rogue DHCP servers regardless of the number of times I command the IP configuration to &#8220;ipconfig /release&#8221; and &#8220;ipconfig /renew&#8221;.
+  </p>
+  <p>
+    How to counteract rogue DHCP servers? There&#8217;re only a limited set of options: hard-coding the configuration parameters of individual machines, establishing <a href="http://en.wikipedia.org/wiki/VLAN">VLAN</a>s so computers become invisible to each other, or replacing the Cisco Catalyst 3500 switches with contemporary switches that are able to suppress DHCP traffic travelling the wrong way.
+  </p>
+</div>

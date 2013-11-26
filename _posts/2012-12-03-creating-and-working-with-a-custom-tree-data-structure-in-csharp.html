@@ -1,0 +1,96 @@
+---
+layout: post
+title: "Creating and working with a custom tree data structure in C#"
+date: 2012-12-03 12:00 UTC
+tags: [C#]
+---
+
+<div id="post">
+  <p>
+    This post is part of series:
+  </p>
+  <p>
+    Part 4 &#8211; <a href="http://www.bugfree.dk/blog/2012/12/24/strongly-typed-sharepoint-list-operations-using-the-repository-pattern-in-fsharp/">Strongly typed SharePoint list operations using the repository pattern in F#</a><br />
+    Part 3 &#8211; <a href="http://www.bugfree.dk/blog/2012/12/06/bringing-together-repository-and-tree-structure-in-business-layer/">Bringing together repository and tree structure in business layer</a><br />
+    Part 2 &#8211;  Creating and working with a custom tree data structure in C#<br />
+    Part 1 &#8211; <a href="http://www.bugfree.dk/blog/2012/12/02/strongly-typed-sharepoint-list-operations-using-the-repository-pattern/">Strongly typed SharePoint list operations using the repository pattern</a>
+  </p>
+  <p>I'd claim the tree data structure is underused in general application development. Sure, XML or tree view control APIs are generally tree-based underneath, but how often does an application use a tree structure in its business layer? Maybe it's because trees are initially a little hard to grasp given their recursive nature or maybe it's because we as developers are conditioned to approach problems from a more imperative angle.</p>
+  <p>It wasn't until recently, when I had to transform a tabular data structure into a tree data structure, that I created my own tree in C#. Here's the code I ended up with for constructing a tree, doing a depth-first search for a node, and printing the tree:</p>
+  <pre class="prettyprint lang-cs">
+public class Tree&lt;T&gt; {
+    public T Value;
+    public IList&lt;Tree&lt;T&gt;&gt; Children;
+
+    public Tree(T value) {
+        Value = value;
+        Children = new List&lt;Tree&lt;T&gt;&gt;();
+    }
+
+    public Tree&lt;T&gt; Find(Func&lt;T, bool&gt; predicate) {
+        if (predicate(Value))
+            return this;
+           
+        return Children
+            .Select(c =&gt; c.Find(predicate))
+            .FirstOrDefault(c =&gt; c != null);
+    }
+
+    public override string ToString() {
+        return ToStringRecursive(this, 0);
+    }
+
+    private string ToStringRecursive(Tree&lt;T&gt; tree, int indentation) {
+        var seed = (new String(' ', indentation)) + tree.Value + Environment.NewLine;
+        return tree
+            .Children
+            .Aggregate(seed, (current, next) =&gt; current + 
+                ToStringRecursive(next, indentation + 2));
+    }
+}</pre>
+  <p>Constructing a tree of strings is done as follows:</p>
+  <pre class="prettyprint lang-cs">
+var root = new Tree&lt;string&gt;(&quot;root&quot;) {
+    Children = new List&lt;Tree&lt;string&gt;&gt; {
+        new Tree&lt;string&gt;(&quot;node-1&quot;) {
+            Children = new List&lt;Tree&lt;string&gt;&gt; {
+                new Tree&lt;string&gt;(&quot;node-1.1&quot;) {
+                    Children = new List&lt;Tree&lt;string&gt;&gt; {
+                        new Tree&lt;string&gt;(&quot;node-1.1.1&quot;)  
+                    }
+                },
+                new Tree&lt;string&gt;(&quot;node-1.2&quot;)
+            }
+        },
+        new Tree&lt;string&gt;(&quot;node-2&quot;)
+    }
+};</pre>
+  <p>Now you can query on the properties of the type of tree node:</p>
+  <pre class="prettyprint lang-cs">
+System.Console.WriteLine(root);
+/*
+root
+  node-1
+    node-1.1
+      node-1.1.1
+    node-1.2
+  node-2
+*/
+
+var node1 = root.Find(n =&gt; n == &quot;node-1&quot;);
+var node2 = node1.Find(n =&gt; n == &quot;node-1.1.1&quot;);
+
+System.Console.WriteLine(node1);
+/*
+node-1
+  node-1.1
+    node-1.1.1
+  node-1.2
+*/
+
+System.Console.WriteLine(node2);
+/*
+node-1.1.1            
+*/</pre>
+  <p>Strictly speaking, the traversal logic doesn't belong to the tree class itself, but in a separate visitor class. Maybe at a later point, you want to add different traversal algorithms or some other code needs to iterate the tree to transform it. The visitor algorithms could be reused, calling out to a delegate for the specific details of the traversal.</p>
+</div>

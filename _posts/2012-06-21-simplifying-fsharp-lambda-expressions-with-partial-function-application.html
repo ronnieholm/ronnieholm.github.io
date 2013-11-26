@@ -1,0 +1,37 @@
+---
+layout: post
+title: "Simplifying F# lambda expressions with partial function application"
+date: 2012-06-21 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+  <p>
+    Here's another useful trick from <a href="http://hestia.typepad.com/flatlander">Ivan Towlson</a>&#8216;s <a href="http://channel9.msdn.com/Events/TechEd/NewZealand/2011/DEV311">A Practical Developer&#8217;s Introduction to F#</a>.
+  </p>
+  <p>Suppose you have a function divisiblyBy and a list of numbers. Then you can apply the filter function to get a list of even numbers:</p>
+  <pre class="prettyprint lang-ml">
+// val divisibleBy : int -&gt; int -&gt; bool
+let divisibleBy factor value = value % factor = 0
+let evenNums = List.filter (fun x -&gt; divisibleBy 2 x) [1..10]
+  </pre>
+  <p>This lambda syntax is a bit noisy, but can oftentimes be transformed into a shorthand lambda syntax. When the argument passed into the lambda &#8212; in this case x &#8212; is the last argument to the function within the lambda body, a bit of compiler trickery combined with the use of partial function application can help simplify the expression. Combining partial function application with function composition even means we don't have to explicitly create a lot of smaller functions, such as one that negates another function:</p>
+  <pre class="prettyprint lang-ml">
+let evenNums = List.filter (divisibleBy 2) [1..10]       // partial function application
+let oddNums = List.filter (not &lt;&lt; divisibleBy 2) [1..10] // and function composition
+  </pre>
+  <p>Of course, the concept of partial function application isn't tied to lambda expressions:</p>
+  <pre class="prettyprint lang-ml">
+let divisibleByTwo = divisibleBy 2           // val divisibleByTwo : (int -&gt; bool)
+let notDivisibleByTwo = not &lt;&lt; divisibleBy 2 // val notDivisibleByTwo : (int -&gt; bool)
+let a = divisibleByTwo 4                     // val a : bool = true
+let b = notDivisibleByTwo 4                  // val b : bool = false
+  </pre>
+  <p>The partial application of divisibleBy results in a new function of one less argument, since we provided a value for the factor argument. As you can tell by their signatures, divisibleByTwo and notDivisibleByTwo are functions that take one argument, the value, and return a bool. The compiler knows that divisibleByTwo and notDivisibleByTwo take one and only argument for them to fully evaluate and that filter takes as argument a function that goes from an argument of type 'T &#8212; in this case int &#8212; to bool.</p>
+  <pre class="prettyprint lang-ml">
+val List.filter : ('T -&gt; bool) -&gt; 'T list -&gt; 'T list
+  </pre>
+  <p>Now all types align and we&#8217;ve simplified the code a little. </p>
+  <p>
+    PS: Partial function application is also possible in C# if you define functions using one of the <a href="http://msdn.microsoft.com/en-us/library/bb534960.aspx">Func&lt;T&gt;</a> or <a href="http://msdn.microsoft.com/en-us/library/018hxwa8.aspx">Action&lt;T&gt;</a> delegates.
+  </p>
+</div>

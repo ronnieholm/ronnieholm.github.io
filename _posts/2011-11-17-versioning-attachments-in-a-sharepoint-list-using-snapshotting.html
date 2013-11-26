@@ -1,0 +1,131 @@
+---
+layout: post
+title: "Versioning attachments in a SharePoint list using snapshotting"
+date: 2011-11-17 12:00 UTC
+tags: [SharePoint]
+---
+<div id="post">
+  <p>
+    (See also the <a href="/blog/2011/11/21/fsharp-plus-sharepoint-equals-a-list-attachment-versioning-event-receiver">F# implementation</a> and <a href="/blog/2011/11/19/adding-event-receivers-to-sharepoint-lists-on-the-fly/">adding event receivers to a list on the fly</a>.)
+  </p>
+  <p>
+    Both SharePoint 2007 and 2010 support versioning for list items but not their attachments. No matter which version of a list item I look at, its attachments will always be the most recent. The attachment support seems to have been bolded on as an afterthought, resulting in behavior that’s counter-intuitive for developers as well as end-users. With SharePoint 2007 (and 2010), Microsoft <a href="http://support.microsoft.com/kb/943136">suggests</a> using a document library for proper attachment versioning. But I can’t substitute one with the other, since a list item may hold any number of attachments and an item in a document library may hold just one.
+  </p>
+  <h4>Existing solution</h4>
+  <p>
+    I counted on someone else having experienced a similar pain and come up with a workable cure. But except for <a href="http://codeshape.wordpress.com/2010/10/21/versioning-attachments-in-a-sharepoint-list-an-implementation/">Tim Ebenezer</a> the search come up empty. Tim on the other hand has done a great job of seamlessly integrating his attachment versioning feature into SharePoint. When I activate the feature on a site, it adds a versioning menu item to the list settings page for every list on the site. Unfortunately the core versioning logic, storing attachments in a shadow library using an event receiver, isn’t particularly robust. Among other use cases, it doesn’t properly deal with a user first deleting an attachment and then, some versions later, adding an attachment with the same name.
+  </p>
+  <p>I therefore set out to implement my own solution based on Tim’s ideas, hooking into the synchronous ItemAdding, ItemUpdating, ItemAttachmentAdding, and ItemAttachmentDeleting events and maintaining a shadow library of versions. This approach, however, quickly turned into a painful one. When the synchronous events run, nothing has yet been written to the database – at this stage a new item doesn’t even have its Id set, and merely determining the number of attachments added and how far I’ve come with the processing is tricky.</p>
+  <p>The next challenge I encountered was that event handlers cannot easily share state across multiple calls because SharePoint creates a new instance of the receiver class for every event handled. Processing multiple attachments require a counter into the array of attachments to keep track of which ones I’d copied to the shadow list. I’d have to resort to some outside-object storage, keeping in mind that the receiver might execute concurrently. But which storage should I use? Session state may have been disabled, and polluting one of the property bags stored in the content database is messy and also not thread-safe.</p>
+  <p>Overall, with the synchronous approach too much work has to go into tracking the state of the versioning process.</p>
+  <h4>New solution</h4>
+  <p>A synchronous solution is very hard to get right because it’s forced to work at the level of individual attachments. SharePoint doesn’t have a synchronous event that fires after all attachments have been processed. After all, why provide such an event when everything has already happened? Thinking instead in terms of the asynchronous events of ItemUpdated and ItemAdded, I have exactly what’s needed to snapshot all attachments in one batch, making versioning a lot simpler. When these events fire the item and its attachments have already been written to the database and I can focus on how to generate the snapshots &#8212; copying attachments back and forth between lists &#8212; and not worry about what the user actual did to the attachments from one version to the next.</p>
+  <pre class="prettyprint lang-cs">// Prerequisites:
+// 1. Create a Document Library named ShadowLibrary on the same site as the list to version
+// 2. Add a row named CustomVersion of type string to the list to version
+public class ListAttachmentVersioningEventReceiver : SPItemEventReceiver {
+    private const string CustomVersion = &quot;CustomVersion&quot;;
+    private const string ShadowLibrary = &quot;ShadowLibrary&quot;;
+
+    public override void ItemAdded(SPItemEventProperties properties) {
+        base.ItemUpdated(properties);
+        SetCustomVersionLabel(properties.ListItem);
+        CreateSnapshot(properties);
+    }
+
+    public override void ItemUpdated(SPItemEventProperties properties) {
+        base.ItemUpdated(properties);
+
+        var item = properties.ListItem;
+        if (RollbackHappened(item)) {
+            RestoreSnapshot(properties);
+            SetCustomVersionLabel(item);
+            CreateSnapshot(properties);
+        }
+        else {
+            CreateSnapshot(properties);
+            SetCustomVersionLabel(item);
+        }
+    }
+
+    private void CreateSnapshot(SPItemEventProperties properties) {
+        using (var site = properties.OpenWeb()) {
+            var item = properties.ListItem;
+            var shadowLibrary = site.Lists[ShadowLibrary] as SPDocumentLibrary;
+            var path = string.Format(&quot;Versions/{0}/{1}&quot;, item.ID, GetOfficialVersionLabel(item));
+            var shadowFolder = CreateFolderPath(shadowLibrary, path);
+
+            foreach (string fileName in item.Attachments) {
+                SPFile existingFile = item.ParentList.ParentWeb.GetFile(item.Attachments.UrlPrefix + fileName);
+                SPFile newFile = shadowFolder.Files.Add(fileName, existingFile.OpenBinaryStream());
+                newFile.Item.Update();                    
+            }
+        }
+    }
+
+    private bool RollbackHappened(SPListItem item) {
+        var culture = CultureInfo.InvariantCulture;
+        var currentVersion = float.Parse(GetOfficialVersionLabel(item), culture);
+        var lastVersion = float.Parse(GetCustomVersionLabel(item), culture);
+        return currentVersion &gt; lastVersion + 1;
+    }
+
+    private void RestoreSnapshot(SPItemEventProperties properties) {
+        var item = properties.ListItem;
+        var restoreVersion = GetCustomVersionLabel(item);
+        EventFiringEnabled = false;
+
+        item.Attachments.Cast&lt;string&gt;().ToList().ForEach(attachment =&gt; item.Attachments.Delete(attachment));
+        using (var site = properties.OpenWeb()) {
+            var path = string.Format(&quot;Versions/{0}/{1}&quot;, item.ID, restoreVersion);
+            var shadowLibrary = site.Lists[ShadowLibrary] as SPDocumentLibrary;
+            var source = CreateFolderPath(shadowLibrary, path);
+
+            foreach (SPFile file in source.Files)
+                item.Attachments.Add(file.Name, file.OpenBinary());
+        }
+
+        item.SystemUpdate(false);
+        EventFiringEnabled = true;
+    }
+
+    // can only get folder creation to work with Document Libraries
+    private SPFolder CreateFolderPath(SPDocumentLibrary list, string path) {
+        return CreateFolderPathRecursive(list.RootFolder, path.Split('/').ToList());
+    }
+
+    private SPFolder CreateFolderPathRecursive(SPFolder folder, IList&lt;string&gt; pathComponents) {
+        if (pathComponents.Count == 0)
+            return folder;
+
+        SPFolder newFolder;
+        try {
+            newFolder = folder.SubFolders[pathComponents.First()];
+        }
+        catch (ArgumentException) {
+            newFolder = folder.SubFolders.Add(pathComponents.First());
+        }
+
+        pathComponents.RemoveAt(0);
+        return CreateFolderPathRecursive(newFolder, pathComponents);
+    }
+
+    private void SetCustomVersionLabel(SPListItem item) {
+        EventFiringEnabled = false;
+        item[CustomVersion] = GetOfficialVersionLabel(item);
+        item.SystemUpdate(false);
+        EventFiringEnabled = true;
+    }
+
+    private string GetCustomVersionLabel(SPItem item) { return item[CustomVersion] as string; }
+    private string GetOfficialVersionLabel(SPListItem item) { return item.Versions[0].VersionLabel; }
+}</pre>
+  <p>When a list item is saved, I take a snapshot of the attachments, storing them in a folder structure like {Id}/{VersionNumber}/{Attachments} in the shadow document library. When a list item is restored to a previous version, existing attachments are first deleted before the ones from the snapshot are added back in, creating a new version of the list item.</p>
+  <p>Restoring previous versions also has a counter-intuitive meaning in SharePoint. Suppose in one version of a list item, I store a key in the item’s property bag, then I’d expect the property bag values to be specific to this version. But behind the scenes restore seems to work by cloning the current version and then copying only the values of the fields from the restore version to the new one. In other words, I can’t use the item’s property bag to store version specific information, such as a version tag to detect when a restore has occurred. I also can&#8217;t use the Modified field because SharePoint sets it to the time of the restore. To carry over version information I have to create and maintain a field of my own. Hence the CustomVersion field on the list to version.</p>
+  <p>Remember that because the ItemUpdated and ItemAdded execute asynchronously, all the snapshotting logic executes on a background thread, after control has returned to the user. Should an error occur at this point, the user will never see it and the snapshot may be left in an incomplete state. On the other hand, this approach scales well and doesn’t have to be fast because no user is awaiting the result.</p>
+  <p>Lastly, there’s one place in SharePoint where the versioning abstraction leaks through. It’s in the list item version dialog which displays older versions and enables restore to any previous version. The dialog will always show the most recent attachments.</p>
+  <h4>Improvements</h4>
+  <p>
+    I could use the <a href="http://msdn.microsoft.com/en-us/library/microsoft.sharepoint.spfile.etag.aspx">ETag</a> property of an SPFile object to implement a more efficient differential snapshotting algorithm that would conserve storage space. Compressing attachments before storing them in the shadow library might also be an option, although then I’d have to promote the ETag value to a shadow library field before compressing.
+  </p>
+</div>

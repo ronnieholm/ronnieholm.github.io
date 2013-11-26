@@ -1,0 +1,20 @@
+---
+layout: post
+title: "F# list immutability by example"
+date: 2012-06-17 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+  <p>
+    The other day, I stumbled on <a href="http://hestia.typepad.com/flatlander/">Ivan Towlson's</a> <a href="http://channel9.msdn.com/Events/TechEd/NewZealand/2011/DEV311">A Practical Developer&#8217;s Introduction to F#</a>. It&#8217;s one of the best introductions I&#8217;ve seen in a long time, simply because it&#8217;s so practically oriented. I learned a couple of things about F# from the video, which I'll summarize in a couple of posts.
+  </p>
+  <p>The first thing I learned is how the F# list type, which is a linked list and not List&lt;T&gt;, is immutable for reasons of safety and efficiency. Once you create a list, you can never again modify this exact instance. If you do, what you&#8217;ll get back is a new list. Think of the safety in terms of threads: if one thread, inadvertently or not, modifies the list, it'll just get back a new list, shielding any other thread from the change. </p>
+  <p>This copy-on-modification behavior may seem inefficient at first. And it would be if it weren't for F#'s ability to share part of a list:</p>
+  <pre class="prettyprint lang-ml">
+let smallOddPrimes = [3; 5; 7]
+let smallPrimes = 2 :: smallOddPrimes // [2; 3; 5; 7]</pre>
+  <p>When you create the smallPrimes list, F# need only create one additional cell containing the even prime. The next pointer of this cell will be a reference to the smallOddPrimes list:</p>
+  <pre class="prettyprint lang-ml">
+Object.ReferenceEquals(smallPrimes.Tail, smallOddPrimes) // true</pre>
+  <p>The tail of the smallPrimes list &#8212; the possibly empty list comprised of everything but the first element &#8212; points back to smallOddPrimes list, saving both processing time and memory while retaining thread-safety.</p>
+</div>

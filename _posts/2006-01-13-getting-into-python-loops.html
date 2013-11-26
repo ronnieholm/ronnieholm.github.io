@@ -1,0 +1,59 @@
+---
+layout: post
+title: "Getting into Python loops"
+date: 2006-01-13 12:00 UTC
+tags: [Python]
+---
+<div id="post">
+  <p>Looping is such a commonly used construct that I thought I&#8217;d do an informal comparison of the flavors of loops provided. For comparison, I define a function for scaling a list using (1) list comprehension, (2) the map function, (3) the for loop, and finally, just for the fun of it, (4) a recursive function. Mathematically, scaling a lists involves multiplying each elements by a scale factor, e.g., applying a scale factor of 10 to [1, 2, 3] yields [10, 20, 30].</p>
+  <p>The following code benchmarks each method, running it 500 times in a row. Furthermore, to ensure that the results are independent of the length of the list, I test each function on lists of sizes 1000 to 30000, in 100 increments, looking for a clear growth patterns (but found none).</p>
+  <pre>
+<font color="#a020f0">from</font> time <font color="#a020f0">import</font> time
+<font color="#a020f0">def</font> <font color="#0000ff">scale_using_recursion</font>(s, l):
+    <font color="#a020f0">if</font> <font color="#a020f0">len</font>(l) == 0:
+        <font color="#a020f0">return</font> []
+    <font color="#a020f0">else:</font>
+        <font color="#a020f0">return</font> [(l[0] * s)] + scale_using_recursion(s, l[1:])
+
+<font color="#a020f0">def</font> <font color="#0000ff">scale_using_loop</font>(s, l):
+    r = []
+    <font color="#a020f0">for</font> e <font color="#a020f0">in</font> l:
+        r.append(e * s)
+    <font color="#a020f0">return</font> r
+
+<font color="#a020f0">def</font> <font color="#0000ff">scale_using_map</font>(s, l):
+    <font color="#a020f0">return</font> <font color="#a020f0">map</font>(<font color="#a020f0">lambda</font> e: e * s, l)
+
+<font color="#a020f0">def</font> <font color="#0000ff">scale_using_list_comprehension</font>(s, l):
+    <font color="#a020f0">return</font> [e * s <font color="#a020f0">for</font> e <font color="#a020f0">in</font> l]
+
+<font color="#a020f0">def</font> <font color="#0000ff">run</font>(func, iterations, list_size):
+    l = [e <font color="#a020f0">for</font> e <font color="#a020f0">in</font> <font color="#a020f0">range</font>(list_size)]
+    t = time()
+    [func(10, l) <font color="#a020f0">for</font> i <font color="#a020f0">in</font> <font color="#a020f0">range</font>(iterations)]
+    <font color="#a020f0">return</font> (time() - t) / iterations
+
+<font color="#a020f0">def</font> <font color="#0000ff">time_stuff</font>():
+    iterations = 500
+
+    <font color="#a020f0">for</font> list_size <font color="#a020f0">in</font> <font color="#a020f0">range</font>(1000, 30000, 100):
+        t1 = run(scale_using_list_comprehension, iterations, list_size)
+        t2 = run(scale_using_map, iterations, list_size)
+        t3 = run(scale_using_loop, iterations, list_size)
+        <font color="#a020f0">print</font>(<font color="#bc8f8f">"%s %s %s %s"</font>) % (list_size, t1/t1, t2/t1, t3/t1)
+
+<font color="#a020f0">if</font> <font color="#a020f0">__name__</font> == <font color="#bc8f8f">"__main__"</font>:
+    time_stuff()</pre>
+  <p>The benchmark was performed under MS Windows, running Python 2.4.2. To make the results independent of the speed of the hardware, I compare each scaling method to the winner of the race, the list comprehension approach.</p>
+  <pre>
+scale_using_list_comprehension:  1.0
+scale_using_loop:                1.7
+scale_using_map:                 2.1
+(scale_using_recursion:         76.0)</pre>
+  <p>
+    Not surprisingly, the recursive approach is slow and infeasible for real use (and only tested on a list size of 500 to get an indication of relative performance). Generally, recursive functions are of limited use in Python because the interpreter doesn&#8217;t optimize for <a href="http://en.wikipedia.org/wiki/Tail_recursion">tail recursion</a>; a technique commonly used in functional languages that causes a tail recursion to get transformed into an iteration, making a recursive and an interative approach equally fast.
+  </p>
+  <p>Lacking this features, Python blows up with a &#8220;RuntimeError: maximum recursion depth exceeded&#8221;, when it reaches the default recursion depth of 500. We could increase the number for certain situations, of course, but we would never truly be in safe range of the RuntimeError, and performing the way it does, it doesn&#8217;t really matter.</p>
+  <p>I was surprised to learn that map and for loops are roughly 70% and 110% slower, respectively, than list comprehension. I can&#8217;t really put my finger on what makes them so slow.</p>
+  <p>Although this isn&#8217;t the most scientific of studies, it does indicate that list comprehension is the way to go, if possible. Luckily, in most cases, list comprehension is also the shortest, the most elegant, and the most readable of the approaches. </p>
+</div>

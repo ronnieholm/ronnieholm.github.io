@@ -1,0 +1,48 @@
+---
+layout: post
+title: "Disabling SharePoint 2010 in-place records management and undeclaring records"
+date: 2012-11-28 12:00 UTC
+tags: [PowerShell, SharePoint]
+---
+<div id="post">
+
+  <p>After having used the SharePoint 2010 in-place records management for some time, we might decide that we don&#8217;t require records management on a library after all. We want to go back to regular, modifiable documents, undeclare any existing record, and prevent future items from becoming records.</p>
+  <p>Suppose a site collection needs to have in-place records management disabled entirely. Then the first step would be to disable the site collection-scoped In Place Records Management feature:</p>
+  <pre class="prettyprint">disable-spfeature -identity InPlaceRecords -url $site_collection_url</pre>
+  <p>However, what actually triggers the declaration of a record is the retention policy on a document library or its containing content type. Thus, removing the retention policy prevents future items from becoming records. On the document library or its containing content type, goto the Information management policy settings and disable the retention policy.</p>
+  <p>Existing records will remain unaffected by the feature deactivation and the disabling of the retention policy. We need to enumerate the document library and undeclare each exising record:</p>
+  <pre class="prettyprint">
+function UndeclareRecords($siteUrl, $libraryName) {
+  function IsRecord($item) {
+    [Microsoft.Office.RecordsManagement.RecordsRepository.Records]::IsRecord($item)
+  }
+
+  function EnsureCheckedIn($item) {
+    if ($item.File.CheckOutType -ne [Microsoft.SharePoint.SPFile+SPCheckOutType]::None `
+        -and (-not [Microsoft.Office.RecordsManagement.RecordsRepository.Records]::IsLocked)) {
+      write-host "Checking in file: $($item.Url)"
+      $file.CheckIn("Checked in by script prior to undeclaring as record", `
+                    [Microsoft.SharePoint.SPCheckinType]::MinorCheckIn)
+    }
+  }
+
+  function UndeclareRecord($item) {
+    write-host "Undeclaring record: $($item.Url)"
+    [Microsoft.Office.RecordsManagement.RecordsRepository.Records]::UndeclareItemAsRecord($item) 
+  }
+
+  $site = Get-SPWeb $siteUrl
+  $list = $site.Lists[$libraryName]
+  $list.Items | foreach { 
+    if (IsRecord $_) {
+      EnsureCheckedIn $_
+      UndeclareRecord $_
+    }
+  }
+
+  $site.Dispose()
+}</pre>
+  <p>
+    Now every item in the document library is back to being a regular and modifiable item.
+  </p>
+</div>

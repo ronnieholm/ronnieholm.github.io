@@ -1,0 +1,113 @@
+---
+layout: post
+title: "Automating SharePoint 2010 build and deployment with PowerShell and PSake"
+date: 2012-06-10 12:00 UTC
+tags: [PowerShell, SharePoint]
+---
+<div id="post">
+  <p>
+    A while ago I blogged about what I considered <a href="http://www.bugfree.dk/blog/2010/09/26/essential-requirements-for-a-developer-automation-tool/">essential requirements for a developer automation tool</a>. I proposed abandoning batch files in favor of more powerful automation tools and using these tools all the way from development to production. In the time passed, PowerShell has only become more ubiquitous, and with SharePoint 2010 adding 570 cmdlets on top of the 240 existing ones, building and deploying SharePoint with PowerShell makes a lot of sense.
+  </p>
+  <p>Before diving into the details of how PowerShell can be used to build and deploy a SharePoint solution, I quickly want to cover some of the downsides as well: the PowerShell environment and the SharePoint cmdlets add additional plumping on top of something that's already very complex. If you're already well-versed in the SharePoint .NET APIs, the added (accidental) complexity may not be worth it. The good-old console application in which you're already familiar with the syntax, semantics, and debugging procedures hasn't been obsoleted by PowerShell.</p>
+  <h4>Getting started with PSake</h4>
+  <p>
+    Nothing prevents you from automating using plain PowerShell, but leaning on an open source module like <a href="http://en.wikipedia.org/wiki/Psake">PSake</a> will relieve you from writing tedious plumping code. PSake is an <a href="http://martinfowler.com/bliki/DomainSpecificLanguage.html">internal DSL</a> for defining, among other things, tasks and interdependencies between these. It then determines a proper task execution order and does error detection while it executes each task. PSake also comes with a handy external command-wrapper to be used within tasks which determines failure based on the exit code of the external process.
+  </p>
+  <p>
+    To get started with PSake, all you need is to go to the <a href="https://github.com/psake/psake">PSake Github repository</a> and download <a href="https://github.com/psake/psake/blob/master/psake.ps1">psake.ps1</a> and <a href="https://github.com/psake/psake/blob/master/psake.psm1">psake.psm1</a> to a local folder. I usually place these in the root of my source folder, next to the solution file. psake.ps1 is a wrapper that enables you to open a PowerShell console and execute a PSake task without first having to load the PSake module. The wrapper will simply load the module and pass along any command-line arguments to PSake.
+  </p>
+  <p>
+    Keep in mind that PSake <a href="http://groups.google.com/group/psake-users/browse_thread/thread/8ee0a4cb117a6412">isn't designed with nested scripts in mind</a>. It's possible to have a master PSake script call out to child PSake scripts, but an error in a child will not get propagated to the master, causing the master to continue on error. Tasks should therefore be collected in a single file, possibly named default.ps1, which is what PSake looks for by default.
+  </p>
+  <h4>PSake script organization</h4>
+  <p>The script organization outlined in this section is backed by snippet-like examples from one of my build files. Don't focus on the PowerShell specifics in these examples, but instead on the overall organization and purpose of each section.</p>
+  <p>Every one of my PSake scripts start out with global definitions at the top. These are used throughout the script and conceptually serve as common hidden arguments to the tasks. PSake also comes with a Properties block for making variables available to tasks, but I don't think it adds significant value over plain script definitions.</p>
+  <pre class="prettyprint">
+$base_dir = resolve-path .
+$sln_file = "$base_dir\$acme.sln"
+$build_configuration = "debug"
+$acme = "Acme.Intranet"
+$msbuild_exe = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\MSBuild.exe"
+$wsp_projs = @("Branding", "Records")
+$other_projs = @("Console")
+$current_user = "$env:userdomain\$env:username"
+$web_application_name = "Acme"
+...</pre>
+  <p>Next come any PowerShell function used by other functions or tasks. These functions will usually extend the capabilities of existing cmdlets by composition or/and calling out to .NET APIs directly. I strive to make these function build script-independent by parameterization. To limit side effects and simplify debugging, the functions should rely solely on the arguments being passed, and refrain from accessing any global variable.</p>
+  <p>Here I load the Microsoft.SharePoint.dll but the types of any .NET assembly can be made available to the script this way. </p>
+  <pre class="prettyprint">
+[Reflection.Assembly]::LoadWithPartialName("Microsoft.SharePoint") | out-null
+
+function RemoveBuildFolders([string]$source_dir) { 
+  ("bin", "obj", "pkg", "pkgobj") | foreach {
+    $path = "$source_dir\$_"
+    if (test-path $path) {
+      remove-item $path -confirm:$false -recurse -force
+    }
+  }
+}
+
+function IsUserAdministrator() { ... }
+function ImportTermSetFromFile([string]$filePath, [string]$groupName) { ... }
+function WaitForTimerJobToFinish([string]$solutionFileName) { ... }
+...</pre>
+  <p>For the script to use any of the SharePoint cmdlets, you must first load the SharePoint PowerShell snapin. The loading of this snapin is actually what differentiates the SharePoint 2010 Management Shell from the regular PowerShell &#8212; the former launches PowerShell and executes a script that loads the snapin. For some reason, however, it's necessary to unload/load the snapin every time the script executes or the SharePoint cmdlets will only be available the first time around. Hence this code needs to be placed outside of any function, causing it to execute immediately.</p>
+  <pre class="prettyprint">
+$name = "Microsoft.SharePoint.PowerShell"
+$snapin = get-pssnapin | where { $_.name -eq $name }
+if ($snapin -ne $null) {
+  remove-pssnapin $name
+}
+add-pssnapin $name</pre>
+  <p>Now we're ready to define the actual tasks. Depending on your SharePoint solution, you may want to distribute the responsibility among the tasks differently, but build and deployment will likely assume this overall form:</p>
+  <pre class="prettyprint">
+task Install -depends Clean, Compile, CreateWebApplication, CreateSiteCollection,
+                      ActivateSiteCollectionFeatures, CreateSites, PreInstall,
+                      InstallWsps, ActivateSiteFeatures, PostInstall
+
+task Uninstall -depends DeactivateSiteFeatures, RemoveSites, DeactivateSiteCollectionFeatures,
+                        RemoveSiteCollection, UninstallWsps, RemoveWebApplication</pre>
+  <p>The Compile task, for instance, calls out to MSBuild just like Visual Studio does. This has the nice benefit that the build script will automatically use build settings defined in Visual Studio as they're stored in the MSBuild project file. Note also how WSPs are created by invoking the package target of a SharePoint project file. Again, all the package specific settings of Visual Studio will carry over seamlessly.</p>
+  <pre class="prettyprint">
+task Compile {
+  exec { &amp; "$msbuild_exe" "/p:configuration=$build_configuration" "$sln_file" }
+  $wsp_projs | foreach {
+    $proj_file = "$base_dir\$acme.$_\$acme.$_.csproj"
+    exec { &amp; "$msbuild_exe" "/p:configuration=$build_configuration" "$proj_file" "/t:package" }
+  }
+}</pre>
+  <p>The ActivateSiteCollectionFeatures task illustrates the SharePoint cmdlets in action. It also shows how to spawn a new PowerShell console to avoid a "The trial period for this product has expired" error when activating the PublishingSite feature. This error seems to be related to stale state (a bug) within the current PowerShell session as I'm not running a trial version of SharePoint. On a similar note, one of my scripts activate the Nintex Workflow 2010 features. This operation will fail if you use the enable-spfeature cmdlet instead of stsadm, alluding to another bug in the PowerShell/SharePoint integration.</p>
+  <pre class="prettyprint">
+task ActivateSiteCollectionFeatures {
+  install-spfeature PublishingSite
+  
+  # work around the 'The trial period for this product has expired.' error
+  exec { powershell -command "add-pssnapin microsoft.sharepoint.powershell; 
+                              enable-spfeature -identity PublishingSite -url $site_collection_url" } 
+
+  enable-spfeature -identity OfficeWebApps -url $site_collection_url
+  enable-spfeature -identity PremiumSite -url $site_collection_url
+  ...
+}</pre>
+  <p>Assuming a complete script, here's how you'd invoke the Install task in a script named default.ps1.</p>
+  <pre class="prettyprint">
+.\psake.ps1 .\default.ps1 Install</pre>
+  <p>This'll execute the Install task, recursively executing its dependencies.</p>
+  <h4>Observations</h4>
+  <p>Automating SharePoint build and deployment is challenging. At times SharePoint will exhibit non-deterministic behavior, succeeding or failing by random. For instance, even though you explicitly deactivate and uninstall a feature, during installation the script may fail telling you the feature is already activated. You could add a "continue on error" flag to problematic cmdlets, but this would also prevent error detection, and you'll likely end up with cascade failures later or functionality you can't trust being correctly build and deployed. Adding error recovery and correction code at select places is probably a better choice.</p>
+  <p>
+    <a href="http://stackoverflow.com/questions/795751/can-i-get-detailed-exception-stacktrace-in-powershell">Debugging a large PowerShell script</a> can be time consuming. With <a href="http://powergui.org">PowerGUI</a> or a similar environment you're able to set breakpoints, but simple print-lining and writing out the value of $errors[0] will usually suffice. The $errors collection is a circular buffer of the most recent script errors encountered. You can also modify the trace level within the special TaskSetup and TaskTearDown tasks that execute before and after any of your tasks.
+  </p>
+  <pre class="prettyprint">
+TaskSetup { Set-PSDebug -trace 1 }
+TaskTearDown { Set-PSDebug -trace 0 }</pre>
+  <p>This'll emit a lot of trace output which may also be useful to include in a build log.</p>
+  <h4>Conclusion</h4>
+  <p>I think there's some merit to the argument of not relying solely on PowerShell for complex SharePoint build and deployment. Don't get me wrong, PowerShell is a very nice scripting language and there's very little PowerShell can't do from a purely technical perspective. The dynamic nature of PowerShell, however, makes it less suited for longer and complex scripts.</p>
+  <p>
+    My latest SharePoint build and deployment script is approaching 700 lines of PowerShell code and contains some <a href="http://www.bugfree.dk/blog/2011/11/27/importing-csv-term-sets-into-sharepoint-2010-using-powershell/">fairly complex functions</a> that should probably have been <a href="http://www.bugfree.dk/blog/2012/05/20/importing-csv-term-sets-into-sharepoint-2010-using-fsharp/">written in a non-scripting language</a> and exposed to PowerShell through something like a <a href="http://www.bugfree.dk/blog/2011/11/23/using-a-generic-command-line-runner-for-utility-tasks/">generic command-line runner</a>. You could also have created custom cmdlets, but why tie your code unnecessarily to PowerShell?
+  </p>
+  <p>
+    For additional inspiration on how to organize your build scripts, <a href="http://www.pseale.com/blog/StealIdeasFromThesePsakeScripts.aspx">a number of</a> prominent open source projects use PSake, most notably <a href="https://github.com/NServiceBus/NServiceBus">NServiceBus</a> and <a href="https://github.com/ravendb/ravendb">RavenDB</a>.
+  </p>
+</div>

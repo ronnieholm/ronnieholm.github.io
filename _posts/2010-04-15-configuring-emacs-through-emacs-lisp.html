@@ -1,0 +1,72 @@
+---
+layout: post
+title: "Configuring Emacs through Emacs Lisp"
+date: 2010-04-15 12:00 UTC
+tags: [Tool]
+---
+<div id="post">
+  <p>
+    I’ve been an Emacs fanboy for close to 15 years. For a long time I used Emacs solely on Linux because of it’s ubiquity. But written in C and <a href="http://en.wikipedia.org/wiki/Emacs_Lisp">Emacs Lisp</a>, Emacs has great cross-platform support, and now I use it daily on Windows too. <a href="http://www.gnu.org/software/emacs/windows/Getting-Emacs.html">Installing Emacs</a> on Windows is as straightforward as downloading and extracting the <a href="http://ftp.gnu.org/gnu/emacs/windows/">most recent Zip file</a>.
+  </p>
+  <h4>Code equals data</h4>
+  <p>Configuring the editor is done by placing Emacs Lisp code in the .emacs file. Whenever Emacs starts, it looks for this file in the directory specified by the HOME environment variable and executes its content. Unlike the XML configuration files of .NET and Java, with Emacs there’s no intermediate configuration format. There’s no extra language to learn and no limitation in the expressiveness of the configuration language. With this interchangeability of code and data, every behavior of Emacs can be hooked into and tailored and every global variable redefined.</p>
+  <h4>Starting Emacs from the Windows taskbar</h4>
+  <p>On my machine, I like everything Emacs-related to reside in the directory that I extracted Emacs to, yet I want to be able to start Emacs from the taskbar. I do this by pinning cmd.exe to the taskbar and modifying its destination so it defines HOME for this instance before spawning Emacs. This way the HOME of Emacs doesn’t conflict with the HOME of other applications.</p>
+  <pre>cmd.exe /C &quot;set HOME=...\emacs-23.1&amp;&amp;...\emacs-23.1\bin\runemacs.exe&quot;</pre>
+  <p>My .emacs isn’t too esoteric. Nevertheless, here it is for posterity. Reading on, keep in mind that unless otherwise noted, all referenced packages come with Emacs 23.1.</p>
+  <h4>General settings</h4>
+  <p>I start off redefining a couple of global variables. Much functionality relies on the user name and mail address to be known in advance. I then remove the toolbar at the top of the Emacs window, because I use menus or keyboard shortcuts anyway. Next I disable the splash screen on startup, and redefine a few global variables governing Emacs’ scrolling behavior. By default scrolling isn’t line by line, but chuck by chuck of text. I find this behavior confusing.</p>
+  <pre>(setq user-full-name &quot;Ronnie Holm&quot;)
+(setq user-mail-address &quot;foo@bar.baz&quot;)
+
+(tool-bar-mode nil)                            ;; don't show the toolbar
+
+(setq inhibit-startup-message t                ;; don't show ...
+      inhibit-startup-echo-area-message t)     ;; ... startup messages
+
+(setq scroll-margin 1                          ;; do smooth scrolling
+      scroll-conservatively 100000
+      scroll-up-aggressively 0.01
+      scroll-down-aggressively 0.01)</pre>
+  <p>
+    Next I turn on automatic syntax highlighting and commands specific to known file types. Following that I turn the blinking square cursor into a solid and less distracting one. Also, I instruct Emacs not to retain backups of files that I edit or save. I don’t discount the value of backups, but I also don’t like having to remove backup and auto-save files when they clutter my folders. Instead&#160; Emacs should move these files to the Windows Recycle Bin. Lastly, I enable <a href="http://www.gnu.org/software/emacs/manual/html_node/emacs/Iswitchb.html">iswitchb-mode</a>, which makes switching buffers easier by providing on-the-fly suggestions.
+  </p>
+  <pre>(global-font-lock-mode t)                      ;; always do syntax highlighting
+(blink-cursor-mode 0)                          ;; don't blink cursor
+(setq backup-inhibited t)                      ;; no backup files
+(setq delete-by-moving-to-trash t)             ;; delete moves to recycle bin
+(iswitchb-mode t)                              ;; easy buffer switching</pre>
+  <p>The last of the general settings involve modifications to the modeline at the bottom of the Emacs window. By default it displays the buffer name, the line number, and the modes Emacs is in. I extend the modeline with the column cursor position and the size of the current buffer.</p>
+  <pre>(column-number-mode t)                         ;; show column numbers
+(size-indication-mode t)                       ;; show file size</pre>
+  <h4>Package settings</h4>
+  <p>
+    Oftentimes I find myself editing the same set of files every day. So having the cursor move to where I left it editing the file the last time is handy. This is done by <a href="http://www.emacswiki.org/cgi-bin/wiki/SavePlace">save-place mode</a>. Behind the scenes it stores a file name/offset mapping in a file below HOME.
+  </p>
+  <pre>(setq save-place-file &quot;~/.emacs.d/saveplace&quot;)  ;; location of saveplace file
+(setq-default save-place t)                    ;; activate for all buffer
+(require 'saveplace)</pre>
+  <p>
+    As hinted by <a href="http://www.bugfree.dk/blog/2009/11/05/getting-organized-with-emacs-org-mode/">Getting organized with Emacs Org-mode</a>, I very much enjoy using <a href="http://orgmode.org">Org-mode</a> for keeping notes, maintaining lists, and much more. The next section of my .emacs is therefore dedicated to customizing org-mode. Firstly, to make documents easier to read, instead of displaying all the asterisks that designate an indentation level, only display the last one. Secondly, align each indentation level by always adding two asterisks on indentation. Thirdly, when clocking time, have Emacs remember what I was doing and for how long across restarts. But remove clocked time less than one minute.
+  </p>
+  <pre>(setq org-hide-leading-stars t)                ;; hide but one star in outline
+(setq org-add-levels-only t)                   ;; align items nicely
+(setq org-clock-persist t)                     ;; keep track of time ...
+(org-clock-persistence-insinuate)              ;; ... across sessions
+(setq org-clock-out-remove-zero-time-clocks t) ;; remove 0-duration clocked</pre>
+  <p>
+    The default Emacs color theme looks kind of dull. So I downloaded the <a href="http://www.emacswiki.org/emacs/ColorTheme">color-theme</a> package and selected a more aesthetically pleasing theme. After downloading color-theme, place its Lisp files in ~/site-lisp. That’s one of the places where Emacs will automatically look for packages. The 300 or so packages that come with Emacs are in the ~/lisp folder.
+  </p>
+  <pre>(require 'color-theme)                         ;; use a color theme
+(color-theme-initialize)
+(color-theme-arjen)</pre>
+  <p>
+    My last additions to .emacs involve Haskell. Emacs doesn’t support Haskell out-of-the-box. But a <a href="http://www.haskell.org/haskell-mode">haskell-mode</a> is available for download. It turns Emacs into a decent Haskell development environment. Besides syntax highlighting and code formatting capabilities, it adds to Emacs commands for interacting with the Haskell compiler and Haskell interactive.
+  </p>
+  <pre>(load &quot;~/site-lisp/haskell-mode-2.6.4/haskell-site-file&quot;)
+(add-hook 'haskell-mode-hook 'turn-on-haskell-doc-mode)
+(add-hook 'haskell-mode-hook 'turn-on-haskell-indentation)</pre>
+  <p>
+    This concludes my .emacs. Quite a few of these settings I picked up reading the <a href="http://emacs-fu.blogspot.com">emacs-fu</a> blog.
+  </p>
+</div>

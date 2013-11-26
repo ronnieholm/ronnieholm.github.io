@@ -1,0 +1,49 @@
+---
+layout: post
+title: "Expressing a domain specific language of propositions in F#"
+date: 2011-11-25 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+  <p>
+    One aspect of many functional languages that’s always fascinated me is the ease with which you can express a recursive structure, such as a language, and have it evaluated. Suppose you want to define the grammar of a <a href="http://en.wikipedia.org/wiki/Domain-specific_language">DSL</a> of propositions, in F# you could do so using the discriminated union type:
+  </p>
+  <pre class="prettyprint lang-ml">type Proposition =
+    | True
+    | And of Proposition * Proposition
+    | Or of Proposition * Proposition
+    | Not of Proposition</pre>
+  <p>
+    In an object-oriented language like C#, this definition would be analogous to a hierarchy of classes. Proposition would be the base class of True, And, Or, and Not. Each would then have a constructor that accepts some number of arguments, e.g., the And constructor would accept a two-tuple, two propositions, making the Proposition type recursive. In C# you might even model the recursive relationship using the <a href="http://en.wikipedia.org/wiki/Composite_pattern">Composite pattern</a>.
+  </p>
+  <p>In F#, an instance of the Proposition type may be created using a constructor syntax that resembles that of a function call:</p>
+  <pre class="prettyprint lang-ml">let p = And(Or(True, Not(True)), Not(Not(True)))</pre>
+  <p>
+    Now, because of the recursive nature of the Proposition type, instances of it form a <a href="http://en.wikipedia.org/wiki/Parse_tree">parse tree</a>-like structure:
+  </p>
+  <pre>                        And
+                        /\
+                       /  \
+                      Or  Not 
+                      /\    \
+                     /  \    \
+                  True  Not  Not
+                          \    \
+                           \    \ 
+                          True  True</pre>
+  <p>Having a parse tree is not very useful in itself. What you need is some way to execute or evaluate it. Given the recursive nature of the grammar, it makes sense for the evaluator to be recursively defined as well. The evaluator would do pattern matching on the node type, deconstructing it into the parts needed to evaluate it. Since our language of propositions maps directly to the boolean operations of F#, it’s very simple to evaluate the parse tree:</p>
+  <pre class="prettyprint lang-ml">let rec eval (p: Proposition) =
+    match p with
+    | True -&gt; true
+    | And(p1, p2) -&gt; eval p1 &amp;&amp; eval p2
+    | Or (p1, p2) -&gt; eval p1 || eval p2
+    | Not(p1) -&gt; not (eval p1)
+
+let e = eval p // e : bool = true</pre>
+  <p>
+    The features of F# used here allow for more complicated languages to be expressed and evaluated directly without the need for any <a href="http://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form">Backus-Naur</a> form and <a href="http://en.wikipedia.org/wiki/Parser_generator">parser generator</a>.
+  </p>
+  <p>
+    PS: I&#8217;ve encountered <a href="https://gist.github.com/2934374#file_fsharp.ml">this gist</a> implementing a nice progression of the same idea with expressions and variables.
+  </p>
+</div>

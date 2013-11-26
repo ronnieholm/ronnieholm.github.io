@@ -1,0 +1,40 @@
+---
+layout: post
+title: "Why not to comment code"
+date: 2009-08-15 12:00 UTC
+tags: [Process]
+---
+<div id="post">
+  <p>
+    <strong>Update, Aug 18, 2009</strong>: I&#8217;m amazed at how much <a href="http://www.reddit.com/r/programming/comments/9b4ct/why_not_to_comment_code">attention</a> this post has received. More than 200 comments on Reddit.
+  </p>
+  <p>
+    I was just listening to the <a href="http://deepfriedbytes.com/podcast/episode-35-why-comments-are-evil-and-pair-programming-with-corey-haines">Why comments are evil</a> episode of <a href="http://deepfriedbytes.com">Deep Fried Bytes</a>. The views put forward by the guest, <a href="http://www.coreyhaines.com/">Corey Haines</a>, deeply resonate with me because I believe they&#8217;re what every developer should strive for. I&#8217;m not advocating that code should be entirely free of comments, but rather that most comments do more harm than good.
+  </p>
+  <p>
+    Below I&#8217;ve listed the main points of view.
+  </p>
+  <ul>
+    <li>
+      It&#8217;s important to differentiate between code comments and API documentation. For API documentation, don&#8217;t auto-generate. Especially don&#8217;t go with tools like <a href="http://submain.com/products/ghostdoc.aspx">GhostDoc</a>. Take the time to document properly. Otherwise, you&#8217;re more likely to confuse the developer trying to make sense of your code.
+    </li>
+    <li>
+      Stop focusing on having the computer understand you and start focusing on the person that comes after you, e.g., while there&#8217;s some overhead to method calls, unless the profiler tells you otherwise, don&#8217;t hesitate to break down a method into as many smaller methods as it takes to make it more approachable.
+    </li>
+    <li>
+      Every time you&#8217;re tempted to comment, take the time to think if you can make the code tell its own story, e.g., instead of some branching condition, extract the condition into a method to emphasize the story of why over how.
+    </li>
+    <li>
+      Developers comment to explain a confusing part of their code rather than take the time to <a href="http://en.wikipedia.org/wiki/Refactoring">refactor</a> it by extracting a method or naming a variable properly. Inevitably the code gets modified and the comment rots.
+    </li>
+    <li>
+      Parts of a method may be complicated so a comment is added. Saying part of a method is complicated is in itself a sign that it&#8217;s doing too much.
+    </li>
+    <li>
+      The prevailing culture among developers is to focus on what it takes to get code working. It&#8217;s a battle of short-term vs. long-term maintainability and short-term almost always comes out as the winner. Writing code, ask yourself if you&#8217;re able to immediately understand the code a month from now.
+    </li>
+  </ul>
+  <p>
+    The opinions put forward in the episode aren&#8217;t new. Still, I find them well worth iterating because as developers we tend to not pay enough attention to them. We tend to focus too little on good <a href="http://manifesto.softwarecraftsmanship.org/">software craftsmanship</a>.
+  </p>
+</div>

@@ -1,0 +1,43 @@
+---
+layout: post
+title: "Notes from Geek Night talk on Advanced Windsor Tricks"
+date: 2010-12-19 12:00 UTC
+tags: [Tool]
+---
+<div id="post">
+  <p>
+    My notes from a <a href="http://secure.trifork.com/aarhus-2010/freeevent/index.jsp?eventOID=2756">talk on Windsor</a> by <a href="http://mookid.dk/oncode">Mogens Heller Grabe</a> which I attended this week. <a href="http://dl.dropbox.com/u/8614955/Avancerede%20Windsor-tricks%20-%20H%C3%B8je%20Taastrup.pdf">Slides</a> and <a href="http://dl.dropbox.com/u/8614955/Avancerede%20Windsor-tricks.zip">code</a> are available through Dropbox, but I don’t know for how long.
+  </p>
+  <ul>
+    <li>
+      Use an Inversion of Control container (IoC) like <a href="http://stw.castleproject.org/Windsor.MainPage.ashx">Windsor</a> to create an architecture that responds well to change, i.e., an architecture that promotes looser coupling and higher cohesion
+    </li>
+    <li>The ability to write unit tests against a code base is a good measure of its degree of coupling </li>
+    <li>By having components depend on interfaces, you’re free to switch the implementation at runtime, introducing flexibility into the software </li>
+    <li>Avoid having concrete components talk to each other. It makes it hard for the two to vary independently, e.g., adding logging later can only be done by tearing components apart and putting them back together </li>
+    <li>At runtime the IoC container recursively composes these smaller components into an object graph, e.g., by passing concrete implementations through the constructors to satisfy the dependencies </li>
+    <li>One alternative to using an IoC container is using a service locator. Each component’s constructor would then ask the locator for its dependent components. While this approach works, it makes testing components in isolation difficult because all dependencies are now locked away inside the service locator. Instead, by having all dependencies supplied in the constructor, unit tests can directly supply fakes implementations </li>
+    <li>When software is only used in one environment it tends to be fairly inflexible because it’s only suited for that one purpose. As soon as you design it to be used in two or more environments it becomes more flexible. Thing of different environments as unit test, staging, production, and so on </li>
+    <li>The idea is for components to not have to be modified depending on the where they’re running. It’s the IoC container that dynamically tie components together based on the environment </li>
+    <li>Suppose you didn’t use a IoC container. Then ultimately the top-level object would have to pass concrete instances down the chain. The top-level object may well be the UI layer. But having the UI layer know about data access components, service components, and logging components isn’t ideal. Instead use an IoC container, which is nothing more than a factory for components </li>
+    <li>
+      With the Windsor IoC container (and most others), the usage pattern typically involves three stages
+      <ul>
+        <li>Register: tie together interfaces with concrete implementations </li>
+        <li>Resolve: return concrete implementations of interfaces required to satisfy the dependencies of an object </li>
+        <li>Release: dispose of concrete implementations </li>
+      </ul>
+    </li>
+    <li>
+      Most people only use a fraction of the functionality of an IoC container. Instead of taking dependency of a full-blown container, you could easily <a href="http://msdn.microsoft.com/en-us/magazine/cc337885.aspx">roll your own IoC container</a> that implements the core functionality in a few dozen lines of code &#8212; in an associated <a href="http://www.dotnetrocks.com/default.aspx?showNum=362">.NET Rocks</a> and <a href="http://www.dnrtv.com/default.aspx?showNum=126">DnrTV</a> episode <a href="http://www.jameskovacs.com">James Kovacs</a> elaborates on his original article
+    </li>
+    <li>The goal of using a container isn’t to get rid of calls to the new operator. It’s to not use the new operator for the parts of an applications where flexibility is required </li>
+    <li>
+      Simple forms of <a href="http://en.wikipedia.org/wiki/Aspect_oriented_programming">Aspect Oriented Programming</a> are possible using interceptors
+    </li>
+    <li>
+      Windsor supports the decorator pattern so you can have one component wrap another at runtime. This lets you implement features such as logging without actually modifying the original component. It’s an example of adhering to the <a href="http://en.wikipedia.org/wiki/Open/closed_principle">open/close principle</a> by which classes should be open for extension, but closed for modification. In other words: don’t edit the original source code to introduce new behavior. Instead use methods of composition
+    </li>
+    <li>Avoid configuring Windsor through XML and instead use the fluent interface &#8212; perhaps in a separate assembly so only it needs to be redeployed when the configuration changes. When a value, such as a connection string needs to be configurable, create a section in app.config and add the value there. Windsor will know how to locate the value when instantiating objects</li>
+  </ul>
+</div>

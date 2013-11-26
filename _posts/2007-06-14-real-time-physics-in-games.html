@@ -1,0 +1,29 @@
+---
+layout: post
+title: "Real time physics in games"
+date: 2007-06-14 12:00 UTC
+tags: [Math]
+---
+<div id="post">
+  <p>
+    I was watching the <a href="http://channel9.msdn.com/Showpost.aspx?postid=314874">interview</a> with <a href="http://weblogs.asp.net/brianbec/articles/440296.aspx">Brian Beckman</a> on real time physics simulation in games over at <a href="http://channel9.msdn.com">Channel 9</a>. In the video Brian explains the challenges involved in creating an accurate, real time physics model in games, specifically for flight simulators and race car games.  Although the math is quite involved, Brian does a superb job of transforming the material into something digestible and fascinating.
+  </p>
+  <p>
+    In summary, <a href="http://en.wikipedia.org/wiki/Moore%27s_law">Moore’s law</a> enables game designers to use real time physics in games to accurately simulate something as complicated as a race car. Simulating an airplane has been possible for well over twenty years, but that&#8217;s only because the airplane moves smoothly through the air and is composed of simple components, such as a wing and a fuselage, which translates into few and simple equations to solve for each frame.
+  </p>
+  <p>
+    A race car, on the other hand, has four wheels touching the ground and connected to the car through some kind of suspension. Hence each wheel has to be accounted for independently. In addition, the clutch, gear box, and aerodynamics of the car, not to mention the terrain, have a profound impact on the physics model, calling for a more involved set of <a href="http://phors.locost7.info ">equations</a> to solve.
+  </p>
+  <p>As computes have become fast enough to match the frame rate given this challenging set of equations, race car games have become as realistic as flight simulators. With more horsepower, however, comes a need for even more realism. So even though computers become faster/fatter at an exponential rate, simplifying the model is, and probably always will be, worth striving for.</p>
+  <p>
+    This is where <a href="http://rigsofrods.blogspot.com">Rigs of Rods</a> enters the video at time index 00:56:10. The game takes the opposite approach of using advanced equations, with the risk of introducing divergence or singularities into the model when, say, the denominator of a fraction approaches zero. Instead the game uses simple/simpler equations, such as <a href="http://en.wikipedia.org/wiki/Harmonic_oscillator">harmonic oscillators</a>, as a mean of modeling airplanes, cars, trucks, etc. using sticks and stones (or rigs of rods, hence the name).<br />
+    <object width="425" height="350">
+      <param name="movie" value="http://www.youtube.com/v/TR9jqGv05H4"></param>
+      <param name="wmode" value="transparent"></param>
+      <embed src="http://www.youtube.com/v/TR9jqGv05H4" type="application/x-shockwave-flash" wmode="transparent" width="425" height="350"></embed>
+    </object><br />
+    <br />
+    The sticks and stones approach works by assigning mass to the stones and connecting them using the sticks, and then adding textures on top. This more general, but also more computationally intensive, model creates a very realistic experience.
+  </p>
+  <p>I’ve been playing the game for a couple of days now, and although it initially appears simple it’s surprisingly entertaining. A lot of time goes into exploring the scenery using the various modes of transportation.</p>
+</div>

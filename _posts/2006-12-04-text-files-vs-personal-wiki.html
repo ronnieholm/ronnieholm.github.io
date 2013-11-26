@@ -1,0 +1,52 @@
+---
+layout: post
+title: "Text files vs. personal wiki"
+date: 2006-12-04 12:00 UTC
+tags: [Tool]
+---
+<div id="post">
+  <p>I have quite a few small text files lying around, containing everything from to-do lists to shopping lists to code snippets to small howto&#8217;s. Now, instead of having all those text files floating around as regular files, nine months ago I decided to move them into a locally stored, for security reasons, personal wiki.</p>
+  <p>
+    Among the good wiki engines out there (most notably <a href="http://www.mediawiki.org/wiki/MediaWiki">MediaWiki</a>, <a href="http://moinmoin.wikiwikiweb.de">MoinMoin</a>, and <a href="http://www.flexwiki.com">FlexWiki</a>), I went with FlexWiki, because it being asp.net based means that all the software required for a basic configuration ships with Windows. In addition, FlexWiki&#8217;s provider-based storage model lets you store pages in an MS SQL server, if you want to.
+  </p>
+  <p>My incentive for going the wiki way was that I expected my documents to become more structured when making use of the typical wiki-like features &#8230;</p>
+  <ul>
+    <li>
+      Documents are automatically linked together.<br />
+      I found my pages to be fairly independent, so hyperlinks are almost never present.
+    </li>
+    <li>
+      All modifications are recoded.<br />
+      Versioning isn&#8217;t really that big an issue, because I usually add contents to the end of a page rather than changing existing contents, and for pages such as a shopping list, I don&#8217;t really need versioning.
+    </li>
+    <li>
+      More sophisticating layout capabilities.<br />
+      Although I occasionally created a table and used colors, generally I can do with simple formatting. For those few cases where I can&#8217;t, a Word document is in place, since it’s equally well indexed by MS or Google desktop search engines.
+    </li>
+  </ul>
+  <p>&#8230; but most of the time, I didn&#8217;t make use of the features FlexWiki provided over text files. So, if you also factor in the disadvantages &#8230;</p>
+  <ul>
+    <li>
+      Extra infrastructure required.<br />
+      Web server, and possibly an SQL server, is a must-have-installed. Also, you probably need to figure out how to configure the web server so you don&#8217;t share your live with the world.
+    </li>
+    <li>
+      Browser required for page edit.<br />
+      After launching the browser, you must navigate to the wiki page, which may add considerable overhead for quick edits as opposed to simply double clicking a text file from within Explorer.
+    </li>
+    <li>
+      Lacking WYSIWYG support.<br />
+      With FlexWiki, editing a page is a two-step process. First you write content in a markup language. Then you click &#8220;Save&#8221; and the browser switches to display view, where your markup is converted to html. Now, if the result is not what you expected, you have to repeat the cycle.
+    </li>
+    <li>
+      Build-in search less powerful than desktop search engines.<br />
+      If you use the file system for storing wiki pages then the pages are also searchable by desktop search engines. However, if you opt for MS SQL storage, you have to rely on the build-in search capabilities of the wiki to find pages.
+    </li>
+    <li>
+      Backup is more involved.<br />
+      Backing up and restoring a database is more complicated than copying a directory.
+    </li>
+  </ul>
+  <p>&#8230; I&#8217;ve decided that the wiki doesn&#8217;t cut it for me: simply because there is less overhead associated with editing text or even Word documents and because with desktop search engines I retain most of the properties I need.</p>
+  <p>This doesn&#8217;t mean that a wikis aren&#8217;t suited for maintaining a corpus of personal information; just that the corpus should serve a different purpose to make better use of wiki features.</p>
+</div>

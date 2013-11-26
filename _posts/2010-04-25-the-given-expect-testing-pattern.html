@@ -1,0 +1,73 @@
+---
+layout: post
+title: "The given-expect testing pattern"
+date: 2010-04-25 12:00 UTC
+tags: [C#]
+---
+<div id="post">
+  <p>
+    I was watching <a href="/web/20110915003828/http://schuchert.wikispaces.com/">Brett Schuchert</a>’s TDD <a href="/web/20110915003828/http://vimeo.com/album/210446">screencast</a> on implementing the <a href="/web/20110915003828/http://en.wikipedia.org/wiki/Shunting-yard_algorithm">shunting yard algorithm</a> in C#. In it Brett builds up his tests in a style I hadn’t come across before. Each test is expressed as a given-expect statement. A pattern that is particularly useful in situations in which a class has a main method that accepts an open-ended number of dissimilar inputs.
+  </p>
+  <p>
+    I found the given-expect pattern useful in testing a piece of code that I was working on this week. I was refactoring and adding tests around an ASP.NET control adapter that makes SharePoint 2007 pages more XHTML compliant. I wanted to reuse the transformations outside the control adapter and hence ended up moving the transformation logic to a new class. It accepts possibly malformed HTML and relies on heuristics of the <a href="/web/20110915003828/http://htmlagilitypack.codeplex.com/">HTML Agility Pack</a> to build a DOM off of it. I can then query the DOM, looking for known violations, and patch them before returning XHTML to the caller.
+  </p>
+  <pre class="prettyprint lang-cs">
+public class HtmlToXHtmlTransformer {
+    private readonly HtmlDocument _document;
+
+    public HtmlToXHtmlTransformer(string html) {
+        _document = new HtmlDocument();
+        _document.DetectEncoding(new StringReader(html));
+        _document.LoadHtml(html);
+    }
+
+    private void Transform(string xpath, Action&lt;HtmlNode&gt; nodeMatch) {
+        var nodes = _document.DocumentNode.SelectNodes(xpath);
+        if (nodes != null)
+        foreach (var node in nodes)
+            nodeMatch.Invoke(node);
+    }
+
+    private void FixDuplicateBorderAttributeOnSPGridViewControl() {
+        Transform(&quot;//table[count(@border)=2]&quot;, node =&gt; node.Attributes.Remove(&quot;border&quot;));
+    }
+
+    public string Transform() {
+        FixDuplicateBorderAttributeOnSPGridViewControl();
+        _document.OptionWriteEmptyNodes = true;
+        return _document.DocumentNode.WriteTo();
+    }
+}</pre>
+  <p>
+    The complete HtmlToXHtmlTransformer collects a dozen transformations. Its Transform method is what we want to call with various HTML fragments to verify that they come out as XHTML. For this purpose, we might do the tests as <a href="/web/20110915003828/http://msdn.microsoft.com/en-us/library/ms182527.aspx">Visual Studio data-driven tests</a> that read their input and output from a text file. But in most cases I prefer traditional tests, so I can describe the purpose of a test with a descriptive method name and possibly a comment.
+  </p>
+  <pre class="prettyprint lang-cs">
+[TestClass]
+public class HtmlToXHtmlTransformerTest {
+    private string _result;
+
+    [TestMethod]
+    public void Must_selfclose_nodes_when_allowed() {
+        Given(&quot;&lt;br&gt;&quot;);
+        Expect(&quot;&lt;br /&gt;&quot;);
+    }
+
+    [TestMethod]
+    public void Must_remove_duplicate_border_on_SPGridView_control {
+        Given(@&quot;&lt;table border=&quot;&quot;0&quot;&quot; border=&quot;&quot;0&quot;&quot;&gt;&lt;/table&gt;&quot;);
+        Expect(@&quot;&lt;table border=&quot;&quot;0&quot;&quot;&gt;&lt;/table&gt;&quot;);
+    }
+
+    private void Expect(string xhtml) {
+        Assert.AreEqual(xhtml, _result);
+    }
+
+    private void Given(string html) {
+        var transformer = new HtmlToXHtmlTransformer(html);
+        _result = transformer.Transform();
+    }
+}</pre>
+  <p>
+    I particularly like the clarity of the given-expect pattern and find that for a reasonable number of tests it’s a viable alternative to data-driven test. I do, however, recognize the value of data-driven tests in situations where a non-developer wants to test a class. Though at the unit test level I’ve never experienced this. It’s more characteristic of <a href="/web/20110915003828/http://en.wikipedia.org/wiki/FitNesse">FitNesse for acceptance testing</a>. However you unit test, just make sure your tests run with a minimum of effort on your part and that they run fast.
+  </p>
+</div>

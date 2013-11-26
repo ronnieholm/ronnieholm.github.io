@@ -1,0 +1,121 @@
+---
+layout: post
+title: "Strongly typed SharePoint list operations using the repository pattern in F#"
+date: 2012-12-24 12:00 UTC
+tags: [F#, C#]
+---
+<div id="post">
+  <p>
+    This post is part of series:
+  </p>
+  <p>
+    Part 4 &#8211; Strongly typed SharePoint list operations using the repository pattern in F#<br />
+    Part 3 &#8211; <a href="http://www.bugfree.dk/blog/2012/12/06/bringing-together-repository-and-tree-structure-in-business-layer/">Bringing together repository and tree structure in business layer</a><br />
+    Part 2 &#8211;  <a href="http://www.bugfree.dk/blog/2012/12/03/creating-and-working-with-a-custom-tree-data-structure-in-csharp/">Creating and working with a custom tree data structure in C#</a><br />
+    Part 1 &#8211; <a href="http://www.bugfree.dk/blog/2012/12/02/strongly-typed-sharepoint-list-operations-using-the-repository-pattern/">Strongly typed SharePoint list operations using the repository pattern</a>
+  </p>
+  <p>
+    As an experiment, I wanted to re-implement the SharePoint repository pattern from Part 1 in F#.
+  </p>
+  <pre class="prettyprint lang-ml">
+open System
+open System.Xml.Linq
+open Microsoft.SharePoint
+open Microsoft.SharePoint.Taxonomy
+
+type LegalDocument =
+    { Title: string
+      ApprovalStatus: string
+      Locations: seq&lt;string&gt;
+      Level: int
+      ProcessHierarchy: Map&lt;Guid, string&gt; 
+      DocumentId: string
+      ParentDocumentId: string
+      Url: Uri }
+
+type LegalDocumentRepository() =
+    let LinkFilename = "LinkFilename"
+    let FileLeafRef = "FileLeafRef"
+    let ModerationStatus = "_ModerationStatus"
+    let Location = "Location_Legal"
+    let ProcessHierarchyLevel = "ProcessHierarchyLevel"
+    let ProcessHierarchyLegal = "ProcessHierarchyLegal"
+    let DocumentId = "_dlc_DocId"
+    let ParentDocumentId = "Parent_x0020_Document_x0020_Id"
+
+    let xn s = XName.Get s
+
+    member __.Query (list: SPList) (caml: XElement): SPListItemCollection =
+        let query = 
+            SPQuery(
+                ViewFields = ([LinkFilename; 
+                               ModerationStatus; 
+                               Location; 
+                               ProcessHierarchyLevel; 
+                               ProcessHierarchyLegal; 
+                               DocumentId; 
+                               ParentDocumentId] |&gt; List.fold (fun acc fld -&gt; 
+                                   acc + XElement(xn "FieldRef", XAttribute(xn "Name", xn fld)).ToString()) ""),
+                Query = caml.ToString(),
+                ViewAttributes =  @"Scope=""RecursiveAll""")
+        list.GetItems query
+
+    member this.GetApprovedDocuments (list: SPList) =
+        let caml = 
+            XElement(xn "Where",
+                XElement(xn "Eq",
+                    XElement(xn "FieldRef", XAttribute(xn "Name", ModerationStatus)),
+                    XElement(xn "Value", XAttribute(xn "Type", xn "ModStat"), "Approved")))
+        this.Query list caml |&gt; this.Map
+
+    member __.Map items =
+        let levelMapper o =
+            let s = o |&gt; string
+            match (s |&gt; String.IsNullOrEmpty) with
+            | true -&gt; 0
+            | false -&gt; 
+                let v = s.Split [|':'|]
+                match v.Length with
+                | 0 -&gt; 0
+                | _ -&gt; v.[0] |&gt; int
+
+        let locationMapper (o: obj) = 
+            o :?&gt; TaxonomyFieldValueCollection |&gt; Seq.map (fun f -&gt; f.Label)
+
+        let processHierarchyMapper (o: obj) =
+            let t = o :?&gt; TaxonomyFieldValueCollection
+            t |&gt; Seq.map (fun f -&gt; Guid(f.TermGuid), f.Label)
+              |&gt; Map.ofSeq
+
+        let parentDocumentIdMapper o =
+            let s = o |&gt; string
+            match (String.IsNullOrEmpty s) with
+            | true -&gt; ""
+            | false -&gt; s.Trim()
+
+        let urlPrefix = items.List.ParentWeb.Url + "/"
+        items |&gt; Seq.cast&lt;SPListItem&gt; 
+              |&gt; Seq.map (fun i -&gt;
+                    { Title = i.[LinkFilename] |&gt; string
+                      ApprovalStatus =  i.[ModerationStatus] |&gt; string
+                      Locations = locationMapper i.[Location]
+                      Level = levelMapper i.[ProcessHierarchyLevel]
+                      ProcessHierarchy = processHierarchyMapper i.[ProcessHierarchyLegal] 
+                      DocumentId = i.[DocumentId] |&gt; string 
+                      ParentDocumentId = parentDocumentIdMapper i.[ParentDocumentId]
+                      Url = Uri (urlPrefix + i.Url) })
+
+[&lt;EntryPoint&gt;]
+let main args =
+    use siteCollection = new SPSite "http://intranet"
+    use site = siteCollection.OpenWeb "Legal"
+    let list = site.Lists.["LegalDocuments"]
+    let repository = LegalDocumentRepository()
+    let documents = repository.GetApprovedDocuments list
+
+    documents |&gt; Seq.iter (printfn "%A")
+    0</pre>
+  <p>
+    In C#, the cast from string to LINQ to XML type is implicit. In F#, casts are generally explicit so we require the small xn helper function. Using a record type over a regular LegalDocument class has the benefit that all members must be explicitly set on creation or the compiler will issue an error. This comes in handy when modifying LegalDocument during the application life-cycle as the compiler will make sure we update all places where it&#8217;s used.
+  </p>
+</div>

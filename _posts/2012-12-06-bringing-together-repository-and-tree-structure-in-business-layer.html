@@ -1,0 +1,81 @@
+---
+layout: post
+title: "Bringing together repository and tree structure in business layer"
+date: 2012-12-06 12:00 UTC
+tags: [C#, Pattern, SharePoint]
+---
+<div id="post">
+  <p>
+    This post is part of series:
+  </p>
+  <p>
+    Part 4 &#8211; <a href="http://www.bugfree.dk/blog/2012/12/24/strongly-typed-sharepoint-list-operations-using-the-repository-pattern-in-fsharp/">Strongly typed SharePoint list operations using the repository pattern in F#</a><br />
+    Part 3 &#8211; Bringing together repository and tree structure in business layer<br />
+    Part 2 &#8211;  <a href="http://www.bugfree.dk/blog/2012/12/03/creating-and-working-with-a-custom-tree-data-structure-in-csharp/">Creating and working with a custom tree data structure in C#</a><br />
+    Part 1 &#8211; <a href="http://www.bugfree.dk/blog/2012/12/02/strongly-typed-sharepoint-list-operations-using-the-repository-pattern/">Strongly typed SharePoint list operations using the repository pattern</a>
+  </p>
+  <p>Now that we&#8217;ve created the data access layer in the form of a repository to query a SharePoint list and created a supporting tree data structure to re-organize the data returned from the repository, it&#8217;s time to combine the two in the business layer. Because we&#8217;re using the repository to abstract away storage details and the tree structure, as opposed to XML or tree view control APIs, to structure data, the business layer has become easier to reason about. In fact, the business layer can, or perhaps should, be developed as a console application or using a unit testing framework to ensure presentation independence and to work around the very long SharePoint deployment and feedback cycle.</p>
+  <p>To make the code easier to follow, let’s assume the LegalDocumentRepository.GetDocuments method brings back this set of legal documents from the SharePoint list:</p>
+  <pre class="prettyprint lang-cs">
+new LegalDocument { Title = &quot;node-1&quot;, DocumentId = &quot;node-1&quot;, ParentDocumentId = &quot;root&quot;, Level = 2 },
+new LegalDocument { Title = &quot;node-1.1&quot;, DocumentId = &quot;node-1.1&quot;, ParentDocumentId = &quot;node-1&quot;, Level = 3 },
+new LegalDocument { Title = &quot;node-1.1.1&quot;, DocumentId = &quot;node-1.1.1&quot;, ParentDocumentId = &quot;node-1.1&quot;, Level = 4 },
+new LegalDocument { Title = &quot;node-1.2&quot;, DocumentId = &quot;node-1.2&quot;, ParentDocumentId = &quot;node-1&quot;, Level = 3 },
+new LegalDocument { Title = &quot;node-2&quot;, DocumentId = &quot;node-2&quot;, ParentDocumentId = &quot;root&quot;, Level = 2 }</pre>
+  <p>The goal is to transform this set of documents into a tree by tying documents together using the DocumentId/ParentDocumentId properties. In doing so, we assume the parent of a document must always be at a lower Level than the child. Thus, building the tree is done by building lower levels first.</p>
+  <p>Here&#8217;s the business layer class that calls out to the repository and transforms the tabular result into the tree structure:</p>
+  <pre class="prettyprint lang-cs">
+public class DocumentBrowser {
+    public Tree&lt;LegalDocument&gt; GetDocuments(SPList l) {
+        var repository = new LegalDocumentRepository();
+        var documents = repository.GetDocuments(l);
+
+        // in the real world, the root LegalDocument instance would also be retrieved from the list.
+        var root =
+            new Tree&lt;LegalDocument&gt;(new LegalDocument {
+                Title = &quot;root&quot;,
+                DocumentId = &quot;root&quot;,
+                ParentDocumentId = &quot;&quot;,
+                Level = 1
+            });
+
+        return BuildTree(documents, root);           
+    }
+
+    public Tree&lt;T&gt; BuildTree&lt;T&gt;(IEnumerable&lt;T&gt; documents, Tree&lt;T&gt; tree) where T : LegalDocument {
+        documents
+            .OrderBy(d =&gt; d.Level)
+            .ToList()
+            .ForEach(d =&gt; {
+                var p = tree.Find(pd =&gt; pd.DocumentId == d.ParentDocumentId);
+                if (p != null)
+                    p.Children.Add(new Tree&lt;T&gt;(d));
+            });
+
+        return tree;
+    }
+}
+</pre>
+  <p>A console application that exercises the business layer looks like so:</p>
+  <pre class="prettyprint lang-cs">
+public static void Main() {
+    using (var siteCollection = new SPSite(&quot;http://intranet&quot;)) {
+        using (var site = siteCollection.OpenWeb(&quot;Legal&quot;)) {
+            var list = site.Lists[&quot;LegalDocuments&quot;];
+            var documentBrowser = new DocumentBrowser();
+            var tree = documentBrowser.GetDocuments(list);
+            System.Console.WriteLine(tree);
+
+            /*
+             root
+               node-1
+                 node-1.1
+                   node-1.1.1
+                 node-1.2
+               node-2
+            */
+        }
+    }
+}</pre>
+  <p>Ultimately, the layering introduces more classes and code, but the code becomes more abstract, less cluttered, easier to read, and faster to debug.</p>
+</div>

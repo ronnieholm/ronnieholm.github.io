@@ -1,0 +1,21 @@
+---
+layout: post
+title: "Getting started with SharePoint presentation"
+date: 2010-03-31 12:00 UTC
+tags: [SharePoint]
+---
+<div id="post">
+  <p>
+    Download <a href="/content/GettingStartedWithSharePoint.pdf">slides</a> from the presentation.
+  </p>
+  <p>Last week at work I did a 45 minutes presentation on how to get started with SharePoint development. Instead of the usual presentation on the technical merits of SharePoint, my focus was more on the change in mindset required coming from ASP.NET. For even though ASP.NET is a cornerstone of SharePoint, SharePoint is so much more. Not to mention different.</p>
+  <h4>History makes a difference</h4>
+  <p>
+    SharePoint is a <a href="http://blogs.msdn.com/joelo/archive/2007/12/28/7-years-of-sharepoint-a-history-lesson.aspx">long-evolving</a> product, dating back to <a href="http://www.joiningdots.net/blog/2006/08/sharepoint-history.html">the late nineties</a>. From its <a href="http://blogs.msdn.com/sharepoint/archive/2009/10/05/sharepoint-history.aspx">inception and up till now</a> new technologies have replaced old ones, APIs have emerged and died, product teams have merged, and Microsoft have bought and integrated other companies’ products into SharePoint. At the same time SharePoint has become the fastest growing server product in Microsoft history. All of this inevitably leaves its marks on the APIs, which aren’t as consistent and defect free as we’re used to with the .NET framework.
+  </p>
+  <h4>Provisioning is the magic sauce</h4>
+  <p>What truly makes SharePoint development different from ASP.NET is the notion of provisioning. With ASP.NET you create a bunch of ASPX files, organize them in a static file structure, and deploy them to a server. With SharePoint, the structure emerges over time as SharePoint or the user creates instances of templates: sites from site templates, lists from list templates, pages from page templates, and so forth. From a developer’s perspective the challenge isn’t the instance creation in itself. It’s that SharePoint encourages users to not only dynamically evolve the structure, but also to modify the instances, severing their definition from the template. While it empowers users, it also makes it challenging to programmatically evolve the structure.</p>
+  <p>Developing with SharePoint is about creating templates and components for SharePoint or the user to compose a site of. To make this composition work, SharePoint imposes constraints on what can be done and how. While any constraint may at times be perceived as a hindrance, accepting it is what guarantees that a components will play nicely with others. These pieces of functionality are then packaged as features and added to a WSP installation file for deployment to SharePoint. Features may then be activated, making their functionality available to a site. Or deactivated and the WSP uninstalled.</p>
+  <h4>Why learn SharePoint</h4>
+  <p>By the end of the day, no doubt SharePoint is more challenging to work with than ASP.NET. Not acknowledging its history makes many ASP.NET developers so frustrated that they’ll never again want to work with SharePoint. Coming from ASP.NET I can understand why. At times SharePoint isn’t as smooth and evolved as ASP.NET. But knowing what to expect takes the worst of the frustration. And once you learn to leverage the power of SharePoint, you can build applications without writing a lot of plumping code. To a large extend the architecture is given, leaving you with the opportunity to fill in the blanks.</p>
+</div>

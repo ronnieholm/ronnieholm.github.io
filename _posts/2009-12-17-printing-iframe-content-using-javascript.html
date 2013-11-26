@@ -1,0 +1,42 @@
+---
+layout: post
+title: "Printing iframe content using JavaScript"
+date: 2009-12-17 12:00 UTC
+tags: [JavaScript]
+---
+<div id="post">
+  <p>JavaScript is on top of the list of things I’d like to become better at. So I was quite happy when assigned a JavaScript-related defect in an application at work. Apparently, there was a bug in the JavaScript routine used for printing only the content of an iframe on a page. Rather than printing only the iframe’s content, it printed the page hosting the iframe, cropping parts of the iframe’s content.</p>
+  <p>I started out confident that printing would be easy to fix. But after Googling and playing around with JavaScript for a while, frustration, fueled by the number of non-working hits I’d stumbled on, started to grow on me. Suppose you start out with an HTML document hosting an iframe and a few lines of JavaScript.</p>
+  <pre class="prettyprint lang-html">&lt;html&gt;
+    &lt;head&gt;
+        &lt;title&gt;IFrame printing example&lt;/title&gt;
+        &lt;script type=&quot;text/javascript&quot;&gt;
+            function myPrint() {
+                var browser = navigator.appName;
+                if (browser == &quot;Microsoft Internet Explorer&quot;) {
+                    window.frames[&quot;frame&quot;].focus();
+                    window.frames.print();
+                }
+                else if (browser == &quot;Netscape&quot;)
+                    alert(&quot;Printing not supported in Firefox&quot;);
+            }
+        &lt;/script&gt;
+    &lt;/head&gt;
+    &lt;body&gt;
+        &lt;iframe id=&quot;frame&quot; name=&quot;frame&quot; width=&quot;100&quot;
+            height=&quot;100&quot; src=&quot;http://google.com&quot;&gt;
+        &lt;/iframe&gt;
+        &lt;a href=&quot;#&quot; onclick=&quot;javascript:myPrint();&quot;&gt;Print&lt;/a&gt;
+    &lt;/body&gt;
+&lt;/html&gt;</pre>
+  <p>A number of issues arise when printing the iframe. First you need to consider if you’re always hosting the main document on the same domain as the iframe’s source. If so, printing only the iframe with Internet Explorer works like a charm. If, on the other hand, the main document and the iframe’s source reside on different domains, it triggers Internet Explorer to displays a bar across the top of the window.</p>
+  <p>
+    <img src="/content/allow-blocked-content-browser-bar.png" />
+  </p>
+  <p>
+    Now, to print the iframe’s content, you must allow blocked content. Only then can JavaScript access the iframe’s object model. But at the same time, you make yourself vulnerable to <a href="http://en.wikipedia.org/wiki/Cross-site_scripting">cross-site scripting attacks</a>.
+  </p>
+  <p>As far as Firefox support goes, you can issue the same API calls as for Internet Explorer. But Firefox will always print the main page, including only the visible parts of the iframe. To my knowledge there’s no way to make Firefox print the iframe’s content as seamlessly as Internet Explorer. One workaround, though, would be to open a new window, grab a reference to the iframe element, and move its contents to the new window before printing it. For cross-domain content, however, Firefox responds with a “permission denied” error when accessing the iframe element. And there’s no option to allow blocked content. Another workaround may therefore be to use Ajax to retrieve the source of the iframe for any domain and insert it into the new window. That, however, wouldn’t work in my case since the iframe may contain a form that the user may have started filling out before hitting print.</p>
+  <p>As a last resort, I considered writing a proxy to retrieve cross-domain hosted content. This would make Internet Explorer never display the bar and allow Firefox to always open a new window with the iframe’s content loaded, even if the user started filling out a form first. But this approach sort of defies the purpose of the browser bar and the permission denied error. Unless you absolutely trust your iframe’s source, you’re exposing your users without their consent.</p>
+  <p>In the end I went with the simplest and most secure solution of not supporting printing at all.</p>
+</div>

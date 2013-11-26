@@ -1,0 +1,39 @@
+---
+layout: post
+title: "How F# record types translate to C# code"
+date: 2012-06-22 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+  <p>
+    Here's another useful insight from <a href="http://hestia.typepad.com/flatlander">Ivan Towlson</a>'s <a href="http://channel9.msdn.com/Events/TechEd/NewZealand/2011/DEV311">A Practical Developer's Introduction to F#</a>.
+  </p>
+  <p>Suppose you want to store information about a person in F#, then the build-in record type provides a nice way of grouping related data together:</p>
+  <pre class="prettyprint lang-ml">
+type Person = { Name: string; Age: int }</pre>
+  <p>Decompiling the generated IL and coming at it from a C# angle provides for an interesting exercise. It not only shows how terse F# can be, but also how easy it is to consume F# types from other .NET languages (decompiled IL is method signatures only, not actual implementation): </p>
+  <pre class="prettyprint lang-cs">
+[Serializable, CompilationMapping(SourceConstructFlags.RecordType)]
+public sealed class Person : IEquatable&lt;Person&gt;, IStructuralEquatable, IComparable&lt;Person&gt;, 
+                             IComparable, IStructuralComparable {
+    // Fields
+    [DebuggerBrowsable(DebuggerBrowsableState.Never)] internal int Age@;
+    [DebuggerBrowsable(DebuggerBrowsableState.Never)] internal string Name@;
+
+    // Methods
+    public Person(string name, int age);
+    [CompilerGenerated] public sealed override int CompareTo(Person obj);
+    [CompilerGenerated] public sealed override int CompareTo(object obj);
+    [CompilerGenerated] public sealed override int CompareTo(object obj, IComparer comp);
+    [CompilerGenerated] public sealed override bool Equals(Person obj);
+    [CompilerGenerated] public sealed override bool Equals(object obj);
+    [CompilerGenerated] public sealed override bool Equals(object obj, IEqualityComparer comp);
+    [CompilerGenerated] public sealed override int GetHashCode();
+    [CompilerGenerated] public sealed override int GetHashCode(IEqualityComparer comp);
+
+    // Properties
+    [CompilationMapping(SourceConstructFlags.Field, 1)] public int Age { get; }
+    [CompilationMapping(SourceConstructFlags.Field, 0)] public string Name { get; }
+}</pre>
+  <p>Observe how a public constructor has been generated, accepting arguments in the order in which the record was defined, and how only getter properties for Name and Age exist. That's because the record type is immutable. The value of Person can only be set once using the constructor. Finally, compare, equals, and hash code methods for doing value comparisons, implementing all the proper interfaces, have been compiler-generated as well.</p>
+</div>

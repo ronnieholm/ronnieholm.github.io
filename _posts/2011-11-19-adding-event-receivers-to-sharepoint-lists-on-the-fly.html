@@ -1,0 +1,44 @@
+---
+layout: post
+title: "Adding event receivers to SharePoint lists on the fly"
+date: 2011-11-19 12:00 UTC
+tags: [SharePoint]
+---
+<div id="post">
+  <p>
+    In <a href="http://www.bugfree.dk/blog/2011/11/17/versioning-attachments-in-a-sharepoint-list-using-snapshotting/">versioning attachments in a SharePoint list using snapshotting</a>, an event receiver was responsible for the heavy lifting. To enable versioning of a list, I could therefore have associated the receiver with a list by adding the usual registration XML to a feature. But versioning is a truly reusable building block that shouldn’t be restricted to lists that are known when the feature is created. A better solution would be to extend the SharePoint list settings page for all lists on a site on which the versioning feature is enabled. The user may then activate or deactivate attachment versioning on the fly.
+  </p>
+  <p>This would involve adding or removing event receivers from a list as the user enables or disables versioning. The following extension method is one way to accomplish the addition-part in a type-safe manner:</p>
+  <pre class="prettyprint lang-cs">// definition 
+public static class SPListExtensions {
+    public static void RegisterEventReceiver&lt;TReceiver&gt;(this SPList list, 
+            SPEventReceiverType receiverType, 
+            int sequenceNumber) where TReceiver : SPItemEventReceiver {
+        var assemblyName = typeof(TReceiver).Assembly.FullName;
+        var className = typeof(TReceiver).FullName;
+
+        (from SPEventReceiverDefinition definition in list.EventReceivers
+         where definition.Assembly == assemblyName &amp;&amp;
+               definition.Class == className &amp;&amp;
+               definition.Type == receiverType
+         select list.EventReceivers[definition.Id])
+        .ToList()
+        .ForEach(receiverToDelete =&gt; receiverToDelete.Delete());
+
+        var receiver = list.EventReceivers.Add();
+        receiver.Type = receiverType;
+        receiver.Assembly = assemblyName;
+        receiver.Class = className;
+        receiver.SequenceNumber = sequenceNumber;
+        receiver.Update();
+        list.Update();
+    }
+}
+
+// use
+list.RegisterEventReceiver&lt;ListAttachmentVersioningEventReceiver&gt;(
+    SPEventReceiverType.ItemAdded, 10000);
+list.RegisterEventReceiver&lt;ListAttachmentVersioningEventReceiver&gt;(
+    SPEventReceiverType.ItemUpdated, 10001);</pre>
+  <p>Under rare circumstances the (assembly, class, type) tuple may not be unique, i.e., the same receiver may be registered multiple times, albeit with different sequence numbers. In practice I never found any use for this functionality, though, which is why I didn’t include the sequence number in the where clause above, causing all registrations matching the tuple to be removed.</p>
+</div>

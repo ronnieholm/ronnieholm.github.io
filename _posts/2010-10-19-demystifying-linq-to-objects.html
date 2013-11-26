@@ -1,0 +1,99 @@
+---
+layout: post
+title: "Demystifying LINQ to Objects"
+date: 2010-10-19 12:00 UTC
+tags: [C#]
+---
+<div id="post">
+  <p>
+    To improve my understanding of <a href="http://msdn.microsoft.com/en-us/netframework/aa904594.aspx">LINQ</a>, I’ve long wanted to learn how <a href="http://download.microsoft.com/download/5/8/6/5868081c-68aa-40de-9a45-a3803d8134b8/standard_query_operators.doc">LINQ to Objects</a> works under the covers. I&#8217;ll do so by relating query expression syntax to method invocation syntax and lambda expressions to generic delegates. Since many of the building blocks that make up LINQ are nothing more than <a href="http://en.wikipedia.org/wiki/Syntactic_sugar">syntactic sugar</a> around .NET 2.0 constructs, learning LINQ in terms of .NET 2.0 is one way to get into the more functional spirit of C#.
+  </p>
+  <p>To set the stage, I’ve created an array of people to query.</p>
+  <pre class="prettyprint lang-cs">Person[] people = new[] { new Person { Age = 1, ...}, ... };</pre>
+  <p>
+    It’s worth noting that all arrays implicitly derive from the <a href="http://msdn.microsoft.com/en-us/library/system.array.aspx">Array</a> class. It’s a special class that only the compiler and the runtime may derive from. Doing so yourself is rewarded with a compiler error stating simply that the class cannot be derived from. What’s also not apparent from the definition of the Array class is that, as of .NET 2.0, it also implements <a href="http://msdn.microsoft.com/en-us/library/5y536ey6.aspx">IList&lt;T&gt;</a>, <a href="http://msdn.microsoft.com/en-us/library/92t2ye13.aspx">ICollection&lt;T&gt;</a>, and <a href="http://msdn.microsoft.com/en-us/library/9eekhta0.aspx">IEnumerable&lt;T&gt;</a>, which derive from the corresponding non-generic interfaces.
+  </p>
+  <pre class="prettyprint lang-cs">public abstract class Array :
+    ICloneable, IList, ICollection,
+    IEnumerable, IStructuralComparable, IStructuralEquatable</pre>
+  <p>The runtime takes special care of extending the Array type with implementations of the generic interfaces based on the type of object that the array stores. That’s why the interfaces are invisible in the documentation. Any array of type T &#8212; in this case Person &#8212; will therefore implement, among others, the IEnumerable&lt;T&gt; interface. It’s the implementation of this interface on a class that enables LINQ to Objects to query any array or collection.</p>
+  <h4>Query expression syntax</h4>
+  <p>
+    Let&#8217;s create a simple query using query expression syntax. To support it, additional keywords have been added to C# to express common query operators. Examples of what’s not supported with query expression syntax are the <a href="http://msdn.microsoft.com/en-us/library/bb338442.aspx">Sum</a>, <a href="http://msdn.microsoft.com/en-us/library/bb503062.aspx">Take</a>, and <a href="http://msdn.microsoft.com/en-us/library/bb358985.aspx">Skip</a> query operators. In those cases you can combine query expression with method invocation syntax or write everything using the latter.
+  </p>
+  <pre class="prettyprint lang-cs">var q = from p in people
+        where p.Age &gt; 25
+        select p;</pre>
+  <h4>Method invocation syntax</h4>
+  <p>
+    To make matters transparent, let’s not rely on type inference and the var keyword for typing the result. At the same time, let&#8217;s assume the role of the compiler and translate the query expression syntax into method invocation syntax with lambda expressions. Each standard query operator, such as <a href="http://msdn.microsoft.com/en-us/library/bb534803.aspx">Where</a> and <a href="http://msdn.microsoft.com/en-us/library/bb548891.aspx">Select</a>, translates to a corresponding method invocation on the collection, oftentimes with a lambda expression as the argument. Both representations are semantically equivalent, but for this simple query method invocation syntax appears more complex. This is generally not the case for either representation as you can try out with a tool like <a href="http://www.bugfree.dk/blog/2008/06/29/prototyping-linq-using-linqpad">LINQPad</a>.
+  </p>
+  <pre class="prettyprint lang-cs">IEnumerable&lt;Person&gt; r = people
+    .Where(p =&gt; p.Age &gt; 25)
+    .Select(p =&gt; p);</pre>
+  <p>The concise nature of the code is due to the compiler inferring the type arguments to Where and Select and the type of the lambda expression. In this case, because the collection stores objects of type Person, the type arguments of the generic methods as well as the type of the lambda expression is also of type Person. To make these types explicit, you can substitute real types for the generic ones in the definition of Where and Select provided later.</p>
+  <pre class="prettyprint lang-cs">IEnumerable&lt;Person&gt; s = people
+    .Where&lt;Person&gt;((Person p) =&gt; p.Age &gt; 25)
+    .Select&lt;Person, Person&gt;((Person p) =&gt; p);</pre>
+  <h4>Generic delegates</h4>
+  <p>With the type specifications made explicit, it’s more obvious how lambda expressions are compatible with delegates. A lambda expression is nothing more than a short-hand notation for a delegate, a type-safe pointer to a piece of code, to be passed into a method. Hence, a lambda expression can be substituted with an anonymous delegate by wrapping it in additional ceremony.</p>
+  <pre class="prettyprint lang-cs">IEnumerable&lt;Person&gt; t = people
+    .Where&lt;Person&gt;(delegate(Person p) { return p.Age &gt; 25; })
+    .Select&lt;Person, Person&gt;(delegate(Person p) { return p; });</pre>
+  <p>To make delegates type safe, their definition include the return type and the types of the arguments passed into it. This is unfortunate since the standard query operators must be able to work on any type of object. LINQ therefore relies on generic delegates in the definition of its operators. Like with other generic types, the compiler and runtime work together to generate real delegates based on the specified, or inferred, return type and types of arguments. Delegates like the ones below for Where and Select are what&#8217;s generated by the runtime.</p>
+  <pre class="prettyprint lang-cs">// delegate Boolean WhereDelegate(Person p);
+// delegate Person SelectDelegate(Person p);
+bool WhereClause(Person p) { return p.Age &gt; 25; }
+Person SelectClause(Person p) { return p; }
+
+IEnumerable&lt;Person&gt; u = people
+    .Where&lt;Person&gt;(WhereClause)
+    .Select&lt;Person, Person&gt;(SelectClause);</pre>
+<p>LINQ relies on a set of generic delegates defined in the .NET framework. These delegates come in two flavors: those that return void, named Action, and those that don’t, named Func. You can use these delegates <a href="http://simpleprogrammer.com/2010/09/24/explaining-what-action-and-func-are">in your own code</a> to not only parameterize methods by value but by functionality.</p>
+<pre class="prettyprint lang-cs">delegate void Action();
+delegate void Action&lt;T&gt;(T obj);
+delegate void Action&lt;T1, T2&gt;(T1 arg1, T2 arg2);
+// up to eight arguments
+
+delegate TResult Func&lt;TResult&gt;();
+delegate TResult Func&lt;T, TResult&gt;(T arg);
+delegate TResult Func&lt;T1, T2, TResult&gt;(T1 arg1, T2 arg2);
+// up to eight arguments</pre>
+  <h4>Extension methods</h4>
+  <p>
+    Each of the 50 or so standard query operators is defined on the <a href="http://msdn.microsoft.com/en-us/library/system.linq.enumerable.aspx">Enumerable</a> class with the this modifier on their first IEnumerable&lt;T&gt; argument. This makes them <a href="http://en.wikipedia.org/wiki/Extension_method">extension methods</a> to every object that implements IEnumerable&lt;T&gt;. From the definition of the Where operator below, it then follows that when you write &quot;Where(p =&gt; p.Age &gt; 25)&quot;, the compiler infers that because Where is called on a collection of type Person, p must also be of type Person. Furthermore, because the result of the comparison is a bool, the lambda expression is compatible with a delegate that accepts a type Person and returns a type bool. In other words, the matching Where has a signature like the commented one below.
+  </p>
+  <p>
+    The purpose of the Where operator is to filter a collection based on a predicate, the mathematical term for a function that returns true or false. The people that satisfy the predicate is therefore returned as an IEnumerable&lt;Person&gt;. However, the <a href="http://en.csharp-online.net/CSharp_Coding_Solutions%E2%80%94What_Does_Yield_Keyword_Generate">yield keyword</a> adds an interesting twist to the return of Where and Select and other operators that return IEnumerable&lt;T&gt;. Instead of the operator iterating the source collection and returning every element of the result at once, the yield keyword instructs the compiler to emit a state machine so the operator can keep track of how far through the source collection it is, and return one resulting element at a time. The effect is <a href="http://en.wikipedia.org/wiki/Lazy_evaluation">lazy evaluation</a> of LINQ to Objects queries.
+  </p>
+  <p>In the example, the output of Where goes into Select whose output may goto the console using a foreach. To understand yield, think of the foreach that writes to the console as pulling on a string of objects connecting Select to Where to the source collection. Each iteration of the loop pulls the string just enough to get at the next resulting element. This may in turn require Where to iterate multiple times until the predicate is once again satisfied. </p>
+  <pre class="prettyprint lang-cs">// IEnumerable&lt;Person&gt; Where&lt;Person&gt;(
+//     IEnumerable&lt;Person&gt; source,
+//     Func&lt;Person, bool&gt; predicate)
+
+public static IEnumerable&lt;TSource&gt; Where&lt;TSource&gt;(
+    this IEnumerable&lt;TSource&gt; source,
+    Func&lt;TSource, bool&gt; predicate) {
+    foreach (TSource element in source) {
+        if (predicate(element))
+            yield return element;
+    }
+}</pre>
+  <p>The Select operator is an example of one whose input type may differ from its output type. By its very nature, it projects one type onto another. It can even project onto an anonomous type, like in &quot;Select(p =&gt; new { x = p.Name })&quot;, but then the var keyword must be used for its return type. In the example I project from Person to Person, which makes the matching signature of Select like the commented one below.</p>
+  <pre class="prettyprint lang-cs">// IEnumerable&lt;Person&gt; Select&lt;Person, Person&gt;(
+//     this IEnumerable&lt;Person&gt; source,
+//     Func&lt;Person, Person&gt; selector)
+
+public static IEnumerable&lt;TResult&gt; Select&lt;TSource, TResult&gt;(
+    this IEnumerable&lt;TSource&gt; source,
+    Func&lt;TSource, TResult&gt; selector) {
+    foreach (TSource element in source)
+        yield return selector(element);
+}</pre>
+  <p>The ability to chain methods together to form a data pipeline is what adds real power to LINQ. Although the idea of chaining methods together is old, the traditional approach of each method returning a new or mutated instance works best for objects of your own. Imagine adding to the IEnumerable&lt;T&gt; interface a set of query operators. Then every collection would have to provide implementations for Where, Select, and so on. Also, it wouldn’t be possible to add new operators in vNext of .NET without breaking existing code implementing the interface.</p>
+  <p>Extension methods solve this issue by providing the necessary syntactic sugar to make chaining of methods on a collection feel like chaining on an object of your own. Behind the scenes, the compiler rewrites calls to extension methods to static methods.</p>
+  <pre class="prettyprint lang-cs">var v = Enumerable.Select(
+    Enumerable.Where(people, p =&gt; p.Age &gt; 25),
+    p =&gt; p);</pre>
+  <p>Note how, without the use of extension methods, operations must be specified in the opposite order in which they’re executed. This doesn&#8217;t read as nicely as the “infix” syntax when many operations are chained together.</p>
+</div>

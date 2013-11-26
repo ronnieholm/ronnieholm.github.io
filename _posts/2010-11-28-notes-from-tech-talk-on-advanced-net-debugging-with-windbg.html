@@ -1,0 +1,88 @@
+---
+layout: post
+title: "Notes from Tech Talk on Advanced .NET debugging with Windbg"
+date: 2010-11-28 12:00 UTC
+tags: [Tool]
+---
+<div id="post">
+  <p>
+    My notes from a <a href="http://kodehoved.dk/?p=696">talk on Windbg</a> by <a href="http://kodehoved.dk/?page_id=27">Brian Rasmussen</a> which I attended this week. The talk was recorded and parts <a href="http://channel9.msdn.com/posts/MDCC-TechTalk-Advanced-NET-Debugging-part-1">one</a> and <a href="http://channel9.msdn.com/posts/MDCC-TechTalk-Advanced-NET-Debugging-part-2">two</a> are available though Channel 9.
+  </p>
+  <ul>
+    <li>Windbg isn’t a replacement for VS, but VS doesn’t handle some advanced cases </li>
+    <li>
+      Windbg is a free user mode/kernel mode debugger which is part of the <a href="http://www.microsoft.com/whdc/DevTools/Debugging/default.mspx">Debugger Tools for Windows</a>
+    </li>
+    <li>
+      Customers may not be happy installing VS to debug code in production since it installs a lot of components and requires restarts
+      <ul>
+        <li>
+          Windbg requires only a simple installation once you extract the redistributable from the Debugger Tools for Windows <!--EndFragment-->
+        </li>
+      </ul>
+    </li>
+    <li>
+      Loading <a href="http://msdn.microsoft.com/en-us/library/bb190764(v=VS.100).aspx">SOS.dll</a> from the Microsoft .NET folder into Windbg makes it understand .NET
+      <ul>
+        <li>With SOS.dll loaded, you can look into the CLR and its data structures </li>
+        <li>Make sure to load the right SOS.dll for your runtime </li>
+        <li>SOS.dll is also available for the Silverlight runtime </li>
+      </ul>
+    </li>
+    <li>
+      Debugger Markup Language support is available for version 4 of SOS.dll
+      <ul>
+        <li>Provides hyperlinks in the command output of SOS </li>
+      </ul>
+    </li>
+    <li>
+      Like with the VS debugger, you can insert Debug.Break() in your demo app and have Windbg halt on it
+      <ul>
+        <li>Release builds can be debugged with Windbg </li>
+        <li>Release builds also contain symbols. Like with debug builds, symbols are stored in a separate file </li>
+        <li>Release builds make debugging harder because the jitter kicks in and modifies the code </li>
+        <li>The 64 bit calling convention of passing arguments via registers makes it harder to locate information when debugging </li>
+      </ul>
+    </li>
+    <li>
+      Windbg generally needs symbols loaded, although it’s less important when debugging managed code
+      <ul>
+        <li>Use MS’ public symbol server to load symbols on demand </li>
+        <li>
+          Set the <a href="http://support.microsoft.com/kb/311503">_NT_SYMBOL_PATH</a> environment variable to point to your symbols (will affect VS as well)
+        </li>
+        <li>
+          Or use the <a href="http://msdn.microsoft.com/en-us/library/ff565400(VS.85).aspx">.symfix</a> command from within Windbg
+        </li>
+      </ul>
+    </li>
+    <li>
+      Popular extensions to Windbg: <a href="http://www.stevestechspot.com/SOSEXV40NowAvailable.aspx">SOSEX</a> and <a href="http://www.microsoft.com/downloads/en/details.aspx?FamilyID=5c068e9f-ebfe-48a5-8b2f-0ad6ab454ad4&amp;displaylang=en">Psscor2</a> (replacement for SOS, useful for ASP.NET debugging)
+    </li>
+    <li>
+      Create dump file to analyze: use task manager or <a href="http://support.microsoft.com/kb/286350">ADPlus</a> or <a href="http://technet.microsoft.com/en-us/sysinternals/dd996900.aspx">ProcDump</a> from Sysinternals, which can dump based on triggers
+    </li>
+    <li>
+      ADPlus collects crash dumps or hang dumps
+      <ul>
+        <li>Hang dumps can be captured from the same process multiple times and may be useful when debugging deadlocks or resource leaks </li>
+        <li>When you capture a hang dump, the process is halted for the dump period and is then restarted </li>
+      </ul>
+    </li>
+    <li>
+      A *32 process in task manager is actually a 64 bit process when you dump it
+      <ul>
+        <li>
+          <a href="http://en.wikipedia.org/wiki/WoW64">WoW64.dll</a> is involved when dumping from the task manager
+        </li>
+        <li>Not what you typically want because you don’t get full access to 32 bit process information </li>
+      </ul>
+    </li>
+    <li>
+      A .NET application is hosted within the CLR which is itself hosted within a regular Windows process
+      <ul>
+        <li>Looking at memory usage with the task manager therefore doesn’t tell you much about the .NET part </li>
+      </ul>
+    </li>
+  </ul>
+</div>

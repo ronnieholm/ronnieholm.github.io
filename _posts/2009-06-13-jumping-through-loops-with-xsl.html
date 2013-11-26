@@ -1,0 +1,90 @@
+---
+layout: post
+title: "Jumping through loops with XSL"
+date: 2009-06-13 12:00 UTC
+tags: [Tips]
+---
+<div id="post">
+  <p>
+    I was recently faced with the need to express a loop in <a href="http://en.wikipedia.org/wiki/Xsl">XSL</a>. Not the build-in <a href="http://www.w3schools.com/XSL/el_for-each.asp">for-each</a> that iterates over nodes matching an <a href="http://en.wikipedia.org/wiki/XPath">XPath</a>, but one with a counter. In C# this kind of loop is easily expressed as
+  </p>
+  <pre class="prettyprint lang-cs">
+for (int i = 0; i &lt; 5; i++)
+    // do something</pre>
+  <p>
+    No such for-construct exists in XSL. In fact there&#8217;re no looping constructs of any kind in XSL, except for the one used to iterate nodes. However, since XSL and C# are both <a href="http://en.wikipedia.org/wiki/Turing_complete">Turing complete</a> languages, and since anything that can be expressed in one Turing complete language can be expressed in another, it follows that it must be possible to express a loop with a counter in XSL.
+  </p>
+  <p>
+    But as <a href="http://en.wikipedia.org/wiki/Alan_Perlis">Alan Parlis</a> puts it in <a href="http://www-pu.informatik.uni-tuebingen.de/users/klaeren/epigrams.html">Epigrams on Programming</a>:
+  </p>
+  <blockquote>
+    <p>
+      Beware of the <a href="http://en.wikipedia.org/wiki/Turing_tar_pit">Turing tar-pit</a> in which everything is possible but nothing of interest is easy.
+    </p>
+  </blockquote>
+  <p>
+    Although XSL and C# are both Turing complete languages, XSL is a <a href="http://en.wikipedia.org/wiki/Functional_programming">functional programming language</a> and therefore belongs to a strain of languages that forgo build-in looping constructs. Instead, looping is accomplished through recursion.
+  </p>
+  <p>We can turn the iterative C# loop into a recursive one like so:</p>
+  <pre class="prettyprint lang-cs">
+void Loop(int i) {
+    if (i &gt; 0) {
+        // do something
+        Loop(i - 1);
+    }
+}</pre>
+  <p>and transform the recursive solution into an XSL template:</p>
+  <pre class="prettyprint lang-xsl">
+&lt;xsl:template name="Loop"&gt;
+    &lt;xsl:param name="i" select="5"/&gt;
+    &lt;xsl:if test="$i &gt; 0"&gt;
+        &lt;!-- do something --&gt;
+        &lt;xsl:call-template name="Loop"&gt;
+            &lt;xsl:with-param name="i" select="$i - 1"/&gt;
+        &lt;/xsl:call-template&gt;
+    &lt;/xsl:if&gt;
+&lt;/xsl:template&gt;</pre>
+  <p>Okay, but what about nested loops then:</p>
+  <pre class="prettyprint lang-cs">
+for (int i = 0; i &lt; 5; i++)
+    for (int j = 0; j &lt; 5; j++)
+        // do something</pre>
+  <p>Giving it some thought, the nested loops (of any nesting level) can be expressed using recursion following a pattern of nested if-statements:</p>
+  <pre class="prettyprint lang-cs">
+void NestedLoops(int i, int j, int k) {
+    if (i &gt; 0) {
+        // do something
+        if (j == 1)
+            NestedLoops(i - 1, k, k);
+        else
+            NestedLoops(i, j - 1, k);
+    }
+}</pre>
+  <p>Again, performing a one-to-one transformation to XSL:</p>
+  <pre class="prettyprint lang-xsl">
+&lt;xsl:template name="NestedLoops"&gt;
+    &lt;xsl:param name="i"/&gt;
+    &lt;xsl:param name="j"/&gt;
+    &lt;xsl:param name="k"/&gt;
+    &lt;xsl:if test="$i &gt; 0"&gt;
+        &lt;!-- do something --&gt;
+        &lt;xsl:choose&gt;
+            &lt;xsl:when test="$j = 1"&gt;
+                &lt;xsl:call-template name="NestedLoops"&gt;
+                    &lt;xsl:with-param name="i" select="$i - 1"/&gt;
+                    &lt;xsl:with-param name="j" select="$k"/&gt;
+                    &lt;xsl:with-param name="k" select="$k"/&gt;
+                &lt;/xsl:call-template&gt;
+            &lt;/xsl:when&gt;
+            &lt;xsl:otherwise&gt;
+                &lt;xsl:call-template name="NestedLoops"&gt;
+                    &lt;xsl:with-param name="i" select="$i"/&gt;
+                    &lt;xsl:with-param name="j" select="$j - 1"/&gt;
+                    &lt;xsl:with-param name="k" select="$k"/&gt;
+                &lt;/xsl:call-template&gt;
+            &lt;/xsl:otherwise&gt;
+        &lt;/xsl:choose&gt;
+    &lt;/xsl:if&gt;    
+&lt;/xsl:template&gt;</pre>
+  <p>Wordy, but seeing through the angle brackets I find solution quite elegant.</p>
+</div>

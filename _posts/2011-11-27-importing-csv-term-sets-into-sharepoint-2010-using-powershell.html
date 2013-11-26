@@ -1,0 +1,106 @@
+---
+layout: post
+title: "Importing CSV term sets into SharePoint 2010 using PowerShell"
+date: 2011-11-27 12:00 UTC
+tags: [PowerShell, SharePoint]
+---
+<div id="post">
+  <p>
+    See also: <a href="http://www.bugfree.dk/blog/2012/05/20/importing-csv-term-sets-into-sharepoint-2010-using-fsharp/">Importing CSV term sets into SharePoint 2010 using F#</a>.
+  </p>
+  <p>One of the new features of SharePoint 2010 is the ability to tag content using terms from a term store. The out of the box tooling for importing, exporting, and maintaining term stores is somewhat limited though. That’s why I created a PowerShell script to import term sets into the term store.</p>
+  <h4>Term store overview</h4>
+  <p>SharePoint organizes terms in either a taxonomy or a folksonomy. In a taxonomy, terms are organized hierarchically whereas in a folksonomy the structure is flat. A taxonomy or folksonomy is either global, making it available to all site collections within a web application that’s associated with a Managed Metadata Service, or local, making it available in one site collection only.</p>
+  <p>Multiple Managed Metadata Services may be associated with a web application or site collection, each service in turn responsible for a single term store. Within one term store, multiple groups may be created, each potentially storing multiple term sets. Finally, a term set may have terms nested up to seven levels deep:</p>
+  <pre>Managed Metadata Service Application
+  TermStore
+    Group1
+      TermSet1
+        Term1
+          Term1.2
+            Term1.2.3
+              Term1.2.3.4
+                Term1.2.3.4.5
+                  Term1.2.3.4.5.6
+                    Term1.2.3.4.5.6.7</pre>
+  <p>
+    You manage the term store through the browser and its Term Store Management Tool (the _layouts/termstoremanager.aspx application page) or through the SharePoint API. The management tool supports importing term sets only from a <a href="http://technet.microsoft.com/en-us/library/ee424396.aspx">special CSV file format</a>&#160; (_layouts/1033/ImportTermSet.csv holds a sample) with these columns:
+  </p>
+  <pre>Term Set Name
+Term Set Description
+LCID
+Available for Tagging
+Term Description
+Level 1 Term
+Level 2 Term
+...
+Level 7 Term</pre>
+  <p>
+    The CSV file is incomplete in terms of what the term store offers. It doesn’t offer columns for specifying translations and synonyms for terms. But users can use <a href="http://www.wictorwilen.se/">Wictor Wilén</a>&#160;<a href="http://www.wictorwilen.se/Post/Create-SharePoint-2010-Managed-Metadata-with-Excel-2010.aspx">Excel sheet</a> to maintain the basic information. It has the standard columns above and includes macros to simplify saving in the correct format and creating additional term sets.
+  </p>
+  <p>
+    The question remains: do you maintain compatibility with the existing CSV format so you can import term sets using the browser or a forms-based tool like the <a href="http://termsetimporter.codeplex.com/">CSV Bulk Taxonomy Importer/Exporter</a>? Or do you define your own, possibly XML based format since term sets are hierarchical by nature, with additional columns for translations and synonyms? A non-CSV based format may also be easier to process. If you want to pursue the latter approach, <a href="http://sharepointtales.wordpress.com/">Ben Robb</a> has <a href="http://sharepointtales.wordpress.com/2010/05/06/manipulating-the-terms-store-through-powershell/">created a PowerShell script</a> to import his XML format.
+  </p>
+  <h4>Importing term sets using PowerShell</h4>
+  <p>I decided to stick with the CSV file format and create a PowerShell script that would allow me to import a term set using the command-line:</p>
+  <pre class="prettyprint">function ImportTermSet([Microsoft.SharePoint.Taxonomy.TermStore]$store, [string]$groupName, [PSCustomObject]$termSet) {  
+  function ImportTerm([Microsoft.SharePoint.Taxonomy.Group]$group, 
+                      [Microsoft.SharePoint.Taxonomy.TermSet]$set, 
+                      [Microsoft.SharePoint.Taxonomy.Term]$parent, 
+                      [string[]]$path) {       	
+    if ($path.Length -eq 0) {
+      return
+    } elseif ($group -eq $null) {
+      $group = $store.Groups | where { $_.Name -eq $path[0] }
+      if ($group -eq $null) {
+        $group = $store.CreateGroup($path[0])
+      }
+    } elseif ($set -eq $null) {
+      $set = $group.TermSets | where { $_.Name -eq $path[0] }
+      if ($set -eq $null) {
+        $set = $group.CreateTermSet($path[0])
+      }
+    } else {
+      $node = if ($parent -eq $null) { $set } else { $parent }
+      $parent = $node.Terms | where { $_.Name -eq $path[0] }  	   
+      if ($parent -eq $null) {
+        $parent = $node.CreateTerm($path[0], 1033)
+      } 
+    }
+    
+    ImportTerm $group $set $parent $path[1..($path.Length)]					
+  }
+  
+  function RemoveTermGroup([Microsoft.SharePoint.Taxonomy.TermStore]$store, [string]$groupName) {
+    $group = $store.Groups | where { $_.Name -eq $groupName }
+    if ($group -ne $null) {
+      $group.TermSets | foreach { $_.Delete() }
+      $group.Delete()
+      $store.CommitAll()
+    }
+  }
+  
+  RemoveTermGroup $store $groupName
+  $termSetName = $termSet[0]."Term Set Name"    
+  $termSet | where { $_."Level 1 Term" -ne "" } | foreach {
+    $path = @($groupName, $termSetName) + @(for ($i = 1; $i -le 7; $i++) { 
+      $term = $_."Level $i Term"
+        if ($term -eq "") {
+          break
+        } else {
+          $term
+        }
+      }
+    )
+	
+    ImportTerm -path $path
+  }
+}</pre>
+  <p>The way to use the ImportTermSet function is best illustrated with an example:</p>
+  <pre class="prettyprint">$session = Get-SPTaxonomySession -Site "http://localhost"
+$store = $session.TermStores["Managed Metadata Service"]   
+$termSet = Import-Csv "C:\Users\Ronnie\Desktop\ImportTermSet.csv"
+ImportTermSet $store "MyGroup" $termSet
+$store.CommitAll()</pre>
+  <p>In its current form the script ignores the Term Set Description, LCID, Available for Tagging, and Term Description columns from the CSV file. It would be possible to take these columns into account by passing them to ImportTerm as well. Instead of just removing the head of the list, you’d remove the number of items consumed by the current step before recursing.</p>
+</div>

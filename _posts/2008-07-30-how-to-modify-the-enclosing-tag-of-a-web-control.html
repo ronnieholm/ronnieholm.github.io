@@ -1,0 +1,97 @@
+---
+layout: post
+title: "How to modify the enclosing tag of a web control"
+date: 2008-07-30 12:00 UTC
+tags: [ASP.NET, SharePoint]
+---
+<div id="post">
+  <p>
+    In this post I&#8217;ll rework a piece of code that changes the enclosing tag of a web control from a <a href="http://webdesign.about.com/od/htmltags/a/aa011000a.htm">span to a div</a>. A substitution of particular value with SharePoint, where adding web controls is a common way to extend the out of box experience. With SharePoint, and Asp.Net in general, a page is typically composed of reusable controls, each responsible for rendering its part of the page.
+  </p>
+  <p>To showcase anti-patterns of API usage, intermediate code is included, i.e., code that may render the correct tags, although not necessarily in the true spirit of the .Net framework.</p>
+  <p>
+    To set the stage, imagine writing a web control that inherits from ASP.Net <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.aspx">WebControl</a>. The goal is then to modify the behavior of the control in such a way that it (1) encloses its content in a div tag and (2) adds a CSS class for styling, and (3) can be added to a page like so:
+  </p>
+  <pre class="prettyprint lang-html">
+&lt;MyControls:MyControl CssClass="myCssClass" runat="server" /&gt;</pre>
+  <p>After making its way through the page rendering pipeline, the control tag gets transformed to:</p>
+  <pre class="prettyprint lang-html">
+&lt;div class="myCssClass"&gt;
+    Hello World
+&lt;/div&gt;</pre>
+  <p>
+    Within the control, a straight-forward way of achieving the intended output may be to hand craft the html and render it in <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.rendercontents.aspx">RenderContents</a> of WebControl. It almost goes without saying that rendering html by hand is but only a starting point when working with .Net. The next progression from there may be to override <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.renderbegintag.aspx">RenderBeginTag</a> and <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.renderendtag.aspx">RenderEndTag</a> of WebControl:
+  </p>
+  <pre class="prettyprint lang-cs">
+// version 1
+public class MyControl : WebControl {
+    public override void RenderBeginTag(HtmlTextWriter w) {
+        w.RenderBeginTag(string.Format("div class=\"{0}\"", CssClass));
+    }
+    
+    public override void RenderEndTag(HtmlTextWriter w) {
+        w.RenderEndTag();
+    }
+
+    protected override void RenderContents(HtmlTextWriter w) {
+        w.Write("Hello World");
+    }
+}</pre>
+  <p>Resulting in this piece of html:</p>
+  <pre class="prettyprint lang-html">
+&lt;div class="myCssClass"&gt;
+    Hello World
+&lt;/div class="myCssClass"&gt;</pre>
+  <p>
+    Clearly, <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.renderbegintag.aspx">RenderBeginTag</a> and <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.renderendtag.aspx">RenderEndTag</a> of <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.htmltextwriter.aspx">HtmlTextWriter</a> don&#8217;t know how to separate tag from attribute. Nonetheless, the code reveals the stack based approach taken by the Render-pair of methods.
+  </p>
+  <p>
+    Gleaning over the documentation of HtmlTextWriter, however, I encountered the <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.htmltextwriter.addattribute.aspx">AddAttribute</a> method for setting attributes on a tag. Inside HtmlTextWriter, what AddAttribute does is add attributes and associated values to an array that gets rendered during the next call to RenderBeginTag. So besides introducing strongly typed attributes and tags, the next version contains a modified RenderBeginTag:
+  </p>
+  <pre class="prettyprint lang-cs">
+// version 2
+public override void RenderBeginTag(HtmlTextWriter w) {
+    w.AddAttribute(HtmlTextWriterAttribute.Class, CssClass);
+    w.RenderBeginTag(HtmlTextWriterTag.Div);
+}</pre>
+  <p>
+    Now the control renders as expected, although the code still has a certain bad smell to it. WebControl ought to know how to properly render its begin and end tag. After all it&#8217;s WebControl that exposes, among others, the <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.cssclass.aspx">CssClass</a> property. So taking another dive into the documentation, I found the virtual, read-only <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.tagkey.aspx">TagKey</a> property of WebControl. Strangely named as it may be, overriding TagKey makes WebControl call our override as it renders the control, adding in optional attributes, such as CssClass. Implementing the property also turns RenderBeginTag and RenderEndTag obsolete:
+  </p>
+  <pre class="prettyprint lang-cs">
+// version 3
+protected override HtmlTextWriterTag TagKey {
+    get {
+        return HtmlTextWriterTag.Div;
+    }
+}</pre>
+  <p>As an added bonus, changing the enclosing tag can also be done calling the WebControl&#8217;s constructor, passing in the desired tag:</p>
+  <pre class="prettyprint lang-cs">
+// version  4
+public class MyControl : WebControl {
+    public MyControl() : base(HtmlTextWriterTag.Div) { }
+
+    protected override void RenderContents(HtmlTextWriter w) {
+        w.Write("Hello World");
+    }
+}</pre>
+  <p>
+    As it turns out, calling the constructor is how WebControl derived classes get to use span in the first place. The default WebControl constructor passes control onto another constructor that sets the value of what gets returned by the base class TagKey implementation. In essence, overriding TagKey makes it a player in the <a href="http://en.wikipedia.org/wiki/Template_method_pattern">template design pattern</a>:
+  </p>
+  <pre class="prettyprint lang-cs">
+// .Net framework code
+protected WebControl() : this(HtmlTextWriterTag.Span) { }
+
+public WebControl(HtmlTextWriterTag tag) {
+    tagKey = tag;
+}</pre>
+  <p>
+    Also worth noting is that for controls deriving from WebControl derived classes, such as <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.compositecontrol.aspx">CompositeControl</a>, the constructor cannot be used to set the enclosing tag. The constructor exposed by CompositeControl and friends doesn&#8217;t call up the constructor chain passing in the tag, making TagKey the choice to go.
+  </p>
+  <p>
+    Finally, deep down the inhertitance chain below WebControl lives <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webparts.webpart.aspx">WebPart</a>, a type of control very popular with SharePoint. Interestingly enough, WebPart defaults to using div as its enclosing tag, because walking up the chain, we come across the constructor of <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.panel.aspx">Panel</a>:
+  </p>
+  <pre class="prettyprint lang-cs">
+// .Net framework code
+public Panel() : base(HtmlTextWriterTag.Div) { }</pre>
+  <p>So, using Panel provides another way to implement a web control that owns a distinct part of a page.</p>
+</div>

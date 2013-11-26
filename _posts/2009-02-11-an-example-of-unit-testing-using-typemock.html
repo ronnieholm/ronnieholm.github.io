@@ -1,0 +1,79 @@
+---
+layout: post
+title: "An example of unit testing using TypeMock"
+date: 2009-02-11 12:00 UTC
+tags: [C#]
+---
+<div id="post">
+  <p>
+    This post details my first use of <a href="http://www.typemock.com">TypeMock</a>, a commercial mocking framework, for testing a web part that displays a dropdown bound to a LINQ query. Based on the item selected, the web part then displays a result bound to another LINQ query. For the purpose of becoming familiar with TypeMock, though, the focus of this post is on testing the code that initializes the LINQ data context. It does so by reading a connection string from a configuration file and passing it to the data context.
+  </p>
+  <p>In order to test code whose branching behavior depends on a value read from a configuration file, the test should provide various inputs and assert that the code under test acts accordingly. In addition, the test should run in milliseconds to encourage frequent runs and it should be self-contained, meaning no setup should be required before running the test. These requirements are best met with the web part running in a controlled environment. Yet, as far as the code under test goes, it should behave as if part of an Asp.Net page.</p>
+  <p>For the sake of brevity, here&#8217;s my web part with the code to initialize the data context:</p>
+  <pre class="prettyprint lang-cs">
+public class MyWebPart : WebPart {
+    MyDataContext _db;    /* LINQ database context */
+    string _error;        /* Early stage error message */    	
+
+    public MyWebPart() {
+        Initialize();
+    }
+
+    private void Initialize() {
+        string c = GetMyConnectionString();
+        if (c == null)
+            _error = "Unable to do something";
+        else
+            _db = new MyDataContext(c);
+    }
+
+    private string GetMyConnectionString() {
+        System.Configuration.ConnectionStringSettings c = 
+            System.Configuration.ConfigurationManager.
+                ConnectionStrings["MyConnection"];
+        return c == null ? null : c.ConnectionString;
+    }
+        
+    protected override void Render(HtmlTextWriter w) {
+        // display error message if set
+    }
+}</pre>
+  <p>Notice how the constructor calls out to an Initialize method. Otherwise code within the constructor would fire before I&#8217;d have a chance to setup a controlled environment around the web part and I wouldn&#8217;t be able to test it. Turning the attention to Initialize itself, it’s made up of only a simple if statement. The idea is that if I can&#8217;t mock something as simple as reading a value from a configuration file, most likely I can&#8217;t mock something more involved either. On the other hand, for a developer already familiar with TypeMock and test first development, the code above may be born of the need to satisfy a failing test.</p>
+  <p>I want to test Initialize by controlling how GetMyConnectionString gets to return the connection string. While running in an Asp.Net context, GetMyConnectionString would attempt to read the string from web.config. Within my controlled environment, however, I want to inject into the web part an alternate implementation that returns a value of my choosing. That way I can control the path through Initialize and inspecting the state of the  _error or _db fields, I&#8217;m able to determine if the code behaved as intended.</p>
+  <p>Using the method chaining DSL of TypeMock, the test takes on this form (of course, having more tests, I&#8217;d move shared code into helper methods decreasing the test to code ratio):</p>
+  <pre class="prettyprint lang-cs">
+[TestClass, ClearMocks]
+public class MyWebPartTest {
+    [TestMethod, Isolated, VerifyMocks]
+    public void Should_set_error_message_when_no_
+                connection_string_is_configured() {
+        // arrange
+        MyWebPart fake = Isolate.Fake.Instance&lt;MyWebPart&gt;();
+        Isolate.NonPublic.WhenCalled(fake, 
+            "Initialize").CallOriginal();
+        Isolate.NonPublic.WhenCalled(fake, 
+            "GetMyConnectionString").WillReturn(null);
+        PrivateObject handle = new PrivateObject(fake);
+
+        // act
+        handle.Invoke("Initialize", null); 
+
+        // assert
+        Isolate.Verify.NonPublic.WasCalled(fake, 
+            "GetMyConnectionString");
+        string error = (string)handle.GetField("_error");
+        MyDataContext ctx = (MyDataContext)handle.GetField("_db");
+        Assert.AreEqual("Unable to do something", error);
+        Assert.AreEqual(null, ctx);
+    }
+}</pre>
+  <p>
+    There&#8217;re three parts to tests using TypeMock: (1) the arrange part sets up expectations of what’s going to happen when a method, a property, or some other part of the code under test is invoked; (2) the act part carries out the actual interaction with the object under test, turning to <a href="http://msdn.microsoft.com/en-us/library/microsoft.visualstudio.testtools.unittesting.privateobject.aspx">PrivateObject</a> to invoke the Initialize method; and finally (3) the assert part verifies that what was supposed to happen did happen. Worth noting is that this test asserts both state and behavior, i.e., as part of executing the code under test, _error or _db should&#8217;ve been set to an appropriate state and GetMyConnectionString should’ve been called once and only once.
+  </p>
+  <p>
+    This concludes my example, which I believe illustrates the basics of testing and mocking using MS Test and TypeMock. Comparing and contrasting TypeMock to <a href="http://weblogs.asp.net/rosherove/archive/2007/04/26/choosing-a-mock-object-framework.aspx">other popular mocking frameworks</a>, TypeMock has the distinct feature that it can mock almost anything, with or without using interfaces. <a href="http://www.mockobjects.com/2007/03/stop-designing-for-testability.html">Some</a> argue that not enforcing the use of interfaces is also the disadvantage of TypeMock, because for code to be truly testable, it should be modularized using the <a href="http://en.wikipedia.org/wiki/Inversion_of_control">Inversion of Control principle</a>. However, with legacy code, such as the .Net framework or the SharePoint API, to me TypeMock appears to bridge the two worlds nicely, leaving the developer in charge.
+  </p>
+  <p>
+    To learn more about the basic concepts of mocking, Inversion of Control, and Dependency Injection (containers), I&#8217;d recommend listening to a couple of <a href="http://altnetpodcast.com">Alt.Net podcasts</a>: <a href="http://altnetpodcast.com/episodes/5-di-and-ioc">Dependency Injection and Inversion of Control</a> and <a href="http://altnetpodcast.com/episodes/6-more-di-and-ioc">More Dependency Injection and Inversion of Control</a>.
+  </p>
+</div>

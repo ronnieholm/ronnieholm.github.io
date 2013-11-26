@@ -1,0 +1,27 @@
+---
+layout: post
+title: "Tapping the power of PlayStation 3"
+date: 2007-04-15 12:00 UTC
+tags: [Linux]
+---
+<div id="post">
+  <p>
+    I recently had the fortunate opportunity to spend a few days with the PlayStation 3 (PS3). Its <a href="http://en.wikipedia.org/wiki/Playstation_3#Hardware">hardware configuration</a> is truly amazing: a PowerPC based Cell processor with eight cores, although only seven is in active use to decrease the number of faulty units coming off the assembly line, running at 3.2 GHz and an NVidia based graphics card.
+  </p>
+  <p>
+    Of course, all that power is there to be tapped primarily by games. However, with the firmware upgrade to version 1.6, Sony added a menu item for easily joining the <a href="http://folding.stanford.edu">Folding@home</a> distributed computing project: a project that does molecular simulation across hundreds of thousands of computers in the hope of identifying the underlying causes of Alzheimer&#8217;s, Parkinson&#8217;s, and cancer, etc.
+  </p>
+  <p>
+    Assuming the PS3 has network access (it comes with build-in Wi-Fi, by the way), selecting the menu item causes the console to go <a href="http://folding.stanford.edu/download.html">download</a> the Folding@home client and start processing. That way, when you&#8217;re not using the console for gaming, you can donate the spare cycles to something useful. At least to me, participating in the Folding@home project is more meaningful than, say, aiding the <a href="http://setiathome.berkeley.edu/">search for extraterrestrial intelligence</a>.
+  </p>
+  <p>
+    According to the Folding@home <a href="http://folding.stanford.edu/FAQ-PS3.html">FAQ</a>, the PS3 has been benchmarked at 10x the speed of a regular computer. The downside, however, is that &#8220;&#8230; the PS3 [client] takes the middle ground between GPU&#8217;s (extreme speed, but at limited types of WU&#8217;s [work units]) and CPU&#8217;s (less speed, but more flexibility in types of WU&#8217;s)&#8221;. Perhaps because the processor &#8220;&#8230; lack most of the general-purpose features that you normally expect in a processor&#8221;, as described <a href="http://www-128.ibm.com/developerworks/power/library/pa-linuxps3-1/">here</a>.
+  </p>
+  <p>
+    Another interesting aspect of the PS3 is the support for running <a href="http://en.wikipedia.org/wiki/PlayStation_3_Linux">other</a> operating systems, particularly Linux. From the menu, you can repartition the standard 60 GB SATA hard disk. The operating system of the PS3 is run from internal memory for faster boot times and it&#8217;s only using the disk for storing game state and other data not vital for booting the PS3 kernel. Thus, installing Linux, you shouldn&#8217;t have to worry about accidentally wiping out the factory operating system.
+  </p>
+  <p>Installing Linux on the thing is still something left to try. But it seems like buying a USB  mouse and keyboard could transform the PS3 into a regular desktop computer, in turn making the price more digestible.</p>
+  <p>
+    <b>Update, September</b>: I successfully <a href="http://mirror.anl.gov/yellowdog/iso/">downloaded</a> and installed <a href="http://www.terrasoftsolutions.com/products/ydl/">Yellow Dog Linux</a> on a PS3. Following the <a href="http://www.terrasoftsolutions.com/support/installation/ydl5.0.2_ps3_guide.pdf">installation guidelines</a> it went surprisingly smooth. After installing, you can add the Fedora software archives to the list of possible installation sources for Yum. This&#8217;ll make even more software available without having to compile it yourself. Personally, the most used application is the <a href="http://www.videolan.org/vlc/">VLC media player</a>, which, at a mare double click, is able to play just about any video format in full screen mode.
+  </p>
+</div>

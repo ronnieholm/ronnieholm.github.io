@@ -1,0 +1,131 @@
+---
+layout: post
+title: "Code based, dynamic CAML query composition"
+date: 2008-07-03 12:00 UTC
+tags: [C#, SharePoint]
+---
+<div id="post">
+  <p>Today I faced an interesting challenge while querying list items in SharePoint. On a page I have a control that displays list items based on the terms used to tag the page, i.e., the content type on which the page is based contains a multi-valued field that holds a subset of predefined tags. Similarly, for items in a SharePoint list, each item is tagged using a subset of the same predefined tags. The responsibility of the control is then to (1) read the tags associated with the page and (2) query the tags of the list items in an OR-wise fashion. The (3) outcome is then displayed by the control as a set of context specific items.</p>
+  <p>
+    To decide on the items to display, an initial approach might be to go through the list one item at a time, looking for matching tags. But <a href="http://technet.microsoft.com/en-us/library/cc262813.aspx">working with large lists in SharePoint</a> this approach is not recommended. Alternatively, the predicate against which each item in the list is evaluated could take on the form of a CAML query. Looking for items matching a single tag is then easily expressed:
+  </p>
+  <pre class="prettyprint lang-xml">
+&lt;Where&gt;
+    &lt;Eq&gt;
+        &lt;FieldRef Name='MyField' /&gt;
+        &lt;Value Type='LookupMulti'&gt;tag1&lt;/Value&gt;
+    &lt;/Eq&gt;
+&lt;/Where&gt;</pre>
+  <p>Next, consider a query with two tags OR&#8217;ed together. Although more verbose, the query is still fairly straightforward to compose on the fly:</p>
+  <pre class="prettyprint lang-xml">
+&lt;Where&gt;
+    &lt;Or&gt;
+        &lt;Eq&gt;
+            &lt;FieldRef Name='MyField' /&gt;
+            &lt;Value Type='LookupMulti'&gt;tag1&lt;/Value&gt;
+        &lt;/Eq&gt;
+        &lt;Eq&gt;
+            &lt;FieldRef Name='MyField' /&gt;
+            &lt;Value Type='LookupMulti'&gt;tag2&lt;/Value&gt;
+        &lt;/Eq&gt;
+    &lt;/Or&gt;
+&lt;/Where&gt;</pre>
+  <p>However, for CAML queries where more than two tags are OR&#8217;ed together, the binary nature of the OR operator works against us. Where real programming languages have their parsers automatically transform an expression like (a || b || c) into ((a || b) || c), the CAML query parser applies no such transform &#8212; In a sense CAML is more like an XML serialized, abstract syntax tree than a query language intended for direct use:</p>
+  <pre class="prettyprint lang-xml">
+&lt;Where&gt;
+    &lt;Or&gt;
+        &lt;Or&gt;
+            &lt;Eq&gt;
+                &lt;FieldRef Name='MyField' /&gt;
+                &lt;Value Type='LookupMulti'&gt;tag1&lt;/Value&gt;
+            &lt;/Eq&gt;
+            &lt;Eq&gt;
+                &lt;FieldRef Name='MyField' /&gt;
+                &lt;Value Type='LookupMulti'&gt;tag2&lt;/Value&gt;
+            &lt;/Eq&gt;
+        &lt;/Or&gt;
+        &lt;Eq&gt;
+            &lt;FieldRef Name='MyField' /&gt;
+            &lt;Value Type='LookupMulti'&gt;tag3&lt;/Value&gt;
+        &lt;/Eq&gt;
+    &lt;/Or&gt;
+&lt;/Where&gt;</pre>
+  <p>
+    So how do we go about composing a query that OR together <em>n</em> tags (not to mention a mix of ORs and ANDs)? One approach might be using the <a href="http://www.u2u.info/SharePoint/U2U%20Community%20Tools/Forms/AllItems.aspx">U2U CAML Query Builder</a>. The tool delivers a UI for formulating queries, but also exposes its <a href="http://www.u2u.be/res/Article.aspx?ART=camlquerybuilderv2">CAML query builder API</a> as a .Net assembly. Unfortunately, documentation on how to use the builder is sparse. Nonetheless, I went for the case of composing a query that OR together three tags:
+  </p>
+  <pre class="prettyprint lang-cs">
+string ComposeCamlQuery() {
+    Builder b = new Builder(CamlTypes.GetListItems);
+    b.AddViewField("Title");
+    b.AddViewField("MyField");
+
+    bool addCombinerNode;
+    foreach (string tag in new string[] { "tag1", "tag2", "tag3" })
+        b.AddWhereField("MyField", tag, "LookupMulti", 
+                        "Or", out addCombinerNode);
+    return b.CamlDocument.InnerXml;
+}</pre>
+  <p>The outcome is a rather strange looking CAML query with extra &lt;And&gt;&lt;/And&gt; and missing &lt;Eq&gt;&lt;/Eq&gt; tags. Funny thing is that this type of the query can be correctly composed through the UI, so most likely I&#8217;m not using the API correctly:</p>
+  <pre class="prettyprint lang-xml">
+&lt;Where&gt;
+    &lt;And&gt;
+        &lt;And&gt;
+            &lt;Or&gt;
+                &lt;FieldRef Name="MyField" /&gt; 
+                &lt;Value Type="LookupMulti"&gt;tag1&lt;/Value&gt; 
+            &lt;/Or&gt;
+            &lt;Or&gt;
+                &lt;FieldRef Name="MyField" /&gt; 
+                &lt;Value Type="LookupMulti"&gt;tag2&lt;/Value&gt; 
+            &lt;/Or&gt;
+        &lt;/And&gt;
+        &lt;Or&gt;
+            &lt;FieldRef Name="MyField" /&gt; 
+            &lt;Value Type="LookupMulti"&gt;tag3&lt;/Value&gt; 
+        &lt;/Or&gt;
+    &lt;/And&gt;
+&lt;/Where&gt;</pre>
+  <p>
+    I eventually abandoned the idea of using the CAML Query Builder API. Instead, a colleague pointed me to <a href="http://www.sharepointblogs.com/tmt/archive/2007/08/30/dynamic-caml-query.aspx">Waldek Mastykarz&#8217;s post</a> on generating dynamic CAML queries. As long as all tags are to be either AND&#8217;ed or OR&#8217;ed together, Mastykarz provides an elegant solution, which I modified to be recursive, more generic, and read like an induction proof (at a negligible performance cost):
+  </p>
+  <pre class="prettyprint lang-cs">
+ComposeCamlQuery(new[] { "tag1", "tag2", "tag3" }, 
+    "Or", 
+    "&lt;Where&gt;{0}&lt;/Where&gt;",
+    @"&lt;Eq&gt;
+        &lt;FieldRef Name='MyField' /&gt;
+        &lt;Value Type='LookupMulti'&gt;{0}&lt;/Value&gt;
+     &lt;/Eq&gt;");
+
+string ComposeCamlQuery(IList&lt;string&gt; ops, string relOp, 
+                        string query, string leaf) {
+    return ops.Count == 1
+        ? string.Format(query, string.Format(leaf, ops[0]))
+        : ComposeCamlQuery(ops.Skip(1).ToList(),
+            relOp, 
+            string.Format(query, 
+                string.Format("&lt;{0}&gt;{1}{{0}}&lt;/{0}&gt;", 
+                    relOp, 
+                    string.Format(leaf, ops[0]))), 
+                    leaf);
+}</pre>
+  <p>Obviously, more complex code could be written for a mix of AND&#8217;s and OR&#8217;s. Before doing so, however, you probably want to evaluate other approaches for filtering list items:</p>
+  <ol>
+    <li>
+      Formulate a simpler, too general query and post-process the result
+    </li>
+    <li>
+      Formulate smaller queries and optionally merge the results and do post-processing
+    </li>
+    <li>
+      Use the SharePoint Search API
+    </li>
+  </ol>
+  <p>
+    I also considered such alternatives as <a href="http://www.codeplex.com/LINQtoSharePoint">Linq to SharePoint</a> or <a href="http://www.codeplex.com/camldotnet">Caml.net</a>, but although the first holds a lot of promise, it isn&#8217;t ready for prime time. As for the latter, its focus is more on composing type-safe queries than dynamic ones, so it&#8217;s more of a supplement to the first two alternatives.
+  </p>
+  <p>As for SharePoint Search, the downside is that search has to be configured and that the list must have been indexed for the outcome to be accurate. Depending on the frequency with which the list is modified, the time between incremental crawls, and the context in which the results are displayed, the search approach may or may not be the solution you&#8217;re looking for.</p>
+  <p>
+    <b>Update, July 19</b>: Added recursive code solution.
+  </p>
+</div>
