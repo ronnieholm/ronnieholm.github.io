@@ -1,0 +1,160 @@
+---
+layout: post
+title: "Using F# and FAKE to build a SharePoint provider-hosted app"
+date: 2014-04-27 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+
+<p>I wanted to create a build script primarily to shorten the feedback cycle when checking in code that breaks the build. This usually happens because of missing files, a merge gone wrong, or forgetting to get latest and compile before checking new code in. Following the <a href="http://bugfree.dk/blog/2010/09/26/essential-requirements-for-a-developer-automation-tool/">essential requirements for an automation tool</a> I want a solution that's free, flexible and easily setup on any machine. In the past I've used PSake to <a href="http://bugfree.dk/blog/2012/06/10/automating-sharepoint-2010-build-and-deployment-with-powershell-and-psake/">automate SharePoint build and deployment</a> but with PSake a lot of logic needs to be hand-rolled and because of its dynamic nature it doesn't scale well. Nowadays I'm more into F# than PowerShell so I prefer using FAKE instead.</p>
+
+<p>To set the context for the FAKE script, we're a handfull of developers working on a SharePoint 2013 provider-hosted app. Visual Studio provides a project type for this sort of app that creates two Visual Studio projects and connects these together. One project holds the declarative logic (mostly XML) of the app to be deployed to SharePoint and the other is a regular ASP.NET MVC/WebAPI app (from here on referred to as the external app) to be hosted outside SharePoint. Deploying the declarative app to SharePoint configures SharePoint to seamlessly integrate the external app with SharePoint.</p>
+
+<p>In order to build the solution, we must go through the following steps:</p>
+
+<ol>
+<li>Clean up from previous run by deleting a TFS workspace and associated source code control folder</li>
+<li>Create a new source control folder and associate it with a new TFS workspace</li>
+<li>Get the latest code from TFS and put it into the new workspace</li>
+<li>Build the external app and the SharePoint app and package the latter for deployment to SharePoint</li>
+<li>Adjust the external app's web.config to use LocalDB over MSSQL Server. As the LocalDB is stored under the app App_Data folder, cleaning up becomes simpler</li>
+<li>Host the external app under IISExpress and request /home/createDatabase. This enables database creation and tests the Entity Framework seed code</li>
+</ol>
+
+We could've included deployment to SharePoint as an additional step, but focusing on the external app is what adds the most value.
+
+<h4>Step 0: Establish build context</h4>
+
+Before getting to the individual steps, called targets in FAKE, we need to load relevant FAKE assemblies and define various configuration parameters. The idea with the parameters is to collect the settings that'll vary at the top of the script and make each target relatively independant of current configuration values:
+
+<pre class="prettyprint lang-ml prettyprinted">
+// How to setup the build script on any computer:
+//
+//   1. Adjust baseDir to where the source control folder is
+//   2. Open a shell and change directory into the folder containing this file
+//   3. Execute .\fake deploy"
+
+#r "packages/FAKE.2.15.4/tools/FakeLib.dll"
+#r "packages/FAKE.2.15.4/tools/Fake.IIS.dll"
+
+open System.Net
+open Fake 
+open Fake.IISExpress
+
+// common settings
+let baseDir = "c:/users/ronnie/desktop/AcmeApp-CI"
+let relativeSourceDir = "AcmeRoot/DevBranch/AcmeApp"
+let absoluteSourceDir = baseDir @@ relativeSourceDir
+let workspaceName = "AcmeApp-CI"
+let projectCollection = "AcmeCorp.visualstudio.com\DefaultCollection"
+let webAppPort = 8080
+
+// external tools
+let tf = "C:/Program Files (x86)/Microsoft Visual Studio 12.0/Common7/IDE/tf.exe"
+</pre>
+
+<h4>Step 1: Delete TFS workspace and source control folder</h4>
+
+<p>To avoid having residual state from previous builds affect the current build, we delete the workspace and associated source code control folder using TFS from the command-line. This step might fail on first run or if a previous run fails to complete the target. We don't want the entire build to fail in that case and thus probes the tf.exe for this event.</p>
+
+<pre class="prettyprint lang-ml prettyprinted">
+Target "DeleteWorkspace" <| fun _ ->
+    let args = sprintf "workspace /delete /noprompt %s" workspaceName
+    let exitCode = Shell.Exec(tf, args)
+
+    // exitCode 100 means "The workspace does not exist"
+    if not (exitCode = 0 || exitCode = 100) then 
+        failwithf "Unable to delete workspace: %i" exitCode
+    FileHelper.DeleteDir(baseDir)
+</pre>
+
+<h4>Step 2: Create source control folder and TFS workspace</h4>
+
+<p>Next we create the source control folder and TFS workspace. For tf.exe to work properly, it's important we issue the command in the source control folder. Otherwise, we might receive an error that current folder is already mapped to a workspace (the current workspace holding the build script). What tf.exe does is create a special $tf folder within the source control folder for storing metadata.</p>
+
+<pre class="prettyprint lang-ml prettyprinted">
+Target "Createworkspace" <| fun _ ->
+    FileHelper.CreateDir(baseDir)  
+    let args = sprintf "workspace /new /noprompt %s /collection:%s" workspaceName projectCollection
+    let exitCode = Shell.Exec(tf, args, baseDir)
+    if exitCode <> 0 then failwithf "Unable to create workspace: %i" exitCode
+</pre>
+
+<h4>Step 3: Get the latest code</h4>
+
+<p>Inside the TFS project collection, we want to recursively retrieve the part of the structure that represents our source code. The branch name may very well be part of this path as well:</p>
+
+<pre class="prettyprint lang-ml prettyprinted">
+Target "GetLatest" <| fun _ ->
+    let args = sprintf "get \"$/%s\" /recursive" relativeSourceDir
+    let exitCode = Shell.Exec(tf, args, baseDir)
+    if exitCode <> 0 then failwithf "Unable to get latest: %i" exitCode
+</pre>
+
+<h4>Step 4: Build the app</h4>
+
+<p>By delegating to MSBuild, building the applications is likely the simplest part of the script. This means that our build script honors the build setting configured from inside Visual Studio and that developers build from all the time. SharePoint app projects come with a special "Package" MSBuild targets that created the package needed to deploy the app to SharePoint. Invoking the "Package" tartget starts a chain reaction that compiles the SharePoint app project which again depends on the external app compiling.</p>
+
+<pre class="prettyprint lang-ml prettyprinted">
+Target "BuildApp" <| fun _ ->
+    // because of build dependencies this'll build MVC and SharePoint app first
+    MSBuildDebug "" "Package" [absoluteSourceDir @@ "AcmeAppMVC/AcmeApp.csproj"]
+    |> ignore
+</pre>
+
+<h4>Step 5: Deploy provided-hosted app</h4>
+
+<p>As a smoke test, we want to ensure the web server can actually boot our external app. We could've deployed to IIS but the app works with IISExpress as well. With IISExpress all we need to do is point it to the ASP.NET MVC/WebAPI folder and tell it which port number to use. Before making sure the database can be created from the code first model, we want to modify the web.config to LocalDB instead of MSSQL Server. For the Entity Framework features used by the app it makes no difference and it's easier to clean up after LocalDB.</p>
+
+<pre class="prettyprint lang-ml prettyprinted">
+Target "Deploy" <| fun _ -> 
+    // iisexpress requires the passed in path to be normalizes to distinguish its arguments
+    let mvc = normalizeFileName (absoluteSourceDir @@ "AcmeAppMVC")
+
+    // update web.config connection string used by Entity Framework
+    updateConnectionString
+        "AcmeAppDatabase"
+        @"Server=(localdb)\v11.0;AttachDBFilename=|DataDirectory|\AcmeApp.mdf;Integrated Security=true;"
+        (mvc @@ "web.config")      
+
+    // IISExpress is automatically killed by FAKE when the script terminates
+    ProcessHelper.StartProcess(fun psi -> 
+        psi.FileName <- IISExpressDefaults.ToolPath
+        psi.Arguments <- sprintf "\"/path:%s\" /port:%i" mvc webAppPort)
+
+    // Entity Framework database creation requires data directory to exists beforehand
+    FileHelper.CreateDir(mvc @@ "App_Data")    
+
+    // IISExpress starts asynchronously which on rare occasions seems to lead to 
+    // the server not being fully operational when it receives the request, 
+    // resulting in an Internal Server Error exception.
+    let forceDatabaseCreation = sprintf "http://localhost:%i/home/CreateDatabase" webAppPort
+    (new WebClient()).DownloadString(forceDatabaseCreation) |> ignore
+</pre>
+
+<h4>Wrapping up</h4>
+
+<p>Finally, we want to define the dependencies between the target. The DeleteWorkspace target is the root of the dependency and no other depends on the Deploy target. In other words, if we tell fake to execute the Deploy target, it'll trigger the execution of all the other targets starting with DeleteWorkspace.</p>
+
+<pre class="prettyprint lang-ml prettyprinted">
+Target "Default" DoNothing
+
+"DeleteWorkspace" ==> "CreateWorkspace" ==> "GetLatest" ==> "BuildApp" ==> "Deploy"
+RunTargetOrDefault "Default"
+</pre>
+
+<p>From the command-line, we can create a Fake.cmd file with the following content:</p>
+
+<pre>
+@echo off
+".\packages\FAKE.2.15.4\tools\fake.exe" "%1"
+exit /b %errorlevel%
+</pre>
+
+<p>and from then on execute the Deploy target like so (fake.exe looks for a script named build.fsx by default):</p>
+
+<pre>
+% .\Fake deploy
+</pre>
+
+</div>
