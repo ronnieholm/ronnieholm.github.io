@@ -123,7 +123,7 @@ Target "Deploy" <| fun _ ->
     // database creation with EF requires data directory to exists beforehand
     FileHelper.CreateDir(mvc @@ "App_Data")    
 
-    // IISExpress starts asynchronously which on rare occasions seems to lead to 
+    // iisexpress starts asynchronously which on rare occasions seems to lead to 
     // the server not being fully operational when it receives the request, 
     // resulting in an Internal Server Error exception.
     let forceDatabaseCreation = sprintf "http://localhost:%i/home/CreateDatabase" webAppPort
