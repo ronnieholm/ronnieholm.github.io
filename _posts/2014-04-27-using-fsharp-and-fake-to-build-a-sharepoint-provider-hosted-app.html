@@ -27,7 +27,7 @@ We could've included deployment to SharePoint as an additional step, but focusin
 
 Before getting to the individual steps, called targets in FAKE, we need to load relevant FAKE assemblies and define various configuration parameters. The idea with the parameters is to collect the settings that'll vary at the top of the script and make each target relatively independant of current configuration values:
 
-<pre class="prettyprint lang-ml prettyprinted">
+<pre class="prettyprint lang-ml">
 // How to setup the build script on any computer:
 //
 //   1. Adjust baseDir to where the source control folder is
@@ -57,7 +57,7 @@ let tf = "C:/Program Files (x86)/Microsoft Visual Studio 12.0/Common7/IDE/tf.exe
 
 <p>To avoid having residual state from previous builds affect the current build, we delete the workspace and associated source code control folder using TFS from the command-line. This step might fail on first run or if a previous run fails to complete the target. We don't want the entire build to fail in that case and thus probes the tf.exe for this event.</p>
 
-<pre class="prettyprint lang-ml prettyprinted">
+<pre class="prettyprint lang-ml">
 Target "DeleteWorkspace" <| fun _ ->
     let args = sprintf "workspace /delete /noprompt %s" workspaceName
     let exitCode = Shell.Exec(tf, args)
@@ -72,7 +72,7 @@ Target "DeleteWorkspace" <| fun _ ->
 
 <p>Next we create the source control folder and TFS workspace. For tf.exe to work properly, it's important we issue the command in the source control folder. Otherwise, we might receive an error that current folder is already mapped to a workspace (the current workspace holding the build script). What tf.exe does is create a special $tf folder within the source control folder for storing metadata.</p>
 
-<pre class="prettyprint lang-ml prettyprinted">
+<pre class="prettyprint lang-ml">
 Target "Createworkspace" <| fun _ ->
     FileHelper.CreateDir(baseDir)  
     let args = sprintf "workspace /new /noprompt %s /collection:%s" workspaceName projectCollection
@@ -84,7 +84,7 @@ Target "Createworkspace" <| fun _ ->
 
 <p>Inside the TFS project collection, we want to recursively retrieve the part of the structure that represents our source code. The branch name may very well be part of this path as well:</p>
 
-<pre class="prettyprint lang-ml prettyprinted">
+<pre class="prettyprint lang-ml">
 Target "GetLatest" <| fun _ ->
     let args = sprintf "get \"$/%s\" /recursive" relativeSourceDir
     let exitCode = Shell.Exec(tf, args, baseDir)
@@ -95,7 +95,7 @@ Target "GetLatest" <| fun _ ->
 
 <p>By delegating to MSBuild, building the applications is likely the simplest part of the script. This means that our build script honors the build setting configured from inside Visual Studio and that developers build from all the time. SharePoint app projects come with a special "Package" MSBuild targets that created the package needed to deploy the app to SharePoint. Invoking the "Package" tartget starts a chain reaction that compiles the SharePoint app project which again depends on the external app compiling.</p>
 
-<pre class="prettyprint lang-ml prettyprinted">
+<pre class="prettyprint lang-ml">
 Target "BuildApp" <| fun _ ->
     // because of build dependencies this'll build MVC and SharePoint app first
     MSBuildDebug "" "Package" [absoluteSourceDir @@ "AcmeAppMVC/AcmeApp.csproj"]
@@ -106,7 +106,7 @@ Target "BuildApp" <| fun _ ->
 
 <p>As a smoke test, we want to ensure the web server can actually boot our external app. We could've deployed to IIS but the app works with IISExpress as well. With IISExpress all we need to do is point it to the ASP.NET MVC/WebAPI folder and tell it which port number to use. Before making sure the database can be created from the code first model, we want to modify the web.config to LocalDB instead of MSSQL Server. For the Entity Framework features used by the app it makes no difference and it's easier to clean up after LocalDB.</p>
 
-<pre class="prettyprint lang-ml prettyprinted">
+<pre class="prettyprint lang-ml">
 Target "Deploy" <| fun _ -> 
     // iisexpress requires the passed in path to be normalizes to distinguish its arguments
     let mvc = normalizeFileName (absoluteSourceDir @@ "AcmeAppMVC")
@@ -136,7 +136,7 @@ Target "Deploy" <| fun _ ->
 
 <p>Finally, we want to define the dependencies between the target. The DeleteWorkspace target is the root of the dependency and no other depends on the Deploy target. In other words, if we tell fake to execute the Deploy target, it'll trigger the execution of all the other targets starting with DeleteWorkspace.</p>
 
-<pre class="prettyprint lang-ml prettyprinted">
+<pre class="prettyprint lang-ml">
 Target "Default" DoNothing
 
 "DeleteWorkspace" ==> "CreateWorkspace" ==> "GetLatest" ==> "BuildApp" ==> "Deploy"
