@@ -115,12 +115,12 @@ Target "Deploy" <| fun _ ->
         @"Server=(localdb)\v11.0;AttachDBFilename=|DataDirectory|\AcmeApp.mdf;Integrated Security=true;"
         (mvc @@ "web.config")      
 
-    // IISExpress is automatically killed by FAKE when the script terminates
+    // iisexpres is automatically killed by FAKE when the script terminates
     ProcessHelper.StartProcess(fun psi -> 
         psi.FileName <- IISExpressDefaults.ToolPath
         psi.Arguments <- sprintf "\"/path:%s\" /port:%i" mvc webAppPort)
 
-    // Entity Framework database creation requires data directory to exists beforehand
+    // database creation with EF requires data directory to exists beforehand
     FileHelper.CreateDir(mvc @@ "App_Data")    
 
     // IISExpress starts asynchronously which on rare occasions seems to lead to 
