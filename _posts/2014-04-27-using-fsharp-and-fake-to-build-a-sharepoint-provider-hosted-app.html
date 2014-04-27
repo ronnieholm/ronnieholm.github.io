@@ -6,26 +6,24 @@ tags: [F#]
 ---
 <div id="post">
 
-<p>I wanted to create a build script primarily to shorten the feedback cycle when checking in code that breaks the build. This usually happens because of missing files, a merge gone wrong, or forgetting to get latest and compile before checking new code in. Following the <a href="http://bugfree.dk/blog/2010/09/26/essential-requirements-for-a-developer-automation-tool/">essential requirements for an automation tool</a> I want a solution that's free, flexible and easily setup on any machine. In the past I've used PSake to <a href="http://bugfree.dk/blog/2012/06/10/automating-sharepoint-2010-build-and-deployment-with-powershell-and-psake/">automate SharePoint build and deployment</a> but with PSake a lot of logic needs to be hand-rolled and because of its dynamic nature it doesn't scale well. Nowadays I'm more into F# than PowerShell so I prefer using FAKE instead.</p>
+<p>To set the stage for the FAKE script, it's for a SharePoint 2013 provider-hosted app. Visual Studio comes with a project type for this sort of app that creates two Visual Studio projects and connects these. One project holds the declarative logic (mostly XML) of the app to be deployed to SharePoint and the other is a regular ASP.NET MVC/WebAPI app (from here on referred to as the external app) to be hosted outside of SharePoint. Deploying the declarative app to SharePoint configures SharePoint to seamlessly integrate with the external app.</p>
 
-<p>To set the context for the FAKE script, we're a handfull of developers working on a SharePoint 2013 provider-hosted app. Visual Studio provides a project type for this sort of app that creates two Visual Studio projects and connects these together. One project holds the declarative logic (mostly XML) of the app to be deployed to SharePoint and the other is a regular ASP.NET MVC/WebAPI app (from here on referred to as the external app) to be hosted outside SharePoint. Deploying the declarative app to SharePoint configures SharePoint to seamlessly integrate the external app with SharePoint.</p>
-
-<p>In order to build the solution, we must go through the following steps:</p>
+<p>In order to build the solution, we go through the following steps:</p>
 
 <ol>
-<li>Clean up from previous run by deleting a TFS workspace and associated source code control folder</li>
+<li>Clean up from previous run by deleting a TFS workspace and associated source control folder</li>
 <li>Create a new source control folder and associate it with a new TFS workspace</li>
 <li>Get the latest code from TFS and put it into the new workspace</li>
 <li>Build the external app and the SharePoint app and package the latter for deployment to SharePoint</li>
-<li>Adjust the external app's web.config to use LocalDB over MSSQL Server. As the LocalDB is stored under the app App_Data folder, cleaning up becomes simpler</li>
-<li>Host the external app under IISExpress and request /home/createDatabase. This enables database creation and tests the Entity Framework seed code</li>
+<li>Adjust the external app's web.config to use LocalDB instead of MSSQL Server. Because the LocalDB is stored within the App_Data folder, using LocalDB makes cleaning up easier</li>
+<li>Host the external app under IISExpress and request /home/createDatabase. This forces database creation using Entity Framework code-first and verifies that the seed code is working</li>
 </ol>
 
-We could've included deployment to SharePoint as an additional step, but focusing on the external app is what adds the most value.
+We could've included deployment to SharePoint as an additional step, but focusing on the external app is currently what adds the most value.
 
 <h4>Step 0: Establish build context</h4>
 
-Before getting to the individual steps, called targets in FAKE, we need to load relevant FAKE assemblies and define various configuration parameters. The idea with the parameters is to collect the settings that'll vary at the top of the script and make each target relatively independant of current configuration values:
+<p>Before getting started with the steps, called targets in FAKE, we must first load the relevant FAKE assemblies and define various settings. The idea is to collect the settings that'll vary the most at the top of the script and make each target relatively independant of current values:</p>
 
 <pre class="prettyprint lang-ml">
 // How to setup the build script on any computer:
@@ -55,7 +53,7 @@ let tf = "C:/Program Files (x86)/Microsoft Visual Studio 12.0/Common7/IDE/tf.exe
 
 <h4>Step 1: Delete TFS workspace and source control folder</h4>
 
-<p>To avoid having residual state from previous builds affect the current build, we delete the workspace and associated source code control folder using TFS from the command-line. This step might fail on first run or if a previous run fails to complete the target. We don't want the entire build to fail in that case and thus probes the tf.exe for this event.</p>
+<p>To not have previous builds affect the current build, we disconnect the souce control folder from it's associated TFS workspace. This step might fail on first run or if a previous run fails to complete the target. In that case we don't want the build to fail and thus probe the tf.exe exit code.</p>
 
 <pre class="prettyprint lang-ml">
 Target "DeleteWorkspace" <| fun _ ->
@@ -70,7 +68,7 @@ Target "DeleteWorkspace" <| fun _ ->
 
 <h4>Step 2: Create source control folder and TFS workspace</h4>
 
-<p>Next we create the source control folder and TFS workspace. For tf.exe to work properly, it's important we issue the command in the source control folder. Otherwise, we might receive an error that current folder is already mapped to a workspace (the current workspace holding the build script). What tf.exe does is create a special $tf folder within the source control folder for storing metadata.</p>
+<p>Next we create the source control folder and associate a TFS workspace with it. For tf.exe to work properly, it's important we execute tf.exe in the source control folder. What the invocation of tf.exe does is create a special $tf folder within the source control folder for storing metadata.</p>
 
 <pre class="prettyprint lang-ml">
 Target "Createworkspace" <| fun _ ->
@@ -82,7 +80,7 @@ Target "Createworkspace" <| fun _ ->
 
 <h4>Step 3: Get the latest code</h4>
 
-<p>Inside the TFS project collection, we want to recursively retrieve the part of the structure that represents our source code. The branch name may very well be part of this path as well:</p>
+<p>Inside the TFS project collection, we want to recursively retrieve the part of the directory structure that represent our source code. In this case the branch name is part of the path to the directory:</p>
 
 <pre class="prettyprint lang-ml">
 Target "GetLatest" <| fun _ ->
@@ -93,7 +91,7 @@ Target "GetLatest" <| fun _ ->
 
 <h4>Step 4: Build the app</h4>
 
-<p>By delegating to MSBuild, building the applications is likely the simplest part of the script. This means that our build script honors the build setting configured from inside Visual Studio and that developers build from all the time. SharePoint app projects come with a special "Package" MSBuild targets that created the package needed to deploy the app to SharePoint. Invoking the "Package" tartget starts a chain reaction that compiles the SharePoint app project which again depends on the external app compiling.</p>
+<p>By delegating to MSBuild, building the applications is likely the simplest part of the script. This way our build script honors the build setting configured from inside Visual Studio. In addition to the typical build target, SharePoint app projects come with a special "Package" target that created the package to deploy to SharePoint. Invoking the "Package" target starts a build chain that compiles the SharePoint app project which then compiles the external app.</p>
 
 <pre class="prettyprint lang-ml">
 Target "BuildApp" <| fun _ ->
@@ -104,7 +102,7 @@ Target "BuildApp" <| fun _ ->
 
 <h4>Step 5: Deploy provided-hosted app</h4>
 
-<p>As a smoke test, we want to ensure the web server can actually boot our external app. We could've deployed to IIS but the app works with IISExpress as well. With IISExpress all we need to do is point it to the ASP.NET MVC/WebAPI folder and tell it which port number to use. Before making sure the database can be created from the code first model, we want to modify the web.config to LocalDB instead of MSSQL Server. For the Entity Framework features used by the app it makes no difference and it's easier to clean up after LocalDB.</p>
+<p>As a quick smoke test, we want to ensure the web server can actually run our external app. We could've deployed to IIS but the app works as well with IISExpress. All we need to do is point IISExpress to the ASP.NET MVC/WebAPI folder and tell it which port to serve the app from. Before starting IISExpress, though, we modify the web.config to use LocalDB instead of MSSQL Server.</p>
 
 <pre class="prettyprint lang-ml">
 Target "Deploy" <| fun _ -> 
@@ -134,27 +132,13 @@ Target "Deploy" <| fun _ ->
 
 <h4>Wrapping up</h4>
 
-<p>Finally, we want to define the dependencies between the target. The DeleteWorkspace target is the root of the dependency and no other depends on the Deploy target. In other words, if we tell fake to execute the Deploy target, it'll trigger the execution of all the other targets starting with DeleteWorkspace.</p>
+<p>Finally, we define the dependencies between the targets. The DeleteWorkspace target is the root of the dependency chain because and no target depends on Deploy. In other words, if we ask fake to execute the Deploy target, it'll trigger the execution of all the other targets starting with DeleteWorkspace.</p>
 
 <pre class="prettyprint lang-ml">
 Target "Default" DoNothing
 
 "DeleteWorkspace" ==> "CreateWorkspace" ==> "GetLatest" ==> "BuildApp" ==> "Deploy"
 RunTargetOrDefault "Default"
-</pre>
-
-<p>From the command-line, we can create a Fake.cmd file with the following content:</p>
-
-<pre>
-@echo off
-".\packages\FAKE.2.15.4\tools\fake.exe" "%1"
-exit /b %errorlevel%
-</pre>
-
-<p>and from then on execute the Deploy target like so (fake.exe looks for a script named build.fsx by default):</p>
-
-<pre>
-% .\Fake deploy
 </pre>
 
 </div>
