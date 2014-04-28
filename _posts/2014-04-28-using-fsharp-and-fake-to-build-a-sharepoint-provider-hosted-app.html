@@ -6,7 +6,7 @@ tags: [F#]
 ---
 <div id="post">
 
-<p>This post outlines a real-work anonymized example of how to use
+<p>This post outlines a real-work (anonymized) example of how to use
 FAKE to create a build script that gets the latest source code from
 Team Foundation Server (TFS), builds the SharePoint 2013
 provider-hosted app, and then takes it for a quick spin outside of
@@ -74,9 +74,9 @@ let tf = "C:/Program Files (x86)/Microsoft Visual Studio 12.0/Common7/IDE/tf.exe
 <h4>Step 1: Delete TFS workspace and source control folder</h4>
 
 <p>To minimize the risk of any previous build affecting the current
-one, we disconnect the source control folder from it's associated TFS
+one, we disconnect the source control folder from its associated TFS
 workspace and delete both. This step might fail on first build or if a
-previous build fails to complete the target. In either case, we don't
+previous build failed to complete the target. In either case, we don't
 want the entire build to fail and thus probe and react to the tf.exe
 exit code.</p>
 
