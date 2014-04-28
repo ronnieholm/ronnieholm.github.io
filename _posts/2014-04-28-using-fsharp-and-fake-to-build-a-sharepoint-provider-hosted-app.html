@@ -6,17 +6,18 @@ tags: [F#]
 ---
 <div id="post">
 
-<p>This post shows an example of how to use FAKE to create a build
-script that gets the latest source code from Team Foundation Server,
-builds the SharePoint 2013 provider-hosted app, and then takes it for
-a quick spin outside of SharePoint. Organization-wise, the
-provider-hosted app is created using Visual Studio's build-in project
-template, which results in two projects being created: one that holds
-the declarative logic (mostly XML, no C# code) of the app to be
-deployed to SharePoint and the other is a regular ASP.NET MVC/WebAPI
-app (referred to as the MVC app) to be hosted outside SharePoint.
-Deploying the declarative app to SharePoint configures SharePoint to
-seamlessly integrate with the MVC app.</p>
+<p>This post outlines a real-work anonymized example of how to use
+FAKE to create a build script that gets the latest source code from
+Team Foundation Server, builds the SharePoint 2013 provider-hosted
+app, and then takes it for a quick spin outside of SharePoint.
+Organization-wise, the provider-hosted app is created using Visual
+Studio's build-in project template, which results in two projects
+being created: one that holds the declarative logic (mostly XML, no C#
+code) of the app to be deployed to SharePoint and the other is a
+regular ASP.NET MVC/WebAPI app (referred to as the MVC app) to be
+hosted outside SharePoint.  Deploying the declarative app to
+SharePoint configures SharePoint to seamlessly integrate with the MVC
+app.</p>
 
 <p>In order to build the solution consisting of two projects, we need
 to go through the following steps:</p>
