@@ -8,22 +8,23 @@ tags: [F#]
 
 <p>This post outlines a real-work anonymized example of how to use
 FAKE to create a build script that gets the latest source code from
-Team Foundation Server, builds the SharePoint 2013 provider-hosted
-app, and then takes it for a quick spin outside of SharePoint.
-Organization-wise, the provider-hosted app is created using Visual
-Studio's build-in project template, which results in two projects
-being created: one that holds the declarative logic (mostly XML, no C#
-code) of the app to be deployed to SharePoint and the other is a
-regular ASP.NET MVC/WebAPI app (referred to as the MVC app) to be
-hosted outside SharePoint.  Deploying the declarative app to
-SharePoint configures SharePoint to seamlessly integrate with the MVC
-app.</p>
+Team Foundation Server (TFS), builds the SharePoint 2013
+provider-hosted app, and then takes it for a quick spin outside of
+SharePoint.</p>
 
-<p>In order to build the solution consisting of two projects, we need
-to go through the following steps:</p>
+<p>Solution-wise, the provider-hosted app is created using Visual
+Studio's build-in project template, which results in two projects
+being created: one that holds the declarative logic (mostly XML, no
+.NET code) of the app to be deployed to SharePoint and one that's a
+regular ASP.NET MVC/WebAPI app (referred to as the MVC app) to be
+hosted outside SharePoint. Deploying the declarative app to SharePoint
+configures SharePoint to seamlessly integrate with the MVC app.</p>
+
+<p>In order to build the solution of two projects, we need to go
+through the following steps:</p>
 
 <ol>
-<li>Clean up from any previous run by deleting a TFS workspace and
+<li>Clean up from any previous build by deleting a TFS workspace and
 associated source control folder</li>
 <li>Create a new source control folder and associate it with a new TFS
 workspace</li>
@@ -32,11 +33,11 @@ control folder</li>
 <li>Build the MVC and the SharePoint app and package the latter for
 deployment to SharePoint</li>
 <li>Adjust the MVC app's web.config to use LocalDB instead of MSSQL
-Server. The LocalDB database is stored inside App_Data folder which
-makes resetting the environment easier</li>
+Server. The LocalDB database is stored inside MVC app's App_Data
+folder which makes resetting the environment easier</li>
 <li>Host the MVC app under IISExpress and request
-/home/createDatabase. It triggers Entity Framework database creation
-and verifies the seed code is working</li>
+/home/createDatabase. This'll trigger code-first Entity Framework
+database creation and verifies that the seed code is working</li>
 </ol>
 
 We could've included deployment to SharePoint as an additional step,
@@ -44,11 +45,11 @@ but focusing on the MVC app is currently what adds the most value.
 
 <h4>Step 0: Establish build context</h4>
 
-<p>Before getting started with the actual build steps, called targets
-in FAKE, we must first load relevant FAKE assemblies and define
-various settings read by the targets. Defining these settings at the
-top of the script makes each target relatively independant of actual
-values and avoids too many magic numbers:</p>
+<p>Before getting to the actual build steps, called targets in FAKE,
+we must first load relevant FAKE assemblies and define various
+settings required by the targets. Defining these settings at the top
+of the script makes each target relatively independant of actual
+values and avoids having too many magic string and numbers around:</p>
 
 <pre class="prettyprint lang-ml">
 #r "packages/FAKE.2.15.4/tools/FakeLib.dll"
@@ -72,11 +73,12 @@ let tf = "C:/Program Files (x86)/Microsoft Visual Studio 12.0/Common7/IDE/tf.exe
 
 <h4>Step 1: Delete TFS workspace and source control folder</h4>
 
-<p>To prevent previous builds from affecting the current build, we
-disconnect the source control folder from it's associated TFS
-workspace. This step might fail on first run or if a previous run
-fails to complete the target. In this case we don't want the build to
-fail and thus probe and react to the tf.exe exit code.</p>
+<p>To minimize the risk of any previous build affecting the current
+one, we disconnect the source control folder from it's associated TFS
+workspace and delete both. This step might fail on first build or if a
+previous build fails to complete the target. In either case, we don't
+want the entire build to fail and thus probe and react to the tf.exe
+exit code.</p>
 
 <pre class="prettyprint lang-ml">
 Target "DeleteWorkspace" <| fun _ ->
@@ -93,9 +95,9 @@ Target "DeleteWorkspace" <| fun _ ->
 
 <p>Next we (re)create the source control folder and associate it with
 a TFS workspace. For tf.exe to work properly, it's important we
-execute tf.exe from within the source control folder. Because what the
-invocation of tf.exe does is create a special $tf folder within the
-current directory for storing metadata.</p>
+execute it from within the recently created source control
+folder. Because what the invocation of tf.exe does is create a special
+$tf folder for storing metadata within the current directory.</p>
 
 <pre class="prettyprint lang-ml">
 Target "Createworkspace" <| fun _ ->
@@ -109,7 +111,8 @@ Target "Createworkspace" <| fun _ ->
 
 <p>From inside the TFS project collection, we want to recursively
 retrieve the part of the directory structure that maps to our source
-code:</p>
+code. This can potentially be a long path that includes both solution,
+project, and branch folder:</p>
 
 <pre class="prettyprint lang-ml">
 Target "GetLatest" <| fun _ ->
@@ -120,14 +123,14 @@ Target "GetLatest" <| fun _ ->
 
 <h4>Step 4: Build the app</h4>
 
-<p>Building the applications is likely the simplest part of the entire
-script. It simply delegates to the process to MSBuild, honoring the
-build setting used from inside Visual Studio. One thing to note
-though, is that in addition to the typical build target, SharePoint
-app projects has a special "Package" target that created the package
-to deploy to SharePoint. To create this package the SharePoint app
-project must first be compiles, which then has a dependency on the MVC
-app so it gets compiled as well.</p>
+<p>Actually compiling the apps is likely the easiest part of the
+entire process. It's simply a matter of delegating to MSBuild,
+honoring the build setting used from inside Visual Studio. One thing
+to note though is that in addition to the typical MSBuild build
+target, SharePoint app projects have a special "Package" target that
+created the package to deploy to SharePoint. To create this package
+the SharePoint app project must first be compiled, which has a
+dependency on the MVC app so it gets compiled as well.</p>
 
 <pre class="prettyprint lang-ml">
 Target "BuildApp" <| fun _ ->
@@ -142,7 +145,7 @@ Target "BuildApp" <| fun _ ->
 our MVC app. We could've deployed it to IIS but the app works just as
 well with IISExpress. All we need to do is point IISExpress to the MVC
 folder and tell it which port to use. Before starting IISExpress,
-though, we modify the web.config to use LocalDB instead of MSSQL
+however, we modify the web.config to point to LocalDB instead of MSSQL
 Server.</p>
 
 <pre class="prettyprint lang-ml">
@@ -173,10 +176,11 @@ Target "Deploy" <| fun _ ->
 
 <h4>Wrapping up</h4>
 
-<p>Finally, we define the target dependencies. Every target ultimately
-depends on DeleteWorkspace and no target depends on Deploy. In other
-words, if we ask FAKE to execute the Deploy target, it'll trigger the
-execution of all the other targets starting with DeleteWorkspace.</p>
+<p>Lastly, we tie a knot on the target dependencies. Every target
+ultimately depends on DeleteWorkspace to execute first and no target
+depends on Deploy. In other words, if we ask FAKE to execute the
+Deploy target, it'll trigger the execution of all the other targets
+starting with DeleteWorkspace.</p>
 
 <pre class="prettyprint lang-ml">
 Target "Default" DoNothing
