@@ -65,7 +65,7 @@ let relativeSourceDir = "AcmeRoot/DevBranch/AcmeApp"
 let absoluteSourceDir = baseDir @@ relativeSourceDir
 let workspaceName = "AcmeApp-CI"
 let projectCollection = "AcmeCorp.visualstudio.com\DefaultCollection"
-let webAppPort = 8080
+let mvcAppPort = 8080
 
 // external tools
 let tf = "C:/Program Files (x86)/Microsoft Visual Studio 12.0/Common7/IDE/tf.exe"
@@ -162,7 +162,7 @@ Target "Deploy" <| fun _ ->
     // iisexpres is automatically killed by FAKE when the script terminates
     ProcessHelper.StartProcess(fun psi -> 
         psi.FileName <- IISExpressDefaults.ToolPath
-        psi.Arguments <- sprintf "\"/path:%s\" /port:%i" mvc webAppPort)
+        psi.Arguments <- sprintf "\"/path:%s\" /port:%i" mvc mvcAppPort)
 
     // database creation with EF requires data directory to exists beforehand
     FileHelper.CreateDir(mvc @@ "App_Data")    
@@ -170,7 +170,7 @@ Target "Deploy" <| fun _ ->
     // iisexpress starts asynchronously which on rare occasions seems to lead to 
     // the server not being fully operational when it receives the request, 
     // resulting in an Internal Server Error exception.
-    let triggerDatabaseCreation = sprintf "http://localhost:%i/home/CreateDatabase" webAppPort
+    let triggerDatabaseCreation = sprintf "http://localhost:%i/home/CreateDatabase" mvcAppPort
     (new WebClient()).DownloadString(triggerDatabaseCreation) |> ignore
 </pre>
 
