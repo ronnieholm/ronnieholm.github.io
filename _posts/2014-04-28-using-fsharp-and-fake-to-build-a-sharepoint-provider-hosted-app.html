@@ -107,7 +107,7 @@ Target "Createworkspace" <| fun _ ->
     if exitCode <> 0 then failwithf "Unable to create workspace: %i" exitCode
 </pre>
 
-<h4>Step 3: Get the latest code</h4>
+<h4>Step 3: Get latest source code</h4>
 
 <p>From inside the TFS project collection, we want to recursively
 retrieve the part of the directory structure that maps to our source
@@ -121,7 +121,7 @@ Target "GetLatest" <| fun _ ->
     if exitCode <> 0 then failwithf "Unable to get latest: %i" exitCode
 </pre>
 
-<h4>Step 4: Build the app</h4>
+<h4>Step 4: Build apps</h4>
 
 <p>Actually compiling the apps is likely the easiest part of the
 entire process. It's simply a matter of delegating to MSBuild,
@@ -139,7 +139,7 @@ Target "BuildApp" <| fun _ ->
     |> ignore
 </pre>
 
-<h4>Step 5: Deploy provided-hosted app</h4>
+<h4>Step 5 and 6: Deploy provided-hosted app</h4>
 
 <p>As a quick test, we want to ensure the web server can actually run
 our MVC app. We could've deployed it to IIS but the app works just as
