@@ -139,8 +139,7 @@ compiling it as well.</p>
 
 <pre class="prettyprint lang-ml">
 Target "BuildApp" <| fun _ ->
-    // because of build dependencies this'll build both 
-    // SharePoint and MVC/WebAPI projects
+    // because of build dependencies this'll build both SharePoint and MVC/WebAPI projects
     MSBuildDebug "" "Package" [absoluteSourceDir @@ "AcmeAppMVC/AcmeApp.csproj"]
     |> ignore
 </pre>
