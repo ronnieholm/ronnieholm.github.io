@@ -1,0 +1,160 @@
+---
+layout: post
+title: "Creating a simple build server in F# to execute FAKE script"
+date: 2014-07-15 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+
+<p>Now that
+we have <a href="http://bugfree.dk/blog/2014/04/28/using-fsharp-and-fake-to-build-a-sharepoint-provider-hosted-app/">created
+a FAKE script</a> to check out the latest code from TFS, build it, and
+deploy it to IISExpress, the next step is to run the script at regular
+intervals to ensure the build stays in good shape. We could use TFS
+for this by installing a build agent on a local server or install
+another build server.</p>
+
+<p>Alternatively, we could write a simple build server ourselves. We
+really don't need anything fancy like statistics and build
+notification. A simple mail notification with with the log file
+attached and a summary in the mail body whenever the build fails will
+do.</p>
+
+<p>For the CiServer.fsx script, first we need to set various
+configuration options:</p>
+
+<pre class="prettyprint lang-ml">
+open System
+open System.IO
+open System.Diagnostics
+open System.Threading
+open System.Net
+open System.Net.Mail
+open System.Text
+open System.Collections.Generic
+
+let mailFrom = "foo@bugfree.dk"
+let mailTo = ["bar@bugfree.dk"; "baz@bugfree.dk"]
+let smtpServer = "smtp.gmail.com"
+let smtpUsername = mailFrom
+let smtpPassword = "password"
+let failureSummaryLength = 30
+let maxBuildDuration = 1000 * 60 * 10
+let timeBetweenBuilds = 1000 * 60 * 15
+let fakeExe = __SOURCE_DIRECTORY__ + "/packages/FAKE.2.15.4/tools/fake.exe"
+</pre>
+
+<p>As we want CiServer to sent a mail notification upon build failure,
+we need to configure the outgoing SMTP server. The mailTo allows for
+the specification of a list of recipients to mail when the build
+fails, including in the mail the last failureSummaryLength lines of
+the build output. These lines often suffice to fix the build without
+having to look at the complete log file.</p>
+
+<p>Since we want CiServer to spawn Fake.exe, we need to ensure
+Fake.exe doesn't get stuck for whatever reason, i.e., we want to
+terminate the build if it takes longer than maxBuildDuration. We also
+want to run the build in an infinite loop with timeBetweenBuilds
+between one build finishes and the next build starting.</p>
+
+<p>Now for the crux of the CiServer:</p>
+
+<pre class="prettyprint lang-ml">
+let formatOutput message =
+    sprintf "%s: %s" (DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss")) message
+
+let logToConsole message =
+    message |> formatOutput |> printfn "%s"
+
+let output = List<string>()
+let logToFile message =
+    message |> output.Add
+
+let build() =
+    let nl = Environment.NewLine
+    let p = 
+        new Process(
+            StartInfo = 
+                ProcessStartInfo(
+                    FileName = fakeExe, 
+                    Arguments = __SOURCE_DIRECTORY__ + "/Build.fsx deploy",
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true))
+
+    let logOutput (e: DataReceivedEventArgs) = 
+        logToConsole e.Data
+        logToFile e.Data
+
+    p.OutputDataReceived.Add(logOutput)
+    p.ErrorDataReceived.Add(logOutput)
+    p.Start() |> ignore
+    p.BeginOutputReadLine()
+    p.BeginErrorReadLine()
+
+    let exited = p.WaitForExit(maxBuildDuration)
+    p.CancelOutputRead()
+    p.CancelErrorRead()
+    if not exited then logToConsole "Maximum build time exceeded. Build killed"
+
+    if p.ExitCode <> 0 then
+        logToConsole "Build failed. Sending mail" 
+        let tail = 
+            output 
+            |> Seq.skip(output.Count - min failureSummaryLength output.Count)
+            |> Seq.reduce (fun acc s -> acc + nl + s)
+
+        use message = 
+            new MailMessage(
+                From = MailAddress(mailFrom),
+                Subject = "AcmeApp build failure",
+                Body = "See attachment for complete build log." + nl + nl +
+                       "Below is the last part of the build log:" + nl + nl +
+                       tail)
+        mailTo |> List.iter (fun r -> message.To.Add(MailAddress(r)))
+        let bytes = Encoding.UTF8.GetBytes(String.Join(nl, output))
+        message.Attachments.Add(new Attachment(new MemoryStream(bytes), "Log.txt"))
+        (new SmtpClient(
+            Host = smtpServer,
+            Credentials = NetworkCredential(smtpUsername, smtpPassword),
+            EnableSsl = true)).Send(message)
+</pre>
+
+<p>The build function is what spawns the Fake process and attaches a
+listerne to its standard error and standard output. What Fake targets
+print while they execute typically go to standard output while any
+errors in the build report go to standard error.</p>
+
+<p>To make the build run in an infinite loop, we need to add the
+following piece of code to the end of the script. Because it's outside
+a function, it's executed immidiately:</p>
+
+<pre class="prettyprint lang-ml">
+while true do
+    logToConsole "Build started"
+    build()
+    logToConsole "Build ended. Going to sleep"
+    Thread.Sleep(timeBetweenBuilds)
+</pre>
+
+<p>To invoke the CiServer, we open a console window, nagivate to the
+folder holding the CiServer.fsx script and execute it. Within my
+project, this script is located at the root of the solution, next to
+the solution file:</p>
+
+<pre>
+PS> .\packages\FAKE.2.15.4\tools\Fsi.exe .\CiRunner.fsx
+</pre>
+
+<p>Now the CiServer executes the deploy target of
+the <a href="http://bugfree.dk/blog/2014/04/28/using-fsharp-and-fake-to-build-a-sharepoint-provider-hosted-app">previously
+mentioned</a> Fake build file at regular intervals and notifies a list
+of recipients of build failures. On every iteration of the loop, the
+Fake scripts runs regardless of any code changes. One improvement
+would be to query TFS, using one of its many web services, if any code
+was checked in since the last run.</p>
+
+<p>This simple build server was sufficient for the needs of the five
+develoeprs on my previous project.</p>
+
+</div>
