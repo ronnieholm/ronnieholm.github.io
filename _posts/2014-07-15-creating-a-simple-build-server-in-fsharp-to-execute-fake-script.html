@@ -147,13 +147,14 @@ PS> .\packages\FAKE.2.15.4\tools\Fsi.exe .\CiRunner.fsx
 </pre>
 
 <p>Now the CiServer executes the deploy target of
-the <a href="http://bugfree.dk/blog/2014/04/28/using-fsharp-and-fake-to-build-a-sharepoint-provider-hosted-app">aforementioned</a> Fake build file at regular intervals and notifies a list
-of recipients of build failures. On every iteration of the loop, the
-Fake script runs regardless of any code changes. One improvement would
-be to query TFS, using one of its many web services, if any code was
-checked in since the last run.</p>
+the <a href="http://bugfree.dk/blog/2014/04/28/using-fsharp-and-fake-to-build-a-sharepoint-provider-hosted-app">aforementioned</a>
+Fake build file at regular intervals and notifies a list of recipients
+of build failures. On each iteration of the loop, the Fake script runs
+regardless of any code changes. One improvement would be to query TFS,
+using one of its many web services, if any code was checked in since
+the last run.</p>
 
 <p>On my previous project of five developers, this simple build server
-was suffient for our needs.</p>
+was sufficient for our needs.</p>
 
 </div>
