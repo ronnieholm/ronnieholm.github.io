@@ -6,19 +6,17 @@ tags: [F#]
 ---
 <div id="post">
 
-<p>Now that
-we have <a href="http://bugfree.dk/blog/2014/04/28/using-fsharp-and-fake-to-build-a-sharepoint-provider-hosted-app/">created
+<p>Now that we
+have <a href="http://bugfree.dk/blog/2014/04/28/using-fsharp-and-fake-to-build-a-sharepoint-provider-hosted-app/">created
 a FAKE script</a> to check out the latest code from TFS, build it, and
 deploy it to IISExpress, the next step is to run the script at regular
 intervals to ensure the build stays in good shape. We could use TFS
 for this by installing a build agent on a local server or install
-another build server.</p>
+another build tool.</p>
 
-<p>Alternatively, we could write a simple build server ourselves. We
-really don't need anything fancy like statistics and build
-notification. A simple mail notification with the log file
-attached and a summary in the mail body whenever the build fails will
-do.</p>
+<p>Alternatively, if we don't require anything fancy, we could write a
+build server ourselves. A simple mail with the log file attached and a
+summary in the mail body whenever the build fails might do.</p>
 
 <p>For the CiServer.fsx script, first we need to set various
 configuration options:</p>
@@ -46,16 +44,17 @@ let fakeExe = __SOURCE_DIRECTORY__ + "/packages/FAKE.2.15.4/tools/fake.exe"
 
 <p>As we want CiServer to send a mail notification upon build failure,
 we need to configure the outgoing SMTP server. The mailTo allows for
-the specification of a list of recipients to mail when the build
+the specification of a list of recipients to notify when the build
 fails, including in the mail the last failureSummaryLength lines of
-the build output. These lines often suffice to fix the build without
-having to look at the complete log file.</p>
+the log file. These lines often suffice to fix the build without
+having to look at the entire attached log file.</p>
 
 <p>Since we want CiServer to spawn Fake.exe, we need to ensure
-Fake.exe doesn't get stuck for whatever reason, i.e., we want to
-terminate the build if it takes longer than maxBuildDuration. We also
-want to run the build in an infinite loop with timeBetweenBuilds
-between one build finishes and the next build starting.</p>
+Fake.exe doesn't get stuck for whatever reason, i.e., we need the
+ability to terminate the build if it takes longer than
+maxBuildDuration. We also want to run the build in an infinite loop
+with timeBetweenBuilds between when one build finishes and the next
+build starts.</p>
 
 <p>Now for the crux of the CiServer:</p>
 
@@ -120,14 +119,14 @@ let build() =
             EnableSsl = true)).Send(message)
 </pre>
 
-<p>The build function is what spawns the Fake process and attaches a
-listener to its standard error and standard output. What Fake targets
+<p>The build function is what spawns the Fake process and attaches
+listeners to its standard error and standard output. What Fake targets
 print while they execute typically go to standard output while any
-errors in the build report go to standard error.</p>
+errors in the build go to standard error.</p>
 
-<p>To make the build run in an infinite loop, we need to add the
-following piece of code to the end of the script. Because it's outside
-a function, it's executed immediately:</p>
+<p>To make the build run in an infinite loop, we add the following
+piece of code at the end of the script. Because it's outside a
+function, it's executed immediately:</p>
 
 <pre class="prettyprint lang-ml">
 while true do
@@ -137,10 +136,10 @@ while true do
     Thread.Sleep(timeBetweenBuilds)
 </pre>
 
-<p>To invoke the CiServer, we open a console window, navigate to the
+<p>To invoke the CiServer, open up a console window, navigate to the
 folder holding the CiServer.fsx script and execute it. Within my
-project, this script is located at the root of the solution, next to
-the solution file:</p>
+project, this script is located at the root of the Visual Studio
+solution, next to the solution file:</p>
 
 <pre>
 PS> .\packages\FAKE.2.15.4\tools\Fsi.exe .\CiRunner.fsx
@@ -149,12 +148,16 @@ PS> .\packages\FAKE.2.15.4\tools\Fsi.exe .\CiRunner.fsx
 <p>Now the CiServer executes the deploy target of
 the <a href="http://bugfree.dk/blog/2014/04/28/using-fsharp-and-fake-to-build-a-sharepoint-provider-hosted-app">aforementioned</a>
 Fake build file at regular intervals and notifies a list of recipients
-of build failures. On each iteration of the loop, the Fake script runs
-regardless of any code changes. One improvement would be to query TFS,
-using one of its many web services, if any code was checked in since
-the last run.</p>
+of build failures.</p>
 
-<p>On my previous project of five developers, this simple build server
-was sufficient for our needs.</p>
+<p>The Fake script runs regardless of any changes to the code since
+last time around. One improvement would be to query TFS, using one of
+its many web services, and only kick off the build if anything was
+checked in since the last run.</p>
+
+<p>On my previous project of six developers, this simple build server
+was sufficient for our needs. We didn't have an existing build
+infrastracture in place and running the CiServer on any machine was
+quick and easy.</p>
 
 </div>
