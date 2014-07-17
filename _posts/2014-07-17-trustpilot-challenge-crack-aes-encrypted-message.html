@@ -2,36 +2,34 @@
 layout: post
 title: "Trustpilot challenge: crack AES encrypted message"
 date: 2014-07-17 12:00 UTC
-tags: [F#, Pattern, SharePoint]
+tags: [F#]
 ---
 <div id="post">
 <p>
-Yesterday I came across this coding challenge posted by Trustpilot, a
-Danish company looking to hire. 
-</p>
-
-<img width="563" height="470" src="/content/TrustpilotAesChallenge.png" />>
-
-</p>According to Trustpilot, regular job
-adverticements has a too high signal to noise ratio on truly skilled
-developers. So in order to submit you resume, first you must decrypt
+Yesterday I came across a coding challenge posted by Trustpilot, a
+Danish company looking to hire. According to the company, regular job
+addverticements have a too high signal to noise ratio on skilled
+developers. So in order to submit our resume, first we must decrypt
 the message to learn how to.
 </p>
 
+<img width="563" height="470" src="/content/TrustpilotAesChallenge.png" />
+
 <p>
-From the problem description, we see that a brute-force is called
-for. Assuming the first six bytes of the key to be in the range zero
-through 16, both inclusive, this yields a possible search space of
+From the problem description, we see that a brute-force approach is
+viable. Assuming the first six bytes of the key to be in the range
+zero through 16, both inclusive, it yields a possible search space of
 24,137,569 (17^6) keys.
 </p>
 
 <p>
-First we need to get basic AES encryption and decryption up and
-running. Strictly speaking, encryption isn't required, but is helps in
-validating the structure of the solution later on.
+First we need to get basic AES encryption and decryption
+working. Strictly speaking, the encryption function isn't required,
+but it helps validate the structure of the remaining solution in that
+we can try out the approach on a smaller scale first.
 </p>
 
-<pre>
+<pre class="prettyprint lang-ml">
 namespace TrustpilotChallenge
 
 open System
@@ -66,12 +64,13 @@ module Cryptography =
 </pre>
 
 <p>
-Next comes the main program making use of the Cryptography
-functions. Rather than descripting the code here, I've included
-comments directly in the source code.
+Next comes the main part which makes use of the Cryptography functions
+just defined. Rather than describe the code here, I've embedded
+comments about the approaches I took directly in the source code. The
+tricky part is validating when a key is indeed the correct one.
 </p>
 
-<pre>
+<pre class="prettyprint lang-ml">
 module Program =  
     [&lt;EntryPoint&gt;]
     let main args =
@@ -115,13 +114,13 @@ module Program =
             try                                                              
                 let decrypted = decryptStringFromBytes encrypted key iv
                 
-                // assume decrypted text contains known word
+                // an attempt assumming decrypted text contains known token
                 if decrypted.ToLower().Contains("trust") 
                 then printfn "Candidate key by 'trust': %A" key.[0..5]
 
-                // an attempt using simple statistical analysis is to count the number
-                // characters whose high-order bits is not set, indicate of simple ASCII
-                // decryption result
+                // an attempt using simple statistical analysis by counting the number
+                // characters whose high-order bit isn't set, which indicates a 
+                // simple ASCII result
                 //let highOrderBitsSet = 
                 //    decrypted.ToCharArray() 
                 //    |&gt; Array.filter (fun c -&gt; c |&gt; byte &&& 255uy = 255uy)
@@ -143,12 +142,11 @@ module Program =
 </pre>
 
 <p>
-The idea is to run the console application from the command-line,
-passing in the part of the search space to cover. This way, we can
-easy parallize the search by fireing up multiple console
-application. Say we have a computer with four cores, then we can
-issues the following four commands to (almost) evenly distribute the
-search:
+The console application must be run from the command-line, passing in
+the part of the search space to cover. This way, we can easily
+parallize the search by running multiple console application. Say we
+have a computer with four cores, then we can issues the following four
+commands to (almost) evenly distribute the search:
 </p>
 
 <pre>
@@ -159,8 +157,9 @@ search:
 </pre>
 
 <p>
-On my laptop with four cores, it takes about 30 minutes to traverse
-the entire search space.
+On my laptop with four cores running at 2.4 GHz, it takes about 30
+minutes to traverse the entire search space. Luckily, the current
+approach yields one candiate key.
 </p>
 
 </div>
