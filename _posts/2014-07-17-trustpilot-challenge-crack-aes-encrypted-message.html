@@ -48,11 +48,11 @@ module Cryptography =
         use sw = new StreamWriter(cs)
         sw.Write(plainText)
 
-        // by explicitly closing stream, we force flushing its contents.
-        // Otherwise the ToArray() call will get an empty array. Note
-        // that the C# using idiom takes care of this by disposing
-        // the StreamWriter instance immidately, whereas F# disposition
-        // happens when we exit the current scope.
+        // by explicitly closing the stream, we force flushing its contents.
+        // Otherwise, calling ToArray() will yield an empty array. Note
+        // that the C# using idiom handles this implicitly by disposing
+        // the StreamWriter instance when the using block ends, whereas F# 
+        // disposition happens only when we exit the function.
         sw.Close()
         ms.ToArray()
 
@@ -85,6 +85,7 @@ module Program =
         let encrypted = Convert.FromBase64String("yptyoDdVBdQtGhgoePppYHnWyugGmy0j81sf3zBeUXEO/LYRw+2XmVa0/v6YiSy9Kj8gMn/gNu2I7dPmfgSEHPUDJpNpiOWmmW1/jw/Pt29Are5tumWmnfkazcAb23xe7B4ruPZVxUEhfn/IrZPNZdr4cQNrHNgEv2ts8gVFuOBU+p792UPy8/mEIhW5ECppxGIb7Yrpg4w7IYNeFtX5d9W4W1t2e+6PcdcjkBK4a8y1cjEtuQ07RpPChOvLcSzlB/Bg7UKntzorRsn+y/d72qD2QxRzcXgbynCNalF7zaT6pEnwKB4i05fTQw6nB7SU1w2/EvCGlfiyR2Ia08mA0GikqegYA6xG/EAGs3ZJ0aQUGt0YZz0P7uBsQKdmCg7jzzEMHyGZDNGTj0F2dOFHLSOTT2/GGSht8eD/Ae7u/xnJj0bGgAKMtNttGFlNyvKpt2vDDT3Orfk6Jk/rD4CIz6O/Tnt0NkJLucHtIyvBYGtQR4+mhbfUELkczeDSxTXGDLaiU3de6tPaa0/vjzizoUbNFdfkIly/HWINdHoO83E=")
         let iv = Convert.FromBase64String("DkBbcmQo1QH+ed1wTyBynA==");
 
+        // generate keys lazily
         let genKeys batchRange =
             seq {
                 for b0 in batchRange do
@@ -99,7 +100,7 @@ module Program =
                                                 0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
                                                 0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy|] }
 
-        // validate partial key when found (need to run for yourself)
+        // validate key when found (need to run for yourself)
         //let key = [|1uy;2uy;3uy;4uy;5uy;6uy;0uy;0uy;
         //            0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
         //            0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
@@ -121,8 +122,8 @@ module Program =
                 then printfn "Candidate key by 'trust': %A" key.[0..5]
 
                 // an attempt using simple statistical analysis by counting the number
-                // characters whose high-order bit isn't set, which indicates a 
-                // simple ASCII result
+                // of characters whose high-order bit isn't set, which indicates a 
+                // simple ASCII result. Results in too many false positives
                 //let highOrderBitsSet = 
                 //    decrypted.ToCharArray() 
                 //    |&gt; Array.filter (fun c -&gt; c |&gt; byte &&& 255uy = 255uy)
