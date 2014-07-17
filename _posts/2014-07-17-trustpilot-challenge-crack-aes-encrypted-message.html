@@ -1,0 +1,166 @@
+---
+layout: post
+title: "Trustpilot challenge: crack aes encrypted message"
+date: 2014-07-17 12:00 UTC
+tags: [F#, Pattern, SharePoint]
+---
+<div id="post">
+<p>
+Yesterday I came across this coding challenge posted by Trustpilot, a
+Danish company looking to hire. 
+</p>
+
+<img src="/content/TrustpilotAesChallenge.png"></img>
+
+</p>According to Trustpilot, regular job
+adverticements has a too high signal to noise ratio on truly skilled
+developers. So in order to submit you resume, first you must decrypt
+the message to learn how to.
+</p>
+
+<p>
+From the problem description, we see that a brute-force is called
+for. Assuming the first six bytes of the key to be in the range zero
+through 16, both inclusive, this yields a possible search space of
+24,137,569 (17^6) keys.
+</p>
+
+<p>
+First we need to get basic AES encryption and decryption up and
+running. Strictly speaking, encryption isn't required, but is helps in
+validating the structure of the solution later on.
+</p>
+
+<pre>
+namespace TrustpilotChallenge
+
+open System
+open System.IO
+open System.Security.Cryptography
+
+[&lt;AutoOpen&gt;]
+module Cryptography =
+    let encryptStringToBytes (plainText: string) key iv =
+        use aes = new AesManaged(BlockSize = 128, KeySize = 256)
+        let encryptor = aes.CreateEncryptor(key, iv)
+        use ms = new MemoryStream()
+        use cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write)
+        use sw = new StreamWriter(cs)
+        sw.Write(plainText)
+
+        // by explicitly closing stream, we force flushing its contents.
+        // Otherwise the ToArray() call will get an empty array. Note
+        // that the C# using idiom takes care of this by disposing
+        // the StreamWriter instance immidately, whereas F# disposition
+        // happens when we exit the current scope.
+        sw.Close()
+        ms.ToArray()
+
+    let decryptStringFromBytes (cipherText: byte[]) key iv =
+        use aes = new AesManaged(BlockSize = 128, KeySize = 256)
+        let decryptor = aes.CreateDecryptor(key, iv)
+        use ms = new MemoryStream(cipherText)
+        use cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read)
+        use sr = new StreamReader(cs)
+        sr.ReadToEnd()
+</pre>
+
+<p>
+Next comes the main program making use of the Cryptography
+functions. Rather than descripting the code here, I've included
+comments directly in the source code.
+</p>
+
+<pre>
+module Program =  
+    [&lt;EntryPoint&gt;]
+    let main args =
+        if args.Length &lt;&gt; 2 then 
+            printfn "Must call TrustpilotChallenge with batch begin and end args"
+            printfn "Example: TrustpilotChallenge.exe 0 3"
+            Environment.Exit(1)
+
+        let batchRange = [|Convert.ToByte(args.[0])..Convert.ToByte(args.[1])|]
+        let encrypted = Convert.FromBase64String("yptyoDdVBdQtGhgoePppYHnWyugGmy0j81sf3zBeUXEO/LYRw+2XmVa0/v6YiSy9Kj8gMn/gNu2I7dPmfgSEHPUDJpNpiOWmmW1/jw/Pt29Are5tumWmnfkazcAb23xe7B4ruPZVxUEhfn/IrZPNZdr4cQNrHNgEv2ts8gVFuOBU+p792UPy8/mEIhW5ECppxGIb7Yrpg4w7IYNeFtX5d9W4W1t2e+6PcdcjkBK4a8y1cjEtuQ07RpPChOvLcSzlB/Bg7UKntzorRsn+y/d72qD2QxRzcXgbynCNalF7zaT6pEnwKB4i05fTQw6nB7SU1w2/EvCGlfiyR2Ia08mA0GikqegYA6xG/EAGs3ZJ0aQUGt0YZz0P7uBsQKdmCg7jzzEMHyGZDNGTj0F2dOFHLSOTT2/GGSht8eD/Ae7u/xnJj0bGgAKMtNttGFlNyvKpt2vDDT3Orfk6Jk/rD4CIz6O/Tnt0NkJLucHtIyvBYGtQR4+mhbfUELkczeDSxTXGDLaiU3de6tPaa0/vjzizoUbNFdfkIly/HWINdHoO83E=")
+        let iv = Convert.FromBase64String("DkBbcmQo1QH+ed1wTyBynA==");
+
+        let genKeys batchRange =
+            seq {
+                for b0 in batchRange do
+                    printfn "%s: Starting batch: %A" (DateTime.Now.ToLongTimeString()) b0
+                    for b1 in [0uy..16uy] do
+                        for b2 in [0uy..16uy] do
+                            for b3 in [0uy..16uy] do
+                                for b4 in [0uy..16uy] do
+                                    for b5 in [0uy..16uy] do
+                                        yield [|b0;b1;b2;b3;b4;b5;0uy;0uy;
+                                                0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
+                                                0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
+                                                0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy|] }
+
+        // validate partial key when found
+        //let key = [|5uy;11uy;14uy;11uy;1uy;7uy;0uy;0uy;
+        //            0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
+        //            0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
+        //            0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy|]
+        //let decrypted = decryptStringFromBytes encrypted key iv
+        //printfn "%s" decrypted
+ 
+        for key in genKeys batchRange do
+            // uncomment for testing purpose
+            //let testMessage = "Hello world"
+            //let encryptedMessage = encryptStringToBytes testMessage key iv
+            //let decryptedMessage = decryptStringFromBytes encryptedMessage key iv            
+
+            try                                                              
+                let decrypted = decryptStringFromBytes encrypted key iv
+                
+                // assume decrypted text contains known word
+                if decrypted.ToLower().Contains("trust") 
+                then printfn "Candidate key by 'trust': %A" key.[0..5]
+
+                // an attempt using simple statistical analysis is to count the number
+                // characters whose high-order bits is not set, indicate of simple ASCII
+                // decryption result
+                //let highOrderBitsSet = 
+                //    decrypted.ToCharArray() 
+                //    |&gt; Array.filter (fun c -&gt; c |&gt; byte &&& 255uy = 255uy)
+                //    |&gt; Array.length
+                //if highOrderBitsSet = 0 then printfn "Candidate key by no high-order bits set: %A" key.[0..5]
+
+                // an attempt based on erronous assumption of AES symmetry such that: 
+                //   decrypt(encrypt(plain text)) = plain text (correct)
+                //   encrypt(decrypt(cipher text)) = cipher text (wrong)
+                //let reEncrypted = encryptStringToBytes decrypted key iv
+                //if reEncrypted = encrypted then printfn "Candidate key by re-encrypt: %A" key.[0..5]
+            with
+            | :? CryptographicException -&gt; ()
+            
+        Console.WriteLine("Hit any key to exit")
+        Console.Out.Flush()
+        Console.ReadKey() |&gt; ignore
+        0
+</pre>
+
+<p>
+The idea is to run the console application from the command-line,
+passing in the part of the search space to cover. This way, we can
+easy parallize the search by fireing up multiple console
+application. Say we have a computer with four cores, then we can
+issues the following four commands to (almost) evenly distribute the
+search:
+</p>
+
+<pre>
+% TrustpilotChallenge.exe 0 3
+% TrustpilotChallenge 4 7
+% TrustpilotChallenge 8 11
+% TrustpilotChallenge 12 16
+</pre>
+
+<p>
+On my laptop with four cores, it takes about 30 minutes to traverse
+the entire search space.
+</p>
+
+</div>
