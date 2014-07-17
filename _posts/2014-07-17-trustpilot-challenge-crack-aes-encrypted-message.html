@@ -52,7 +52,8 @@ module Cryptography =
         // Otherwise, calling ToArray() will yield an empty array. Note
         // that the C# using idiom handles this implicitly by disposing
         // the StreamWriter instance when the using block ends, whereas F# 
-        // disposition happens only when we exit the function.
+        // disposition happens only when we exit the function. We could've
+        // used the using function instead.
         sw.Close()
         ms.ToArray()
 
@@ -124,11 +125,11 @@ module Program =
                 // an attempt using simple statistical analysis by counting the number
                 // of characters whose high-order bit isn't set, which indicates a 
                 // simple ASCII result. Results in too many false positives
-                //let highOrderBitsSet = 
+                //let highOrderBitSet = 
                 //    decrypted.ToCharArray() 
                 //    |&gt; Array.filter (fun c -&gt; c |&gt; byte &&& 255uy = 255uy)
                 //    |&gt; Array.length
-                //if highOrderBitsSet = 0 then printfn "Candidate key by no high-order bits set: %A" key.[0..5]
+                //if highOrderBitSet = 0 then printfn "Candidate key by no high-order bits set: %A" key.[0..5]
 
                 // an attempt based on erronous assumption of AES symmetry such that: 
                 //   decrypt(encrypt(plain text)) = plain text (correct)
