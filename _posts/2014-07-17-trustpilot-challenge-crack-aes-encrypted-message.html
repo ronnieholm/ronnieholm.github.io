@@ -19,16 +19,16 @@ must decrypt a message to learn how.
 
 <p>
 From the problem description, we see that a brute-force approach is a
-viable solution. Assuming the first six bytes of the key to be in the
-range zero through 16, both inclusive, the possible search space
-consists of 17^6 or 24,137,569 keys.
+viable solution. Assuming each of the first six bytes of the key to be
+in the range zero through 16, both inclusive, the possible search
+space consists of 17^6 or 24,137,569 keys.
 </p>
 
 <p>
-First we need to get basic AES encryption and decryption
+Using F#, first we need to get basic AES encryption and decryption
 working. Strictly speaking, the encryption function isn't required,
 but it helps validate the structure of the solution in that we can try
-out the approach on a smaller scale first.
+out different approaches on a smaller scale first.
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -149,10 +149,11 @@ module Program =
 <p>
 The console application must be run from the command-line, passing in
 the part of the search space to cover. The arguments passed in are the
-lower and upper bounds of the first byte. This way, we can easily
-parallelize the search by running multiple console applications. Say
-we have a computer with four cores, then we can issue the following
-four commands to (almost) evenly distribute the search:
+lower and upper bounds of the first byte, respectively. This way, we
+can easily parallelize the search by running multiple console
+applications. Say we have a computer with four cores, then we can
+issue the following four commands to (almost) evenly distribute the
+search:
 </p>
 
 <pre>
