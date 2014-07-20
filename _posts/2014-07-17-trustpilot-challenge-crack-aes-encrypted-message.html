@@ -7,28 +7,28 @@ tags: [F#]
 <div id="post">
 <p>
 Yesterday I came across a coding challenge posted by Trustpilot, a
-Danish company looking to
-hire. <a href="http://karriere.jobfinder.dk/artikel/kan-du-knaekke-dette-kodede-jobopslag-1912">According</a>
-to the company, regular job ads have a too high signal to noise ratio
-on skilled developers. So in order to submit our resume, first you
-must decrypt the message to learn how.
+Danish company looking to hire
+developers. <a href="http://karriere.jobfinder.dk/artikel/kan-du-knaekke-dette-kodede-jobopslag-1912">According</a>
+to the company, regular job ads result in a too high signal to noise
+ratio of applicants, so in order to submit your resume, first you must
+decrypt a message to learn how.
 </p>
 <a href="http://followthewhiterabbit.trustpilot.com/challenge2.html">
   <img width="563" height="470" src="/content/TrustpilotAesChallenge.png" />
 </a>
 
 <p>
-From the problem description, we see that a brute-force approach is
-viable. Assuming the first six bytes of the key to be in the range
-zero through 16, both inclusive, it yields a possible search space of
-24,137,569 (17^6) keys.
+From the problem description, we see that a brute-force approach is a
+viable solution. Assuming the first six bytes of the key to be in the
+range zero through 16, both inclusive, the possible search space
+consists of 17^6 or 24,137,569 keys.
 </p>
 
 <p>
 First we need to get basic AES encryption and decryption
 working. Strictly speaking, the encryption function isn't required,
-but it helps validate the structure of the remaining solution in that
-we can try out the approach on a smaller scale first.
+but it helps validate the structure of the solution in that we can try
+out the approach on a smaller scale first.
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -49,9 +49,9 @@ module Cryptography =
         sw.Write(plainText)
 
         // by explicitly closing the stream, we force flushing its contents.
-        // Otherwise, calling ToArray() will yield an empty array. Note
-        // that the C# using idiom handles this implicitly by disposing
-        // the StreamWriter instance when the using block ends, whereas F# 
+        // Otherwise, calling ToArray() will yield an empty array. The
+        // C# using idiom would flush implicitly by disposing of the
+        // StreamWriter instance when the using block ends, whereas F#'s 
         // use disposition happens only when we exit the function. We 
         // could've used the using function instead.
         sw.Close()
@@ -67,10 +67,11 @@ module Cryptography =
 </pre>
 
 <p>
-Next comes the main part which makes use of the Cryptography functions
-just defined. Rather than describe the code here, I've embedded
-comments about the approaches I took directly in the source code. The
-tricky part is validating when a key is indeed the correct one.
+Next comes the main part which makes use of the Cryptography module
+defined above. Rather than describe the code here, I've embedded
+comments directly in the source code elaborating on the approaches I
+tried. The tricky part is validating when a key is indeed the correct
+one.
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -147,10 +148,11 @@ module Program =
 
 <p>
 The console application must be run from the command-line, passing in
-the part of the search space to cover. This way, we can easily
-parallelize the search by running multiple console application. Say we
-have a computer with four cores, then we can issue the following four
-commands to (almost) evenly distribute the search:
+the part of the search space to cover. The arguments passed in are the
+lower and upper bounds of the first byte. This way, we can easily
+parallelize the search by running multiple console applications. Say
+we have a computer with four cores, then we can issue the following
+four commands to (almost) evenly distribute the search:
 </p>
 
 <pre>
@@ -163,7 +165,7 @@ commands to (almost) evenly distribute the search:
 <p>
 On my laptop with four cores running at 2.4 GHz, it takes about 30
 minutes to traverse the entire search space. Luckily, the current
-approach yields one candidate key.
+approach yields only one candidate key.
 </p>
 
 </div>
