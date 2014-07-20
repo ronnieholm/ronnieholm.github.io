@@ -93,14 +93,14 @@ module Program =
                 for b0 in batchRange do
                     printfn "%s: Starting batch: %A" (DateTime.Now.ToLongTimeString()) b0
                     for b1 in [0uy..16uy] do
-                        for b2 in [0uy..16uy] do
-                            for b3 in [0uy..16uy] do
-                                for b4 in [0uy..16uy] do
-                                    for b5 in [0uy..16uy] do
-                                        yield [|b0;b1;b2;b3;b4;b5;0uy;0uy;
-                                                0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
-                                                0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
-                                                0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy|] }
+                    for b2 in [0uy..16uy] do
+                    for b3 in [0uy..16uy] do
+                    for b4 in [0uy..16uy] do
+                    for b5 in [0uy..16uy] do
+                        yield [|b0;b1;b2;b3;b4;b5;0uy;0uy;
+                                0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
+                                0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy;
+                                0uy;0uy;0uy;0uy;0uy;0uy;0uy;0uy|] }
 
         // validate key when found (need to run for yourself)
         //let key = [|1uy;2uy;3uy;4uy;5uy;6uy;0uy;0uy;
