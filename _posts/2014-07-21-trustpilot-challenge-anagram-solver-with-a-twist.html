@@ -6,7 +6,7 @@ tags: [F#]
 ---
 <div id="post">
 <p>
-Following the previous Trustpilot challenge of
+Following the previous Trustpilot challenge
 of <a href="http://bugfree.dk/blog/2014/07/17/trustpilot-challenge-crack-aes-encrypted-message">cracking
 an AES encrypted message</a>, a new challenge is up:
 </p>
@@ -16,23 +16,29 @@ an AES encrypted message</a>, a new challenge is up:
 </a>
 
 <p>
-This one seems much harder than the previous. With an anagram as long
-as "poultry outwits ants", a brute-force approach would require trying
-out at least 18! or 6,402,373,705,728,000 permutations of the letters
-of the anagram (not including anagrams with spaces). For this reason,
-Trustpilot provides a dictionary of about 99,174 words to draw
+This challenge is much harder than the previous. With an 18 character
+anagram, a brute-force approach would require trying out at least 18!
+or 6,402,373,705,728,000 permutations of the letters (not counting
+anagrams with spaces). This is clearly an intractable approach, which
+is why Trustpilot provides a dictionary of 99,174 words to draw
 anagrams from.
 </p>
 
-<p>To construct anagrams based on a dictionary of words, I went with
+<p>To construct anagrams from a dictionary, I went with
 a <a href="http://courses.cs.washington.edu/courses/cse143/08sp/handouts/23.html">recursive
-backtracking approach</a>. The algorithm recursively tries out every
-possible combination of words from the dictionary. Given a dictionary
-of 99,000 words the problem is still intractable. We can't simplify
-the problem by taking advantage of md5 because it's output is
-uniformly distributed so our only choice is to reduce the size of the
-dictionary as much as possible by means of histogram analysis as done
-by the letterHistogram, subtractHistograms, pruneWords, and
+backtracking algorithm</a>. It constructs a decision tree, recursively
+following branches of dictionary words for as long as a valid anagram
+can be constructed from those (effectively trying out every valid
+permutation of words from the dictionary), otherwise it backtracks.
+</p>
+
+<p>
+Given a dictionary of 99,174 words, the problem is still
+intractable. We can't simplify the problem futher by taking advantage
+of md5 because its output is uniformly distributed. Our only choice is
+to further reduce the size of the dictionary before constructing the
+decision tree. This can be done through histogram analysis as carried
+out by the letterHistogram, subtractHistograms, pruneWords, and
 createWordLetterHistograms functions below (see inline comments):
 </p>
 
@@ -98,26 +104,28 @@ module Anagram =
 </pre>
 
 <p>
-Pruning the dictionary using history subtraction reduces its size to
-around 1,600 words. The dictionary actually contains too many single
-and double letter words compared to what's allowed in the English
-language, making the number "artificially" large. In fact, assuming
-it's allowed to reuse single letter words (alphabet essentially) from
-the dictionary, the optimized approach degenerates toward the 18!
-approach. In any event, recursively constructing permutations or 1,600
-words and backtracking when the permutation is either an anagram or
-when we determine the trail can never lead to an anagram is still an
-intractable problem.
+Removing duplicates and pruning the dictionary using histogram
+analysis, we end up with 1,658 candidate words. The reduced-size
+dictionary contains too many single and double letter words compared
+to what's allowed in the English language, making the number of words
+and hence the search space artificially large. In fact, assuming it's
+allowed to construct anagrams by reusing single letter words, the
+search space grows toward 18!.
+</p>
+
+<p>Single and double letter words or not, recursively constructing
+permutations or around 1,600 words and backtracking when the
+permutation is either valid or invalid is still an intractable
+problem.
 </p>
 
 <p>
-To make the problem tractable, we need to combine the brute-force
-approach with heuristics. Taking into account only longer dictionary
-words reduces the search space significantly, though it doesn't
-necessarily yield a solution. That isn't a big deal as there're
-relatively fewer permutations which make an exhaustive search possible
-in relatively short time. By also assuming the anagram is made up of
-longer words before shorter ones, we add an additional optimization:
+To turn the problem into a tractable one, we need to combine recursive
+backtracking with heuristics by looking for solutions that use longer
+words. Though it doesn't necessarily yield a solution, it does reduce
+the search space significantly and makes exhaustive searches
+possible. Another heuristic is assuming the anagram is made up of
+longer words before shorter ones:
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -175,11 +183,11 @@ module Program =
 </pre>
 
 <p>
-Perhaps adding heuristic rules is makes the solution less elegant. And
-coming up with these rules require a significant amount of trial and
-error with isn't necessarily applicable to anagrams other the our
-starting point. In the end, however, it does yield a solution in less
-than 30 seconds.
+Perhaps adding heuristic into the equation makes the solution less
+elegant. It certainly requires a lot of trial and error to come up
+with these rules. And not all heuristics may be applicable to other
+anagrams. In the end, the heuristics does yield a solution in less
+than 30 seconds of running time.
 </p>
 
 </div>
