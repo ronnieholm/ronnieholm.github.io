@@ -1,0 +1,185 @@
+---
+layout: post
+title: "Trustpilot challenge: anagram solver with a twist"
+date: 2014-07-21 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+<p>
+Following the previous Trustpilot challenge of
+of <a href="http://bugfree.dk/blog/2014/07/17/trustpilot-challenge-crack-aes-encrypted-message">cracking
+an AES encrypted message</a>, a new challenge is up:
+</p>
+
+<a href="http://followthewhiterabbit.trustpilot.com/cs/step3.html">
+  <img width="485" height="353" src="/content/TrustpilotAnagramChallenge.png" />
+</a>
+
+<p>
+This one seems much harder than the previous. With an anagram as long
+as "poultry outwits ants", a brute-force approach would require trying
+out at least 18! or 6,402,373,705,728,000 permutations of the letters
+of the anagram (not including anagrams with spaces). For this reason,
+Trustpilot provides a dictionary of about 99,174 words to draw
+anagrams from.
+</p>
+
+<p>To construct anagrams based on a dictionary of words, I went with
+a <a href="http://courses.cs.washington.edu/courses/cse143/08sp/handouts/23.html">recursive
+backtracking approach</a>. The algorithm recursively tries out every
+possible combination of words from the dictionary. Given a dictionary
+of 99,000 words the problem is still intractable. We can't simplify
+the problem by taking advantage of md5 because it's output is
+uniformly distributed so our only choice is to reduce the size of the
+dictionary as much as possible by means of histogram analysis as done
+by the letterHistogram, subtractHistograms, pruneWords, and
+createWordLetterHistograms functions below (see inline comments):
+</p>
+
+<pre class="prettyprint lang-ml">
+[&lt;AutoOpen&gt;]
+namespace TrustpilotChallenge
+
+module Anagram =
+    // when two words are anagrams of each other, their alphabetized forms 
+    // will be equal, i.e., their letter histograms are equal
+    let letterHistogram anagram =
+        // get rid of spaces as they get inserted by the anagram finder
+        // between each word from the dictionary, i.e., the number of
+        // spaces in different anagrams is unimportant.
+        anagram
+        |&gt; Seq.toList
+        |&gt; Seq.filter (fun c -&gt; c &lt;&gt; ' ')
+        |&gt; Seq.groupBy (fun c -&gt; c) 
+        |&gt; Map.ofSeq
+        |&gt; Map.map (fun k v -&gt; Seq.length v)
+
+    // subtract letter histograms of two words if every frequency 
+    // remains positive. The result is a new histogram with zero
+    // frequencies removed
+    let inline subtractHistograms (h1: Map&lt;char, int&gt;) (h2: Map&lt;char, int&gt;) =
+        let sharedAlphabet = h2 |&gt; Map.forall (fun k _ -&gt; h1.ContainsKey k)
+        if sharedAlphabet then
+            let diff =
+                h1 |&gt; Map.map (fun w h -&gt; 
+                    match h2.TryFind w with
+                    | Some value -&gt; h - value
+                    | None -&gt; h)
+            let positives = diff |&gt; Map.forall (fun w h -&gt; h &gt;= 0)
+            if positives then Some (diff |&gt; Map.filter (fun w h -&gt; h &gt; 0))
+            else None
+        else None
+
+    let pruneWords anagram wordLetterHistograms =
+        // only include dictionary words with the same letters as the
+        // anagram and words which has &lt;= same letters as the anagram
+        let h1 = letterHistogram anagram
+        wordLetterHistograms
+        |&gt; Seq.filter (fun (_, h2) -&gt; 
+            match subtractHistograms h1 h2 with
+            | Some _ -&gt; true
+            | None -&gt; false)
+
+    let createWordLetterHistograms dictionary =
+        dictionary |&gt; Seq.map (fun w -&gt; (w, letterHistogram w)) 
+
+    let findAnagrams wordLetterHistograms anagram =
+        let rec findAnagram' histogram wordsSoFar =
+            seq {
+                for (w, h2) in wordLetterHistograms do
+                    match (subtractHistograms histogram h2) with
+                    | Some h2 -&gt;
+                        if h2 |&gt; Map.isEmpty 
+                        then yield List.rev (w :: wordsSoFar)
+                        else yield! findAnagram' h2 (w :: wordsSoFar)
+                    | None -&gt; () }
+
+        findAnagram' (letterHistogram anagram) List.empty&lt;string&gt;
+</pre>
+
+<p>
+Pruning the dictionary using history subtraction reduces its size to
+around 1,600 words. The dictionary actually contains too many single
+and double letter words compared to what's allowed in the English
+language, making the number "artificially" large. In fact, assuming
+it's allowed to reuse single letter words (alphabet essentially) from
+the dictionary, the optimized approach degenerates toward the 18!
+approach. In any event, recursively constructing permutations or 1,600
+words and backtracking when the permutation is either an anagram or
+when we determine the trail can never lead to an anagram is still an
+intractable problem.
+</p>
+
+<p>
+To make the problem tractable, we need to combine the brute-force
+approach with heuristics. Taking into account only longer dictionary
+words reduces the search space significantly, though it doesn't
+necessarily yield a solution. That isn't a big deal as there're
+relatively fewer permutations which make an exhaustive search possible
+in relatively short time. By also assuming the anagram is made up of
+longer words before shorter ones, we add an additional optimization:
+</p>
+
+<pre class="prettyprint lang-ml">
+[&lt;AutoOpen&gt;]
+module Hashing =
+    open System
+    open System.Text
+    open System.Security.Cryptography
+
+    let inline md5FromString s =
+        // notice how the compiler performs overload resolution of 
+        // GetBytes based on parameter name. Otherwise we'd have 
+        // to add a type annotion
+        BitConverter
+            .ToString(MD5
+                .Create()
+                .ComputeHash(Encoding.UTF8.GetBytes(s = s)))
+            .Replace("-", "")
+
+module Program =  
+    open System
+    open System.IO
+
+    [&lt;EntryPoint&gt;]
+    let main _ =  
+        let path = "../../wordlist"
+        let anagram = "poultry outwits ants"
+        let md5outcome = "4624d200580677270a54ccff86b9610e".ToUpper()
+        let dictionary = 
+            File.ReadAllLines(path)
+            |&gt; Seq.distinct
+            |&gt; Seq.filter (fun w -&gt; w.Length &gt; 3)
+            |&gt; Seq.sortBy (fun w -&gt; w.Length)
+            |&gt; createWordLetterHistograms
+            |&gt; pruneWords anagram
+            |&gt; Seq.toArray
+            |&gt; Array.rev
+
+        // iterative approach
+        for anagram in (findAnagrams dictionary anagram) do
+            let anagram' = anagram |&gt; List.reduce (fun acc w -&gt; acc + " " + w)
+            if md5FromString anagram' = md5outcome then
+                printfn "Secret: %s" anagram'
+                Environment.Exit(0)       
+
+        (* FP pipelining approach. Harder to debug than iterative one
+        findAnagrams dictionary anagram
+        |&gt; Seq.map (fun a -&gt; a |&gt; List.reduce (fun acc w -&gt; acc + " " + w))
+        |&gt; Seq.map (fun a -&gt; (a, md5FromString a))
+        |&gt; Seq.filter (fun (_, md5) -&gt; md5 = md5outcome)
+        |&gt; Seq.map (fun (w, _) -&gt; w)
+        |&gt; Seq.truncate 1
+        |&gt; fun s -&gt; printfn "Secret: %A" s *)    
+        0
+</pre>
+
+<p>
+Perhaps adding heuristic rules is makes the solution less elegant. And
+coming up with these rules require a significant amount of trial and
+error with isn't necessarily applicable to anagrams other the our
+starting point. In the end, however, it does yield a solution in less
+than 30 seconds.
+</p>
+
+</div>
