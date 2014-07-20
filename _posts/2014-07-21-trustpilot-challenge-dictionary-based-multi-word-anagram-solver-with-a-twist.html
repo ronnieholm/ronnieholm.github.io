@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Trustpilot challenge: anagram solver with a twist"
+title: "Trustpilot challenge: dictionary-based multi-word anagram solver with a twist"
 date: 2014-07-21 12:00 UTC
 tags: [F#]
 ---
@@ -16,12 +16,12 @@ an AES encrypted message</a>, a new challenge is up:
 </a>
 
 <p>
-This challenge is much harder than the previous. With an 18 character
-anagram, a brute-force approach would require trying out at least 18!
-or 6,402,373,705,728,000 permutations of the letters (not counting
-anagrams with spaces). This is clearly an intractable approach, which
-is why Trustpilot provides a dictionary of 99,174 words to draw
-anagrams from.
+This challenge proved much harder than the previous. With an 18
+character anagram, a brute-force approach would require trying out at
+least 18!  or 6,402,373,705,728,000 permutations of the letters (not
+counting anagrams with spaces). This is clearly an intractable
+approach, which is why Trustpilot provides a dictionary of 99,174
+words to draw anagrams from.
 </p>
 
 <p>To construct anagrams from a dictionary, I went with
@@ -34,7 +34,7 @@ permutation of words from the dictionary), otherwise it backtracks.
 
 <p>
 Given a dictionary of 99,174 words, the problem is still
-intractable. We can't simplify the problem futher by taking advantage
+intractable. We can't simplify the problem further by taking advantage
 of md5 because its output is uniformly distributed. Our only choice is
 to further reduce the size of the dictionary before constructing the
 decision tree. This can be done through histogram analysis as carried
