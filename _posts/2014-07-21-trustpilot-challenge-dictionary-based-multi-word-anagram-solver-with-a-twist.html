@@ -12,12 +12,12 @@ an AES encrypted message</a>, a new challenge is up:
 </p>
 
 <a href="http://followthewhiterabbit.trustpilot.com/cs/step3.html">
-  <img width="485" height="353" src="/content/TrustpilotAnagramChallenge.png" />
+  <img width="485" height="292" src="/content/TrustpilotAnagramChallenge.png" />
 </a>
 
 <p>
 This challenge proved much harder than the previous. With an 18
-character anagram, a brute-force approach would require trying out 18!
+character anagram a brute-force approach would require trying out 18!
 or 6,402,373,705,728,000 permutations of the letters (not counting
 anagrams with spaces). This is clearly an intractable approach, which
 is why Trustpilot provides a dictionary of 99,174 words to draw
@@ -120,12 +120,12 @@ problem.
 </p>
 
 <p>
-To turn the problem into a tractable one, we need to combine recursive
-backtracking with heuristics by looking for solutions that use longer
-words. Though it doesn't necessarily yield a solution, it does reduce
-the search space significantly and makes exhaustive searches
-possible. Another heuristic is assuming the anagram is made up of
-longer words before shorter ones:
+To make the problem tractable, we need to combine recursive
+backtracking with heuristics, such as looking for solutions involving
+longer words. Though it doesn't necessarily yield a solution, it does
+reduce the search space significantly and makes exhaustive search
+possible. Another heuristic included in the code below, is assuming
+the anagram is made up of longer words before shorter ones:
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -184,10 +184,10 @@ module Program =
 
 <p>
 Perhaps adding heuristic into the equation makes the solution less
-elegant. It certainly requires a lot of trial and error to come up
-with these rules. And not all heuristics may be applicable to other
-anagrams. In the end, the heuristics does yield a solution in less
-than 30 seconds of running time.
+attractive. It certainly requires a lot of trial and error to come up
+with these heuristics. And not all heuristics are applicable to all
+anagrams. In the end, the above heuristics does yield a solution in
+less than 30 seconds of running time.
 </p>
 
 </div>
