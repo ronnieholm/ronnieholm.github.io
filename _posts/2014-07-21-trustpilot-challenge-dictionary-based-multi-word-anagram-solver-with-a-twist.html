@@ -8,7 +8,7 @@ tags: [F#]
 <p>
 Following the previous Trustpilot challenge
 of <a href="http://bugfree.dk/blog/2014/07/17/trustpilot-challenge-crack-aes-encrypted-message">cracking
-an AES encrypted message</a>, a new challenge is up:
+an AES encrypted message</a>, a new job ad challenge is up:
 </p>
 
 <a href="http://followthewhiterabbit.trustpilot.com/cs/step3.html">
@@ -17,29 +17,29 @@ an AES encrypted message</a>, a new challenge is up:
 
 <p>
 This challenge proved much harder than the previous. With an 18
-character anagram a brute-force approach would require trying out 18!
+character anagram, a brute-force approach would require trying out 18!
 or 6,402,373,705,728,000 permutations of the letters (not counting
 anagrams with spaces). This is clearly an intractable approach, which
-is why Trustpilot provides a dictionary of 99,174 words to draw
+is why Trustpilot provides a dictionary of 99,174 words to construct
 anagrams from.
 </p>
 
-<p>To construct anagrams from a dictionary, I went with
+<p>To contruct anagrams from a dictionary, I went with
 a <a href="http://courses.cs.washington.edu/courses/cse143/08sp/handouts/23.html">recursive
-backtracking algorithm</a>. It constructs a decision tree, recursively
-following branches of dictionary words for as long as a valid anagram
-can be constructed from those (effectively trying out every valid
+backtracking algorithm</a>. It builds up a decision tree of dictionary
+words, recursively following branches for as long as valid anagram can
+be constructed from these (effectively trying out every valid
 permutation of words from the dictionary), otherwise it backtracks.
 </p>
 
 <p>
 Given the dictionary of 99,174 words, the problem is still
-intractable. We can't simplify the problem further by taking advantage
-of md5 because its output is uniformly distributed. Our only choice is
-to further reduce the size of the dictionary before constructing the
-decision tree. This can be done through histogram analysis as carried
-out by the letterHistogram, subtractHistograms, pruneWords, and
-createWordLetterHistograms functions below (see inline comments):
+intractable. We can't simplify it further by including knowledge about
+md5 because its output is uniformly distributed. Our only choice is to
+further reduce the size of the dictionary before starting the
+construction of the decision tree. This can be done through histogram
+analysis as carried out by the F# functions below (see inline
+comments):
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -48,9 +48,9 @@ namespace TrustpilotChallenge
 
 module Anagram =
     // when two words are anagrams of each other, their alphabetized forms 
-    // will be equal, i.e., their letter histograms are equal
+    // are equal, i.e., their letter histograms are equal
     let letterHistogram anagram =
-        // get rid of spaces as they get inserted by the anagram finder
+        // get rid of spaces as they get inserted by the anagram solver
         // between each word from the dictionary, i.e., the number of
         // spaces in different anagrams is unimportant.
         anagram
@@ -60,9 +60,9 @@ module Anagram =
         |&gt; Map.ofSeq
         |&gt; Map.map (fun k v -&gt; Seq.length v)
 
-    // subtract letter histograms of two words if every frequency 
-    // remains positive. The result is a new histogram with zero
-    // frequencies removed
+    // subtracts letter histograms of two words if every frequency 
+    // remains positive after the subtraction. The result is a 
+    // new histogram of positive frequencies
     let inline subtractHistograms (h1: Map&lt;char, int&gt;) (h2: Map&lt;char, int&gt;) =
         let sharedAlphabet = h2 |&gt; Map.forall (fun k _ -&gt; h1.ContainsKey k)
         if sharedAlphabet then
@@ -77,8 +77,8 @@ module Anagram =
         else None
 
     let pruneWords anagram wordLetterHistograms =
-        // only include dictionary words with the same letters as the
-        // anagram and words which has &lt;= same letters as the anagram
+        // only include dictionary words which has &lt;= same count 
+        // of individual letters as the anagram
         let h1 = letterHistogram anagram
         wordLetterHistograms
         |&gt; Seq.filter (fun (_, h2) -&gt; 
@@ -104,28 +104,26 @@ module Anagram =
 </pre>
 
 <p>
-Removing duplicates and pruning the dictionary using histogram
-analysis, we end up with 1,658 candidate words. The reduced-size
+Removing duplicate words and pruning the dictionary using histogram
+analysis, we end up with a dictionary of 1,658 words. The reduced-size
 dictionary contains too many single and double letter words compared
-to what's allowed in the English language, making the number of words
-and hence the search space artificially large. In fact, assuming it's
-allowed to construct anagrams by reusing single letter words, the
-search space grows toward 18!.
+to what's allowed in the English language which "artificially"
+inflates the search space. In fact, assuming it's allowed to construct
+anagrams by reusing single letter words, the search space grows toward
+18! permutations.
 </p>
 
 <p>Single and double letter words or not, recursively constructing
 permutations of around 1,600 words and backtracking when the
-permutation is either valid or invalid is still an intractable
-problem.
+permutation is valid or invalid is still an intractable problem.
 </p>
 
 <p>
 To make the problem tractable, we need to combine recursive
-backtracking with heuristics, such as looking for solutions involving
-longer words. Though it doesn't necessarily yield a solution, it does
-reduce the search space significantly and makes exhaustive search
-possible. Another heuristic included in the code below, is assuming
-the anagram is made up of longer words before shorter ones:
+backtracking with heuristics, such as looking for solutions
+constructed of longer words. Though it doesn't necessarily yield a
+solution that also satisfies the md5 property, it does reduce the
+search space significantly and makes exhaustive search possible:
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -136,9 +134,9 @@ module Hashing =
     open System.Security.Cryptography
 
     let inline md5FromString s =
-        // notice how the compiler performs overload resolution of 
-        // GetBytes based on parameter name. Otherwise we'd have 
-        // to add a type annotion
+        // the compiler prforms overload resolution of GetBytes
+        // based on parameter name. Otherwise we'd have to add
+        // a type annotation
         BitConverter
             .ToString(MD5
                 .Create()
@@ -183,11 +181,11 @@ module Program =
 </pre>
 
 <p>
-Perhaps adding heuristic into the equation makes the solution less
+Perhaps adding heuristics to the equation makes the solution less
 attractive. It certainly requires a lot of trial and error to come up
-with these heuristics. And not all heuristics are applicable to all
-anagrams. In the end, the above heuristics does yield a solution in
-less than 30 seconds of running time.
+with the right heuristics and not all heuristics are applicable to all
+anagrams. In the end, recursive backtracking and heuristics yield a
+solution in less than 30 seconds of running time.
 </p>
 
 </div>
