@@ -24,7 +24,7 @@ is why Trustpilot provides a dictionary of 99,174 words to construct
 anagrams from.
 </p>
 
-<p>To contruct anagrams from a dictionary, I went with
+<p>To construct anagrams from a dictionary, I went with
 a <a href="http://courses.cs.washington.edu/courses/cse143/08sp/handouts/23.html">recursive
 backtracking algorithm</a>. It builds up a decision tree of dictionary
 words, recursively following branches for as long as valid anagram can
@@ -43,9 +43,9 @@ comments):
 </p>
 
 <pre class="prettyprint lang-ml">
-[&lt;AutoOpen&gt;]
 namespace TrustpilotChallenge
 
+[&lt;AutoOpen&gt;]
 module Anagram =
     // when two words are anagrams of each other, their alphabetized forms 
     // are equal, i.e., their letter histograms are equal
@@ -181,8 +181,8 @@ module Program =
 </pre>
 
 <p>
-Perhaps adding heuristics to the equation makes the solution less
-attractive. It certainly requires a lot of trial and error to come up
+Perhaps adding heuristics to the equation makes for a less attractive
+solution. It certainly requires a lot of trial and error to come up
 with the right heuristics and not all heuristics are applicable to all
 anagrams. In the end, recursive backtracking and heuristics yield a
 solution in less than 30 seconds of running time.
