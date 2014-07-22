@@ -72,19 +72,17 @@ module Anagram =
                     | Some value -&gt; h - value
                     | None -&gt; h)
             let positives = diff |&gt; Map.forall (fun w h -&gt; h &gt;= 0)
-            if positives then Some (diff |&gt; Map.filter (fun w h -&gt; h &gt; 0))
+            if positives then Some (diff |&gt; Map.filter (fun _ h -&gt; h &gt; 0))
             else None
         else None
 
+    // only include dictionary words which has &lt;= same count 
+    // of individual letters as the anagram
     let pruneWords anagram wordLetterHistograms =
-        // only include dictionary words which has &lt;= same count 
-        // of individual letters as the anagram
         let h1 = letterHistogram anagram
         wordLetterHistograms
         |&gt; Seq.filter (fun (_, h2) -&gt; 
-            match subtractHistograms h1 h2 with
-            | Some _ -&gt; true
-            | None -&gt; false)
+            subtractHistograms h1 h2 |&gt; Option.isSome)
 
     let createWordLetterHistograms dictionary =
         dictionary |&gt; Seq.map (fun w -&gt; (w, letterHistogram w)) 
@@ -167,7 +165,7 @@ module Program =
             let anagram' = anagram |&gt; List.reduce (fun acc w -&gt; acc + " " + w)
             if md5FromString anagram' = md5outcome then
                 printfn "Secret: %s" anagram'
-                Environment.Exit(0)       
+                Environment.Exit(0)
 
         (* FP pipelining approach. Harder to debug than iterative one
         findAnagrams dictionary anagram
