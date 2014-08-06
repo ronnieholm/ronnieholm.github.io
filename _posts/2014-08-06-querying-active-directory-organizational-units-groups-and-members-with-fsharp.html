@@ -89,29 +89,29 @@ type CoursesQuery(username: string, password: string, server: string) =
         // that CommonName isn't unique. Instead we follow the path 
         // and read properties of Student object directly.
         let members = e.Invoke("members", null)
-        [ for dn in (members :?> IEnumerable) do
+        [ for dn in (members :?&gt; IEnumerable) do
             use e = new DirectoryEntry(dn)
             printfn "Member: %A" e.Properties.["name"].[0]
             yield { 
                 Id = e.Guid
-                Name = e.Properties.["name"].[0] |> string
-                Mail = e.Properties.["mail"].[0] |> string } ]
+                Name = e.Properties.["name"].[0] |&gt; string
+                Mail = e.Properties.["mail"].[0] |&gt; string } ]
 
     let parseClass (klass: DirectoryEntry) =
-        { Id = Guid(klass.Properties.["objectGUID"].[0] :?> byte[])
-          Name = klass.Properties.["name"].[0] |> string
-          Students = parseStudents klass |> Seq.toList }
+        { Id = Guid(klass.Properties.["objectGUID"].[0] :?&gt; byte[])
+          Name = klass.Properties.["name"].[0] |&gt; string
+          Students = parseStudents klass |&gt; Seq.toList }
 
     let parseCourse (sr: SearchResult) =
-        { Id = Guid(sr.Properties.["objectGUID"].[0] :?> byte[])
-          Name = sr.Properties.["name"].[0] |> string
+        { Id = Guid(sr.Properties.["objectGUID"].[0] :?&gt; byte[])
+          Name = sr.Properties.["name"].[0] |&gt; string
           Classes =
             sr.GetDirectoryEntry().Children 
-            |> Seq.cast<DirectoryEntry> 
-            |> Seq.map (fun c -> 
+            |&gt; Seq.cast 
+            |&gt; Seq.map (fun c -&gt; 
                 printfn "Class: %A" c.Properties.["name"].[0]
                 parseClass c)
-            |> Seq.toList }
+            |&gt; Seq.toList }
 
     member __.Execute() =
         let coursesDirectory = 
@@ -127,12 +127,11 @@ type CoursesQuery(username: string, password: string, server: string) =
                 Filter = "(ou=*)")
 
         coursesSearcher.FindAll()
-        |> Seq.cast<SearchResult> 
-        |> Seq.map (fun c -> 
+        |&gt; Seq.cast 
+        |&gt; Seq.map (fun c -&gt; 
             printfn "Course: %A" c.Properties.["name"].[0]
             parseCourse c)
-        |> Seq.toList
-
+        |&gt; Seq.toList
 </pre>
 
 <p>Calling Execute on CoursesQuery results in a list of courses being
