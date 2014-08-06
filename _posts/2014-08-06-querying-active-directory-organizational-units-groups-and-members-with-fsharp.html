@@ -48,7 +48,7 @@ DC=Acme, DC=local
 The first order of business is to define F# types that represent the
 output. The simple types define an aggregate with Course as its root
 and child types matching the hierarchy of containers in Active
-Directory.
+Directory:
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -75,10 +75,8 @@ type Course =
 <p>
 The task is now to map the hierarchical data structure of Active
 Directory containers onto the three newly defined F# types. Instead of
-creating a repository (apperantly
-a <a href="http://www.wekeroad.com/2014/03/04/repositories-and-unitofwork-are-not-a-good-idea/">repositories
-got a bad rep</a>) representing Active Directory, I went with a query
-type:
+creating a repository representing Active Directory, I went with a
+simpler query type (as in the Command/Query pattern):
 </p>
 
 <pre class="prettyprint lang-ml">
