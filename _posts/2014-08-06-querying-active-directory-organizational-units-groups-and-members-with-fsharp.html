@@ -85,9 +85,9 @@ type:
 type CoursesQuery(username: string, password: string, server: string) =
     let parseStudents (e: DirectoryEntry) =
         // accessing members through e.Properties.["member"] only yields
-        // CommonName and path to object in string form. CommonName
-        // isn't unique, however. Instead we follow the path and read 
-        // properties directly of the student object.
+        // CommonName and path to object in string format. Problem is 
+        // that CommonName isn't unique. Instead we follow the path 
+        // and read properties of Student object directly.
         let members = e.Invoke("members", null)
         [ for dn in (members :?> IEnumerable) do
             use e = new DirectoryEntry(dn)
@@ -119,7 +119,7 @@ type CoursesQuery(username: string, password: string, server: string) =
                 Username = username,
                 Password = password,
                 Path = sprintf 
-                    "LDAP://%s/OU=Courses,OU=Groups,OU=Administration and Access,OU=Acme,DC=Acme,DC=local" server)
+                    "LDAP://%s/OU=Courses,OU=Sharepoint Groups,OU=Groups,OU=Administration and Access,OU=KVEU,DC=KVEU,DC=local" server)
 
         let coursesSearcher = 
             new DirectorySearcher(
@@ -132,6 +132,7 @@ type CoursesQuery(username: string, password: string, server: string) =
             printfn "Course: %A" c.Properties.["name"].[0]
             parseCourse c)
         |> Seq.toList
+
 </pre>
 
 <p>Calling Execute on CoursesQuery results in a list of courses being
