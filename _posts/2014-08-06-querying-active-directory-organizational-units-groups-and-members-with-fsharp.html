@@ -7,12 +7,13 @@ tags: [F#]
 ---
 <div id="post">
 <p>
-I was recently faced with the task of mapping a part of an Active
-Directory structure onto domain types. The relevant subset of the
-Active Directory holds courses, such as English, each subdivided into
-a one or more classes (English A, B, C). Students are then added to
-each class. The purpose of my code is to construct a collection of
-courses containing classes containing students for later processing.
+I was recently faced with the task of mapping part of an Active
+Directory structure onto domain types. The relevant subset of Active
+Directory containers hold courses, such as English, each course
+subdivided into one or more classes (English A, B, C). Students are
+then added to each class. The purpose of my F# code is to construct a
+collection of courses containing classes containing students for later
+processing.
 </p>
 
 <pre>
@@ -82,11 +83,11 @@ type:
 
 <pre class="prettyprint lang-ml">
 type CoursesQuery(username: string, password: string, server: string) =
-    let parseMembers (e: DirectoryEntry) =
+    let parseStudents (e: DirectoryEntry) =
         // accessing members through e.Properties.["member"] only yields
-        // CommonName and path to object in string format. Problem is 
-        // that CommonName isn't unique. Instead we follow the path 
-        // and read properties of Student object directly.
+        // CommonName and path to object in string form. CommonName
+        // isn't unique, however. Instead we follow the path and read 
+        // properties directly of the student object.
         let members = e.Invoke("members", null)
         [ for dn in (members :?> IEnumerable) do
             use e = new DirectoryEntry(dn)
@@ -99,7 +100,7 @@ type CoursesQuery(username: string, password: string, server: string) =
     let parseClass (klass: DirectoryEntry) =
         { Id = Guid(klass.Properties.["objectGUID"].[0] :?> byte[])
           Name = klass.Properties.["name"].[0] |> string
-          Students = parseMembers klass |> Seq.toList }
+          Students = parseStudents klass |> Seq.toList }
 
     let parseCourse (sr: SearchResult) =
         { Id = Guid(sr.Properties.["objectGUID"].[0] :?> byte[])
@@ -142,5 +143,4 @@ request/reply network chatter. If performance is paramount, one should
 come up with one or multiple LDAP queries. It's like the difference
 between querying an SQL database with many small select queries versus
 using joins.</p>
-
 </div>
