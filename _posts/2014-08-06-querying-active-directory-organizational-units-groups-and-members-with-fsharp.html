@@ -95,9 +95,9 @@ type CoursesQuery(username: string, password: string, server: string) =
                 Mail = e.Properties.["mail"].[0] |> string } ]
 
     let parseClass (klass: DirectoryEntry) =
-        { Id = Guid(klass.Properties.["objectGUID"].[0] :?> byte[])
+        { Id = klass.Guid
           Name = klass.Properties.["name"].[0] |> string
-          Students = parseStudents klass |> Seq.toList }
+          Students = parseStudents klass }
 
     let parseCourse (sr: SearchResult) =
         { Id = Guid(sr.Properties.["objectGUID"].[0] :?> byte[])
@@ -116,7 +116,7 @@ type CoursesQuery(username: string, password: string, server: string) =
                 Path = sprintf 
                     "LDAP://%s/OU=Courses,OU=Groups,OU=Administration and Access,OU=Acme,DC=Acme,DC=local" server)
 
-        let coursesSearcher = 
+        use coursesSearcher = 
             new DirectorySearcher(
                 SearchRoot = coursesDirectory, 
                 Filter = "(ou=*)")
