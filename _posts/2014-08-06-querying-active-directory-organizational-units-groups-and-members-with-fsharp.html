@@ -1,0 +1,146 @@
+---
+layout: post
+title: "Querying Active Directory organizational units, groups, and
+members with F#"
+date: 2014-08-06 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+<p>
+I was recently faced with the task of mapping a part of an Active
+Directory structure onto domain types. The relevant subset of the
+Active Directory holds courses, such as English, each subdivided into
+a one or more classes (English A, B, C). Students are then added to
+each class. The purpose of my code is to construct a collection of
+courses containing classes containing students for later processing.
+</p>
+
+<pre>
+DC=Acme, DC=local
+  OU=Acme
+    OU=Administration and Access
+      OU=Groups
+        OU=Courses
+          OU=English
+            objectGUID (attribute)
+            name (attribute)
+            CN=English A
+              objectGuid (attribute)
+              name (attribute)
+              member (attribute pointing to Students)      
+            CN=English B
+            CN=English C     
+          OU=Math
+          OU=Drama
+          ...
+    OU=User Accounts
+      OU=Students
+        CN=John Doe
+          objectGUID (attribute)
+          name (attribute)
+          mail (attribute)
+        CN=Jane Doe
+        ...
+</pre>
+
+<p>
+The first order of business is to define F# types that represent the
+output. The simple types define an aggregate with Course as its root
+and child types matching the hierarchy of containers in Active
+Directory.
+</p>
+
+<pre class="prettyprint lang-ml">
+open System
+open System.Collections
+open System.DirectoryServices
+
+type Student =
+    { Id: Guid
+      Name: string
+      Mail: string }
+
+type Class =
+    { Id: Guid
+      Name: string
+      Students: Student list }
+
+type Course =
+    { Id: Guid
+      Name: string
+      Classes: Class list }
+</pre>
+
+<p>
+The task is now to map the hierarchical data structure of Active
+Directory containers onto the three newly defined F# types. Instead of
+creating a repository (apperantly
+a <a href="http://www.wekeroad.com/2014/03/04/repositories-and-unitofwork-are-not-a-good-idea/">repositories
+got a bad rep</a>) representing Active Directory, I went with a query
+type:
+</p>
+
+<pre class="prettyprint lang-ml">
+type CoursesQuery(username: string, password: string, server: string) =
+    let parseMembers (e: DirectoryEntry) =
+        // accessing members through e.Properties.["member"] only yields
+        // CommonName and path to object in string format. Problem is 
+        // that CommonName isn't unique. Instead we follow the path 
+        // and read properties of Student object directly.
+        let members = e.Invoke("members", null)
+        [ for dn in (members :?> IEnumerable) do
+            use e = new DirectoryEntry(dn)
+            printfn "Member: %A" e.Properties.["name"].[0]
+            yield { 
+                Id = e.Guid
+                Name = e.Properties.["name"].[0] |> string
+                Mail = e.Properties.["mail"].[0] |> string } ]
+
+    let parseClass (klass: DirectoryEntry) =
+        { Id = Guid(klass.Properties.["objectGUID"].[0] :?> byte[])
+          Name = klass.Properties.["name"].[0] |> string
+          Students = parseMembers klass |> Seq.toList }
+
+    let parseCourse (sr: SearchResult) =
+        { Id = Guid(sr.Properties.["objectGUID"].[0] :?> byte[])
+          Name = sr.Properties.["name"].[0] |> string
+          Classes =
+            sr.GetDirectoryEntry().Children 
+            |> Seq.cast<DirectoryEntry> 
+            |> Seq.map (fun c -> 
+                printfn "Class: %A" c.Properties.["name"].[0]
+                parseClass c)
+            |> Seq.toList }
+
+    member __.Execute() =
+        let coursesDirectory = 
+            new DirectoryEntry(
+                Username = username,
+                Password = password,
+                Path = sprintf 
+                    "LDAP://%s/OU=Courses,OU=Groups,OU=Administration and Access,OU=Acme,DC=Acme,DC=local" server)
+
+        let coursesSearcher = 
+            new DirectorySearcher(
+                SearchRoot = coursesDirectory, 
+                Filter = "(ou=*)")
+
+        coursesSearcher.FindAll()
+        |> Seq.cast<SearchResult> 
+        |> Seq.map (fun c -> 
+            printfn "Course: %A" c.Properties.["name"].[0]
+            parseCourse c)
+        |> Seq.toList
+</pre>
+
+<p>Calling Execute on CoursesQuery results in a list of courses being
+returned.</p>
+
+<p>Depending on the specific needs, this sort of mapping may be too
+slow. The way the code traverses the containers results in significant
+request/reply network chatter. If performance is paramount, one should
+come up with one or multiple LDAP queries. It's like the difference
+between querying an SQL database with many small select queries versus
+using joins.</p>
+
+</div>
