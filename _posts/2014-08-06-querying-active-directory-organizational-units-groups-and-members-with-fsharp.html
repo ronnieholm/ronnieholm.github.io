@@ -114,7 +114,7 @@ type CoursesQuery(username: string, password: string, server: string) =
                 Username = username,
                 Password = password,
                 Path = sprintf 
-                    "LDAP://%s/OU=Courses,OU=Sharepoint Groups,OU=Groups,OU=Administration and Access,OU=KVEU,DC=KVEU,DC=local" server)
+                    "LDAP://%s/OU=Courses,OU=Groups,OU=Administration and Access,OU=Acme,DC=Acme,DC=local" server)
 
         let coursesSearcher = 
             new DirectorySearcher(
