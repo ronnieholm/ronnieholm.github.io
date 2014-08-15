@@ -128,8 +128,8 @@ type CoursesQuery(username: string, password: string, server: string) =
 
 <p>Calling Execute on CoursesQuery returns a list of Course types.</p>
 
-<p>Depending on desired runtime characterics, this sort of mapping may
-be too slow. The way the code traverses the containers results in
+<p>Depending on desired runtime characteristics, this sort of mapping
+may be too slow. The way the code traverses the containers results in
 significant request/reply network chatter. If performance is
 paramount, one should construct one or multiple LDAP
 queries. Traversing containers like above vs. using LDAP queries is
