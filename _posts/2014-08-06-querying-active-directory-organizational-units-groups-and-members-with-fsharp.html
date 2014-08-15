@@ -7,13 +7,13 @@ tags: [F#]
 ---
 <div id="post">
 <p>
-I was recently faced with the task of mapping part of an Active
-Directory structure onto domain types. The relevant subset of Active
-Directory containers hold courses, such as English, each course
+I was recently faced with the task of projecting Active Directory
+containers onto domain types. The subset of Active Directory in
+question (illustrated below) holds courses, such as English, each
 subdivided into one or more classes (English A, B, C). Students are
-then added to each class. The purpose of my F# code is to construct a
-collection of courses containing classes containing students for later
-processing.
+then added to each class. Finally, the purpose of my F# code is to
+construct a collection of courses containing classes containing
+students for later processing.
 </p>
 
 <pre>
@@ -45,10 +45,9 @@ DC=Acme, DC=local
 </pre>
 
 <p>
-The first order of business is to define F# types that represent the
-output. The simple types define an aggregate with Course as its root
-and child types matching the hierarchy of containers in Active
-Directory:
+First, I need to define the F# types to project Active Directory
+onto. These types define an aggregate with Course as its root and
+child types matching the hierarchy of containers in Active Directory:
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -73,10 +72,10 @@ type Course =
 </pre>
 
 <p>
-The task is now to map the hierarchical data structure of Active
-Directory containers onto the three newly defined F# types. Instead of
-creating a repository representing Active Directory, I went with a
-simpler query type (as in the Command/Query pattern):
+Next, I need to project the hierarchical data of Active Directory onto
+the three newly defined F# types. Instead of creating a repository
+representing Active Directory, I went with a simpler query type (as in
+the Command/Query pattern):
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -127,13 +126,13 @@ type CoursesQuery(username: string, password: string, server: string) =
         |> Seq.toList
 </pre>
 
-<p>Calling Execute on CoursesQuery results in a list of courses being
-returned.</p>
+<p>Calling Execute on CoursesQuery returns a list of Course types.</p>
 
-<p>Depending on the specific needs, this sort of mapping may be too
-slow. The way the code traverses the containers results in significant
-request/reply network chatter. If performance is paramount, one should
-come up with one or multiple LDAP queries. It's like the difference
-between querying an SQL database with many small select queries versus
+<p>Depending on desired runtime characterics, this sort of mapping may
+be too slow. The way the code traverses the containers results in
+significant request/reply network chatter. If performance is
+paramount, one should construct one or multiple LDAP
+queries. Traversing containers like above vs. using LDAP queries is
+akin querying an SQL database with many small select queries versus
 using joins.</p>
 </div>
