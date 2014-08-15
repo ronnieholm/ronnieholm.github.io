@@ -46,8 +46,9 @@ DC=Acme, DC=local
 
 <p>
 First, I need to define the F# types to project Active Directory
-onto. These types define an aggregate with Course as its root and
-child types matching the hierarchy of containers in Active Directory:
+objects onto. These types define an aggregate with Course as its root
+and child types matching the hierarchy of containers in Active
+Directory:
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -84,7 +85,7 @@ type CoursesQuery(username: string, password: string, server: string) =
         // accessing members through e.Properties.["member"] only yields
         // CommonName and path to object in string format. Problem is 
         // that CommonName isn't unique. Instead we follow the path 
-        // and read properties of Student object directly.
+        // and read properties of the Student object directly.
         let members = e.Invoke("members", null)
         [ for dn in (members :?> IEnumerable) do
             use e = new DirectoryEntry(dn)            
@@ -133,6 +134,6 @@ may be too slow. The way the code traverses the containers results in
 significant request/reply network chatter. If performance is
 paramount, one should construct one or multiple LDAP
 queries. Traversing containers like above vs. using LDAP queries is
-akin querying an SQL database with many small select queries versus
-using joins.</p>
+like querying an SQL database with many small select queries versus
+using joins and doesn't scale.</p>
 </div>
