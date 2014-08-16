@@ -1,0 +1,254 @@
+---
+layout: post
+title: "Querying Azure Active Directory through Azure Graph API with F#"
+date: 2014-08-15 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+<p>
+In
+the <a href="http://bugfree.dk/blog/2014/08/06/querying-active-directory-organizational-units-groups-and-members-with-fsharp/">previous</a>
+post I showed how to query a local Active Directory for courses,
+classes, and students using the LDAP protocol. As it turns out, this
+local Active Directory is also being one-way synchronized to Azure
+Active Directory using
+the <a href="http://technet.microsoft.com/en-us/library/jj151800.aspx">DirSync</a>
+tool. Hence in this post I investigate how to query Azure Active
+Directory for the same courses, classes, and users.</p>
+
+<p>To reiterate, here's the layout in the local Active Directory of
+the objects beings synchronized:</p>
+
+<pre>
+DC=Acme, DC=local
+  OU=Acme
+    OU=Administration and Access
+      OU=Groups
+        OU=Courses
+          OU=English
+            objectGUID (attribute)
+            name (attribute)
+            CN=English A
+              objectGuid (attribute)
+              name (attribute)
+              member (attribute pointing to Students)      
+            CN=English B
+            CN=English C     
+          OU=Math
+          OU=Drama
+          ...
+    OU=User Accounts
+      OU=Students
+        CN=John Doe
+          objectGUID (attribute)
+          name (attribute)
+          mail (attribute)
+        CN=Jane Doe
+        ...
+</pre>
+
+<p>
+Azure Active Directory doesn't have feature parity with local Active
+Directory. Instead, Azure Active Directory is a new service with its
+own (simpler) data model. What the DirSync tool does, besides pushing
+changes at regular intervals, is translating between the on-prem and
+in-cloud data models. For instance, only the levels of "English" and
+"English A" exists as groups in Azure Active Directory, but they're
+unrelated. There's no way to tell that on-prem "English A" is
+contained in "English". To Azure Active Directory the hierarchy has
+been flattened and users are simple members of groups.
+</p>
+
+<p>
+Another difference between local and Azure Active Directory is that
+while the former may be queried using LDAP, the latter exposes its
+data only through REST-based OData web services protected by
+OAuth. That's where the Graph API comes in as an API to craft OData
+URLs parsing the result in .NET types.
+</p>
+
+<p>To better understand the code, it's worth looking into how
+authentication and querying with the Graph API works. First you
+request an access token from the secure token service. This token must
+then be passed with every call to the Graph API. Under the hood Graph
+API passes it in request header.</p>
+
+<!-- source: http://msdn.microsoft.com/en-us/library/azure/dn151791.aspx -->
+<img src="http://i.msdn.microsoft.com/dynimg/IC654265.png" />
+
+<p>Here's the code taking care of the authentication part:</p>
+
+<pre class="prettyprint lang-ml">
+(* 
+  requires the following Nuget packages:
+    Microsoft.Azure.ActiveDirectory.GraphClient
+    Microsoft.IdentityModel.Clients.ActiveDirectory
+
+  losely based on:
+  https://github.com/AzureADSamples/ConsoleApp-GraphAPI-DotNet
+*)
+
+open System
+open Microsoft.IdentityModel.Clients.ActiveDirectory
+open Microsoft.Azure.ActiveDirectory.GraphClient
+
+type AzureGraphConnectionCreator(tenantName: string, clientId: string, clientSecret: string) =
+    // POST https://login.windows.net/acme.onmicrosoft.com/oauth2/token?api-version=1.0 HTTP/1.1
+    member __.Create() =
+        let authenticationContext = 
+            AuthenticationContext(
+                authority = "https://login.windows.net/" + tenantName, 
+                validateAuthority = false)
+
+        let authenticationResult = 
+            authenticationContext.AcquireToken(
+                resource = "https://graph.windows.net", 
+                credential = ClientCredential(clientId, clientSecret))
+        
+        GraphConnection(
+            accessToken = authenticationResult.AccessToken, 
+            clientRequestId = Guid.NewGuid(), 
+            graphSettings = 
+                GraphSettings(
+                    ApiVersion = "2013-11-08", 
+                    GraphDomainName = "graph.windows.net"))
+</pre>
+
+<p>
+Now that I'm authenticated, I can query Azure Active
+Directory. However, because the containment relationship isn't
+preserved, I query by passing in a list of strings representing group
+display names. I could also read all groups this way and filter in
+memory, but this shows the FilterGenerator and expression trees in
+action:
+</p>
+
+<pre class="prettyprint lang-ml">
+type AzureADGroup =
+    { Id: Guid
+      Name: string }
+
+type GroupQuery(connection: GraphConnection, groupNames: string list) =
+    let parse (g: Group) = 
+        { AzureADGroup.Id = Guid.Parse(g.ObjectId)
+          Name = g.DisplayName }
+        
+
+    // With filter: GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/groups?%24top=1&api-version=2013-11-08&%24filter=displayName%20eq%20'English%20A' HTTP/1.1
+    // No filter:   GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/groups?api-version=2013-11-08 HTTP/1.1 (no filter)
+    member __.Execute() =
+        groupNames |&gt; List.map (fun name -&gt;
+            let displayNameFilter = 
+                FilterGenerator(
+                    Top = 1,
+                    QueryFilter = 
+                        ExpressionHelper
+                            .CreateEqualsExpression(
+                                typedefof&lt;Group&gt;, 
+                                GraphProperty.DisplayName, 
+                                name))
+            let groups = 
+                connection
+                    .List&lt;Group&gt;(pageToken = null, filter = displayNameFilter)
+                    .Results 
+            if groups |&gt; Seq.length = 0 then (name, None)
+            else (groups |&gt; Seq.head |&gt; fun azureGroup -&gt; (name, Some(parse azureGroup)))) |&gt; Seq.toList
+
+</pre>
+
+<p>
+Next I want to query users and to avoid making per-user queries to
+fetch the groups each user is a member of, I set the
+ExpandProperty. When this property is set, the result may contain at
+most 100 users and group memberships. Further results are retrieved in
+batches by following a continuation URL in each batch. For as long as
+a continuation URL is provided, I recursively follow it, building up
+the user list:
+</p>
+
+<pre class="prettyprint lang-ml">
+type AzureADUser =
+    { Id: Guid
+      Name: string
+      Groups: Guid list option }
+
+type UserQuery(connection: GraphConnection) =
+    let parseMemberOf (go: ChangeTrackingCollection&lt;GraphObject&gt;) =
+        if go.Count = 0 then None
+        else Some(go |&gt; Seq.map (fun g -&gt; Guid.Parse(g.ObjectId)) |&gt; Seq.toList)
+
+    let parseUser (u: User) =
+        { Id = Guid.Parse(u.ObjectId)
+          Name = u.DisplayName
+          Groups = parseMemberOf u.MemberOf }            
+
+    let rec fetchUsersWithContinuation (fg: FilterGenerator) (pr: PagedResults&lt;User&gt;) (au: AzureADUser list) =     
+        if pr.Results.Count = 0 then None
+        else 
+            let users = au @ (pr.Results |&gt; Seq.map parseUser |&gt; Seq.toList)
+            if pr.IsLastPage then Some users
+            else fetchUsersWithContinuation fg (connection.List&lt;User&gt;(pr.PageToken, fg)) users
+
+    // First page:  GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/users?%24top=100&api-version=2013-11-08&%24expand=memberOf&%24orderby=displayName HTTP/1.1
+    // Second page: GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/directoryObjects/$/Microsoft.WindowsAzure.ActiveDirectory.User?%24expand=memberOf&%24orderby=displayName&%24skiptoken=X'44537074020001000000103A5065726E696C6C65204272656E647929557365725F64363138383662632D363765642D343530302D613165362D3030346436313562643561382100000000000000000000'&%24top=100&api-version=2013-11-08 HTTP/1.1
+    member __.Execute() =
+        let fg = 
+            FilterGenerator(
+                // Top is limited to 100 when used with ExpandProperty.
+                // Setting Top higher results in an exception being thrown.
+                Top = 100, 
+                OrderByProperty = GraphProperty.DisplayName, 
+                // only one property is allowed to be expanded as part of a single query
+                ExpandProperty = LinkProperty.MemberOf)
+        fetchUsersWithContinuation  fg (connection.List&lt;User&gt;(null, fg)) List.empty
+</pre>
+
+<p>Putting everything together, here's how to utilize the above query
+types and their example outputs:<p>
+
+<pre class="prettyprint lang-ml">
+[&lt;EntryPoint&gt;]
+let main argv = 
+    let tenantName = "acme.onmicrosoft.com"
+    let clientId = "e5728213-37af-4c34-96cd-1d08cf52ff12"
+    let clientSecret = "vwvsQOWdzNUsbdIH9gB0xDpmVKbQa+6MGR9pJazhTwlM="
+    
+    let connectionCreator = AzureGraphConnectionCreator(tenantName, clientId, clientSecret)
+    let connection = connectionCreator.Create()
+    let groupQuery = GroupQuery(connection, ["English A"; "Math A"])
+    let groupResult = groupQuery.Execute()
+    printfn "%A" groupResult
+
+    // [("English A", null); 
+    //  ("Math A", Some {Id = 0bc039c3-0219-4e44-8e56-c6f4436d3cc4;
+    //                   Name = "Math A";})]
+
+    let userQuery = UserQuery(connection)
+    let userResult = userQuery.Execute()
+    printfn "%A" userResult
+
+    // Some
+    //  [{Id = ae205e56-28f8-41c6-9c0a-4b0b6dfde3a5;
+    //    Name = "Jane Doe";
+    //    Groups =
+    //     Some
+    //       [0bc039c3-0219-4e44-8e56-c6f4436d3cc4;      <-- in Math A class
+    //        4d7fe458-3162-4aac-a001-30bc8b8095b4];};
+    //   {Id = 2ae79ec3-af2b-4c36-a54c-c0da26549296;
+    //    Name = "John Doe";
+    //    Groups =
+    //     Some
+    //       [1034ae93-76ac-4c37-96ac-6dbd236ce2af;
+    //        382979f6-f20b-4aff-b8d5-acbacbdffc74];};
+
+    0
+</pre>
+
+<p>
+It took quite a bit of digging around getting the above code
+working. Especially figuring out the changes to the Active Directory
+data model. Moving to the cloud requires both rethinking and
+re-writing of code.
+</p>
+
+</div>
