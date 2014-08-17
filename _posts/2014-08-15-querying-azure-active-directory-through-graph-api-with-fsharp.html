@@ -16,8 +16,10 @@ the <a href="http://technet.microsoft.com/en-us/library/jj151800.aspx">DirSync</
 tool. Hence in this post I investigate how to query Azure Active
 Directory for the same courses, classes, and users.</p>
 
-<p>To reiterate, here's the layout in the local Active Directory of
-the objects beings synchronized:</p>
+<p>To reiterate from
+the <a href="http://bugfree.dk/blog/2014/08/06/querying-active-directory-organizational-units-groups-and-members-with-fsharp/">previous</a>
+post, here's the layout of the local Active Directory being
+synchronized to the cloud:</p>
 
 <pre>
 DC=Acme, DC=local
@@ -49,29 +51,29 @@ DC=Acme, DC=local
 
 <p>
 Azure Active Directory doesn't have feature parity with local Active
-Directory. Instead, Azure Active Directory is a new service with its
-own (simpler) data model. What the DirSync tool does, besides pushing
-changes at regular intervals, is translating between the on-prem and
-in-cloud data models. For instance, only the levels of "English" and
-"English A" exists as groups in Azure Active Directory, but they're
-unrelated. There's no way to tell that on-prem "English A" is
-contained in "English". To Azure Active Directory the hierarchy has
-been flattened and users are simple members of groups.
+Directory. Instead, it's a new service with its own (simpler) data
+model. What the DirSync tool does -- besides pushing changes at
+regular intervals -- is translate between the on-prem and in-cloud
+data models. For instance, only the levels of "English" and "English
+A" exist as groups in Azure Active Directory. Even worse, there's no
+way to tell that on-prem "English A" is contained in "English". To
+Azure Active Directory the hierarchy has been flattened and users are
+simple members of groups.
 </p>
 
 <p>
-Another difference between local and Azure Active Directory is that
-while the former may be queried using LDAP, the latter exposes its
-data only through REST-based OData web services protected by
-OAuth. That's where the Graph API comes in as an API to craft OData
-URLs parsing the result in .NET types.
+Another key difference between local and Azure Active Directory is
+that while the former may be queried using LDAP, the latter exposes
+its data only through REST-based OData web services protected by
+OAuth. That's where the Graph API comes in as a vehicle to craft OData
+URLs and mashalling to and from .NET types.
 </p>
 
-<p>To better understand the code, it's worth looking into how
+<p>To better understand the flow, it's worth looking into how
 authentication and querying with the Graph API works. First you
 request an access token from the secure token service. This token must
-then be passed with every call to the Graph API. Under the hood Graph
-API passes it in request header.</p>
+then be passed with every call to the Graph API. Under the hood the
+Graph API passes the access token as part of the request header.</p>
 
 <!-- source: http://msdn.microsoft.com/en-us/library/azure/dn151791.aspx -->
 <img src="http://i.msdn.microsoft.com/dynimg/IC654265.png" />
@@ -80,11 +82,11 @@ API passes it in request header.</p>
 
 <pre class="prettyprint lang-ml">
 (* 
-  requires the following Nuget packages:
+  requires the following NuGet packages being installed:
     Microsoft.Azure.ActiveDirectory.GraphClient
     Microsoft.IdentityModel.Clients.ActiveDirectory
 
-  losely based on:
+  loosely based on:
   https://github.com/AzureADSamples/ConsoleApp-GraphAPI-DotNet
 *)
 
@@ -117,10 +119,10 @@ type AzureGraphConnectionCreator(tenantName: string, clientId: string, clientSec
 <p>
 Now that I'm authenticated, I can query Azure Active
 Directory. However, because the containment relationship isn't
-preserved, I query by passing in a list of strings representing group
-display names. I could also read all groups this way and filter in
-memory, but this shows the FilterGenerator and expression trees in
-action:
+preserved, I need to query by passing in a list of strings
+representing group display names to get unique group GUIDs back. I
+could also just read all groups this way and filter in memory, but
+this shows the FilterGenerator and expression trees in action:
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -132,7 +134,6 @@ type GroupQuery(connection: GraphConnection, groupNames: string list) =
     let parse (g: Group) = 
         { AzureADGroup.Id = Guid.Parse(g.ObjectId)
           Name = g.DisplayName }
-        
 
     // With filter: GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/groups?%24top=1&api-version=2013-11-08&%24filter=displayName%20eq%20'English%20A' HTTP/1.1
     // No filter:   GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/groups?api-version=2013-11-08 HTTP/1.1 (no filter)
@@ -158,12 +159,12 @@ type GroupQuery(connection: GraphConnection, groupNames: string list) =
 
 <p>
 Next I want to query users and to avoid making per-user queries to
-fetch the groups each user is a member of, I set the
+fetch the groups that each user is a member of, I set the
 ExpandProperty. When this property is set, the result may contain at
 most 100 users and group memberships. Further results are retrieved in
-batches by following a continuation URL in each batch. For as long as
-a continuation URL is provided, I recursively follow it, building up
-the user list:
+batches by following a continuation URL present in each batch. For as
+long as a continuation URL is included, I recursively follow it,
+building up a list of users and their group memberships:
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -204,7 +205,7 @@ type UserQuery(connection: GraphConnection) =
 </pre>
 
 <p>Putting everything together, here's how to utilize the above query
-types and their example outputs:<p>
+types and example of their output:<p>
 
 <pre class="prettyprint lang-ml">
 [&lt;EntryPoint&gt;]
