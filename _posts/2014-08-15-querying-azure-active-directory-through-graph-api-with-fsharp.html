@@ -136,7 +136,7 @@ type GroupQuery(connection: GraphConnection, groupNames: string list) =
           Name = g.DisplayName }
 
     // With filter: GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/groups?%24top=1&api-version=2013-11-08&%24filter=displayName%20eq%20'English%20A' HTTP/1.1
-    // No filter:   GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/groups?api-version=2013-11-08 HTTP/1.1 (no filter)
+    // No filter:   GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/groups?api-version=2013-11-08 HTTP/1.1
     member __.Execute() =
         groupNames |&gt; List.map (fun name -&gt;
             let displayNameFilter = 
@@ -183,6 +183,8 @@ type UserQuery(connection: GraphConnection) =
           Name = u.DisplayName
           Groups = parseMemberOf u.MemberOf }            
 
+    // First page:  GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/users?%24top=100&api-version=2013-11-08&%24expand=memberOf&%24orderby=displayName HTTP/1.1
+    // Second page: GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/directoryObjects/$/Microsoft.WindowsAzure.ActiveDirectory.User?%24expand=memberOf&%24orderby=displayName&%24skiptoken=X'44537074020001000000103A5065726E696C6C65204272656E647929557365725F64363138383662632D363765642D343530302D613165362D3030346436313562643561382100000000000000000000'&%24top=100&api-version=2013-11-08 HTTP/1.1
     let rec fetchUsersWithContinuation (fg: FilterGenerator) (pr: PagedResults&lt;User&gt;) (au: AzureADUser list) =     
         if pr.Results.Count = 0 then None
         else 
@@ -190,8 +192,6 @@ type UserQuery(connection: GraphConnection) =
             if pr.IsLastPage then Some users
             else fetchUsersWithContinuation fg (connection.List&lt;User&gt;(pr.PageToken, fg)) users
 
-    // First page:  GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/users?%24top=100&api-version=2013-11-08&%24expand=memberOf&%24orderby=displayName HTTP/1.1
-    // Second page: GET https://graph.windows.net/3618fc02-6365-4318-a05e-7fa6883d47c8/directoryObjects/$/Microsoft.WindowsAzure.ActiveDirectory.User?%24expand=memberOf&%24orderby=displayName&%24skiptoken=X'44537074020001000000103A5065726E696C6C65204272656E647929557365725F64363138383662632D363765642D343530302D613165362D3030346436313562643561382100000000000000000000'&%24top=100&api-version=2013-11-08 HTTP/1.1
     member __.Execute() =
         let fg = 
             FilterGenerator(
