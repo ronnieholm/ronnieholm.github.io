@@ -12,7 +12,7 @@ WSDL, XML, and Regex F# type providers. Using F# together with the
 various type providers means that very little actual code needs to be
 written and most of it can be verified at compile time. Interfacing
 with SharePoint has historically been a dynamic experience -- because
-it's heavily XML based -- resulting in runtime errors.
+it's largely XML based -- resulting in runtime errors.
 </p>
 
 <p>
@@ -20,11 +20,11 @@ The products to expose come in the form of list items within a
 SharePoint Pages document library (but no knowledge of SharePoint is
 required to follow along). In SharePoint, lists and list items are
 like tables and rows in a relational database, which may be queried
-through a SOAP web service and a propietary XML query language.
+through a SOAP web service and a proprietary XML query language.
 </p>
 
 <p>Before being able to query, we must first authenticate with
-SharePoint. The sections below explains the code required for
+SharePoint. The sections below explain the code required for
 authenticating and querying in a top-down manner.
 </p>
 
@@ -35,9 +35,10 @@ The query that I sent to SharePoint and the results I get back are all
 XML. However, the SharePoint APIs require the use of the old
 XmlElement type where I prefer the new XElement type. Hence I need a
 few routines to convert back and forth between the two. Also, the
-username and password used for authentication is read from the config
-file using a convenience function. I considered using the config type
-provider, but it kept throwing a NullReferenceException.
+username and password used for authentication is read from the
+configuration file using a convenience function. I considered using
+the configuration file type provider, but it kept throwing a
+NullReferenceException.
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -61,7 +62,7 @@ module Utils =
     let getAppSetting (key: string) = ConfigurationManager.AppSettings.[key]
 </pre>
 
-<h4>Defining the domain model</h4>
+<h4>Domain model</h4>
 
 <p>
 For this post, I'll keep the domain model simple. It consists of a
@@ -92,7 +93,7 @@ must call the Authentication SOAP service passing in username and
 password of a SharePoint user. The service then returns a
 authentication cookie to pass along with subsequent calls. Here the
 WSDL type provider comes in handy. Otherwise in an F# project I'd have
-to create a seperate C# project, add a web reference to the
+to create a separate C# project, add a web reference to the
 Authentication service's WSDL file, and reference that project from
 the F# project.
 </p>
@@ -134,9 +135,9 @@ every authentication request:
 </p>
 
 <pre>
-".ASPXAUTH=2FD298088C07B99B5710F2F85A2599682321A0238156B36E4A5A70A986FD510A0D191
+.ASPXAUTH=2FD298088C07B99B5710F2F85A2599682321A0238156B36E4A5A70A986FD510A0D191
 5756B55AFC95B53FBA6B6D3B3B68E5655DA63D8FCBF0775607C13E1E7E2D76B5F80DED397604EFB9
-55B40FF83721C679146C7F4AF9E7F97B62C504170B27F666B58; path=/; HttpOnly"
+55B40FF83721C679146C7F4AF9E7F97B62C504170B27F666B58; path=/; HttpOnly
 </pre>
 
 <h4>Querying</h4>
@@ -234,7 +235,7 @@ provider that gives strongly typed access to named groups.
                     { Document.Title = m.title.Value
                       Url = Uri("http://www.acme.com" + m.href.Value) })
             (result |&gt; Seq.tryFind (fun m -&gt; m.Url.ToString().Contains("/Documents/Manuals/")),
-                result |&gt; Seq.tryFind (fun m -&gt; m.Url.ToString().Contains("/Documents/datasheets/")))
+             result |&gt; Seq.tryFind (fun m -&gt; m.Url.ToString().Contains("/Documents/datasheets/")))
 
     type ImageRegex = Regex&lt; @"&lt;img(.*?)src=""(?&lt;src&gt;(.*?))"""&gt;
     let parseImage (p: Products.Row) =
@@ -306,7 +307,7 @@ For completeness sake, the query to SharePoint looks as follows:
 Finally, here's how to execute the above code from a console. By the
 same token, in the WCF project I create an instance of the
 ProductRepository type. I decided to use the C# WCF template for the
-front-end because it wasn't worth the hazzle of getting a full F# WCF
+front-end because it wasn't worth the hassle of getting a full F# WCF
 project working:
 </p>
 
