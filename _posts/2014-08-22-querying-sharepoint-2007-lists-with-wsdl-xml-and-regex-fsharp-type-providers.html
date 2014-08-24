@@ -6,16 +6,17 @@ tags: [F#]
 ---
 <div id="post">
 <p>
-In this post I'll show how to expose product information from a legacy
-SharePoint 2007 installation using
+In this post I'll show an example from production code of how to
+expose product information from a legacy SharePoint 2007 installation
+using
 the <a href="http://msdn.microsoft.com/en-us/library/hh362328.aspx">WSDL</a>,
 <a href="http://fsharp.github.io/FSharp.Data/library/XmlProvider.html">XML</a>,
 and <a href="http://fsprojects.github.io/RegexProvider/">Regex</a> F#
 type providers. Combining F# with these type providers, very little
 actual code needs to be written and most of it can be verified at
 compile time. Contrast this with using SharePoint from C# where,
-because SharePoint is very heavy on (dynamicall generated) XML, code
-generation and runtime exceptions are a common occurance.
+because SharePoint is very heavy on (dynamically generated) XML, code
+generation and runtime exceptions are a common occurence.
 </p>
 
 <p>
@@ -94,7 +95,7 @@ module Domain =
 <h4>Authenticating</h4>
 
 <p>
-Before issueing requests against the SharePoint 2007 APIs, you must
+Before issuing requests against the SharePoint 2007 APIs, you must
 first call the Authentication service passing in username and
 password. The authentication service then returns an authentication
 cookie to pass with subsequent calls. Here's where the WSDL type
@@ -193,9 +194,9 @@ authCookie to the header before calling GetListItems on the service.
 <h4>Parsing result</h4>
 
 <p>
-Executing the query against SharePoint's Pages document library
-results in an XML document whose shape isn't all too
-important. Beforehand I manually ran the query and stored a subset of
+When I execute the query against SharePoint's Pages document library,
+I get back an XML document whose shape isn't all too important for the
+example. Beforehand I manually ran the query and stored a subset of
 the result in ProductsTraining.xml. Feeding this XML file to the XML
 type provider yields strongly-typed access to the specific query
 result. For instance, each product contains a
