@@ -256,25 +256,6 @@ named groups.
           Summary = p.OwsPublishingPageContent
           Image = parseImage p
           Description = p.OwsPageX0020ContentX00202 }
-
-    let getProducts() =
-        let query = 
-            XElement(xn "Query",
-                XElement(xn "Where",
-                    XElement(xn "Contains",
-                        XElement(xn "FieldRef", XAttribute(xn "Name", "PublishingPageLayout")),
-                        XElement(xn "Value", XAttribute(xn "Type", "URL"), "Acme_Product.aspx"))))
-        let fields = 
-            ["Title"; "PublishingPageLayout"; "PublishingPageImage"; "PublishingPageContent"; 
-              "Page_x0020_Content_x0020_2"; "Page_x0020_Content_x0020_3"; "EncodedAbsUrl"] 
-            |&gt; List.fold (fun acc fld -&gt; 
-                acc + XElement(xn "FieldRef", XAttribute(xn "Name", xn fld)).ToString()) ""
-        
-        let viewFields = XElement.Parse("&lt;ViewFields&gt;" + fields + "&lt;/ViewFields&gt;")
-        let queryOptions = XElement(xn "QueryOptions", "")
-        let result = execute query viewFields queryOptions
-        let products = Products.Parse(result.ToString())       
-        products.Data.Rows |&gt; Seq.map parseProduct |&gt; Seq.toList
 </pre>
 
 <h4>Putting it all together</h4>
