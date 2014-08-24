@@ -6,33 +6,25 @@ tags: [F#]
 ---
 <div id="post">
 <p>
-In this post I'll show an example from production code of how to
-expose product information from a legacy SharePoint 2007 installation
-using
+In this post I'll show how to expose product information from a legacy
+SharePoint 2007 installation using
 the <a href="http://msdn.microsoft.com/en-us/library/hh362328.aspx">WSDL</a>,
 <a href="http://fsharp.github.io/FSharp.Data/library/XmlProvider.html">XML</a>,
 and <a href="http://fsprojects.github.io/RegexProvider/">Regex</a> F#
-type providers. Combining F# with these type providers, very little
-actual code needs to be written and most of it can be verified at
-compile time. Contrast this with using SharePoint from C# where,
-because SharePoint is very heavy on (dynamically generated) XML, code
-generation and runtime exceptions are a common occurence.
+type providers. With F# type providers, very little actual code needs
+to be written and most of it can be verified at compile time. Contrast
+this with using SharePoint from C# where, because SharePoint is very
+heavy on (dynamically generated) XML, code generation and runtime
+exceptions are a common occurence.
 </p>
 
 <p>
-Even though products are stored in SharePoint, very little SharePoint
-knowledge is required to follow this example. The point to understand
-is that products are stored as items within a SharePoint Pages
-document library. In SharePoint terms, a document library and items
-are like a table with rows in a relational database. These items may
-then be queried through a SOAP web service using an XML query
-language.
-</p>
-
-<p>
-But before I get to the querying part, I must first authenticate
-against SharePoint. The sections below details the code required for
-authenticating, querying, and parsing the result.
+To follow along with the example, very little SharePoint knowledge is
+required. The key point is that products are stored as items within a
+SharePoint Pages document library. In SharePoint terms, a document
+library with items are like a table with rows in a relational
+database. These items may then be queried through a SOAP web service
+using an XML query language.
 </p>
 
 <h4>Helpers</h4>
@@ -40,10 +32,10 @@ authenticating, querying, and parsing the result.
 <p>
 The XML query that goes to SharePoint as well as the result coming
 back are of type XmlElement. I much prefer working with the never
-XElement type instead and thus need a couple of routines to convert
-back and forth. Also, the username and password to authenticate with
-are read from the configuration file using a convenience function. I
-tried the
+XElement type and thus need a couple of routines to convert back and
+forth. Also, the username and password to authenticate with are read
+from the configuration file using a convenience function. I tried out
+the
 <a href="http://fsprojects.github.io/FSharp.Configuration/AppSettingsProvider.html">AppSettings
 type provider</a>, but kept getting NullReferenceExceptions.
 </p>
@@ -73,8 +65,8 @@ module Utils =
 
 <p>
 For this example, I'll keep the domain model simple. It consists of a
-Product type with optional references to the Document type, i.e., a
-web resource:
+Product type with optional references to the Document type,
+representing a web resource such as a PDF file:
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -96,10 +88,10 @@ module Domain =
 
 <p>
 Before issuing requests against the SharePoint 2007 APIs, you must
-first call the Authentication service passing in username and
+first call the Authentication service with a username and
 password. The authentication service then returns an authentication
 cookie to pass with subsequent calls. Here's where the WSDL type
-provider comes in handy. Otherwise, if you want to call the service
+provider comes in handy. Otherwise, if you wanted to call the service
 using strong typing, you'd have to add a separate C# project to the
 solution and from there add a web reference to the Authentication
 service before referencing the C# project from F#.
@@ -150,11 +142,11 @@ every authentication request:
 <h4>Querying</h4>
 
 <p>
-To query SharePoint 2007, you call the Lists SOAP service with the
-general execute method shown below. The three arguments to this method
-are all XML snippets, telling SharePoint which predicate to filter on
-and which fields of the result I'm interested in (XML constructed in
-the next section). Again I call upon the WSDL type provider to
+To query SharePoint 2007, I call the Lists SOAP service using the
+general execute method below. The three arguments to this method are
+all XML snippets, instructing SharePoint which predicate to filter
+products on and which fields of each product to return (actual XML
+constructed later). Again I call upon the WSDL type provider to
 generate a proxy for the Lists service. Notice how I add the
 authCookie to the header before calling GetListItems on the service.
 </p>
@@ -195,29 +187,35 @@ authCookie to the header before calling GetListItems on the service.
 
 <p>
 When I execute the query against SharePoint's Pages document library,
-I get back an XML document whose shape isn't all too important for the
-example. Beforehand I manually ran the query and stored a subset of
-the result in ProductsTraining.xml. Feeding this XML file to the XML
-type provider yields strongly-typed access to the specific query
-result. For instance, each product contains a
-OwsPageX0020ContentX00203 element inferred to be of type string which
-I can access in a strongly-typed fashion as
-p.OwsPageX0020ContentX00203 below.
+I get back a complex XML document whose specific shape isn't that
+important. What is important is that I use the XML type provider to
+get strongly-typed access to its elements. This is possible by running
+the query beforehand and storing a subset of the result in
+ProductsTraining.xml. By feeding this sample to the XML type provider,
+it generates a type including element access logic.
 </p>
 
 <p>
-Now that I got all the products, the final step is extracting the
+For instance, each product contains an OwsPageX0020ContentX00203
+element inferred to be of type string which I access in a
+strongly-typed way as p.OwsPageX0020ContentX00203 below.
+</p>
+
+<p>
+Now that I got all the products the final step is extracting the
 pieces of information required to construct the Product instances. For
 legacy reasons, this information is embedded within the (not
 well-formed) HTML generated by the SharePoint editor control. For
-instance, the reference to manual and datasheet are stored as anchor
-links (in that order) within the OwsPageX0020ContentX00203 element of
-each product.
+instance, the product's manual and datasheet are anchor links (in that
+order) within the OwsPageX0020ContentX00203 element.
 </p>
 
-<p>Thus, I use regular expressions with named groups to extract the
-relevant pieces of information. The Regex type provider is a simple
-provider that gives strongly-typed access to the named groups.
+<p>
+Thus, I use regular expressions to extract relevant pieces of
+information from the result. To ensure I don't misspell the group
+names I make use of the simple Regex type provider. It inspect the
+match result of a Regex and provides strongly-typed access to its
+named groups.
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -282,8 +280,8 @@ provider that gives strongly-typed access to the named groups.
 <h4>Putting it all together</h4>
 
 <p>
-As the final part, I need to construct the specific query to get the
-products and call parseProduct on each item in the result:
+Finally, I need to construct the specific query to get the products
+and call parseProduct on each item in the result:
 </p>
 
 <pre class="prettyprint lang-ml">
@@ -308,8 +306,8 @@ products and call parseProduct on each item in the result:
 </pre>
 
 <p>
-The three parts to the query being passed to execute end up looking
-like so:
+The three parts to the query generated above and passed to execute end
+up looking like so:
 </p>
 
 <pre class="prettyprint lang-xml">
@@ -334,9 +332,9 @@ like so:
 </pre>
 
 <p>
-Finally, here's how to execute the above code from a console and show
-the first product. I call getProducts the same way from my WCF
-service, although the WCF service is written in C#:
+To kick off everything from a console and display the first product,
+here's the code required. In the actual production code, I call
+getProducts from a C# WCF service:
 </p>
 
 <pre class="prettyprint lang-ml">
