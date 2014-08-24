@@ -15,14 +15,14 @@ type providers. With F# type providers, very little actual code needs
 to be written and most of it can be verified at compile time. Contrast
 this with using SharePoint from C# where, because SharePoint is very
 heavy on (dynamically generated) XML, code generation and runtime
-exceptions are a common occurence.
+exceptions are a common occurrence.
 </p>
 
 <p>
 To follow along with the example, very little SharePoint knowledge is
 required. The key point is that products are stored as items within a
 SharePoint Pages document library. In SharePoint terms, a document
-library with items are like a table with rows in a relational
+library with items is like a table with rows in a relational
 database. These items may then be queried through a SOAP web service
 using an XML query language.
 </p>
@@ -213,7 +213,7 @@ order) within the OwsPageX0020ContentX00203 element.
 <p>
 Thus, I use regular expressions to extract relevant pieces of
 information from the result. To ensure I don't misspell the group
-names I make use of the simple Regex type provider. It inspect the
+names I make use of the simple Regex type provider. It inspects the
 match result of a Regex and provides strongly-typed access to its
 named groups.
 </p>
