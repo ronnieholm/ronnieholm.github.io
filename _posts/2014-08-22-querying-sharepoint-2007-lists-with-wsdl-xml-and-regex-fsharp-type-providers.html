@@ -57,6 +57,12 @@ module Utils =
         d.DocumentElement
 
     let toXElement (e: XmlElement) = XElement.Parse(e.OuterXml)
+
+    // in "new XElement("foo", ...)", the constructor being called actually
+    // has type XElement(XName, Object[]). The C# compiler implicitly inserts
+    // a call to convert "foo" into an XName via the implicit operator XName
+    // defined on XName. F# doesn't do implicit convertions, so we need to
+    // be explicit about it.
     let xn s = XName.Get s
     let getAppSetting (key: string) = ConfigurationManager.AppSettings.[key]
 </pre>
@@ -164,6 +170,9 @@ authCookie to the header before calling GetListItems on the service.
         ctx.Endpoint.Binding &lt;- binding
         ctx.Endpoint.Address &lt;- EndpointAddress("http://www.acme.com/Products/_vti_bin/Lists.asmx")
 
+        // to gain access to the underlying transport specific response message
+        // property, i.e., the cookie. Otherwise, we receive a runtime exception
+        // when accessing the HTTP response.
         new OperationContextScope(ctx.InnerChannel) |&gt; ignore
         let request = HttpRequestMessageProperty()
         request.Headers.["Cookie"] &lt;- authCookie
