@@ -58,9 +58,9 @@ module Utils =
 
     let toXElement (e: XmlElement) = XElement.Parse(e.OuterXml)
 
-    // in "new XElement("foo", ...)", the constructor being called actually
-    // has type XElement(XName, Object[]). The C# compiler implicitly inserts
-    // a call to convert "foo" into an XName via the implicit operator XName
+    // with "new XElement("foo", ...)", the constructor being called actually
+    // has type XElement(XName, Object[]). The C# compiler inserts a call to
+    // convert "foo" from string to XName via the implicit operator XName
     // defined on XName. F# doesn't do implicit convertions, so we need to
     // be explicit about it.
     let xn s = XName.Get s
