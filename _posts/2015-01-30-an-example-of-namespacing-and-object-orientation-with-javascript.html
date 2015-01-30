@@ -1,0 +1,180 @@
+---
+layout: post
+title: "An example of namespacing and object-orientation with JavaScript"
+date: 2015-01-30 12:00 UTC
+tags: [F#]
+---
+<div id="post">
+<p>With JavaScript, it's considered good practice to organize code
+into namespaces. In case we don't explicitly use namespaces, functions
+and variables get added to the global window namespace of the browser,
+giving rise to potential naming conflicts. With JavaScript's conflicts
+resolution behavior of the last definition winning, namespace issues
+may be hard to track down. It may also be used to our advantage by
+intentionally overriding existing functionality or polyfilling.
+
+<p>Unfortunately JavaScript doesn't intrincically have a notion of
+namespaces, but the concept can be simulated using objects. To create
+a (carefully chosen) top-level namespace under which to add items,
+start with the following (in a script block or a .js file):</p>
+
+<pre>
+'use strict';
+var bdk = window.bdk || {}; // typeof(bdk) initially 'undefined'
+</pre>
+
+<p>Strictly speaking, strict mode isn't part of the namespace behavior
+-- it's just good practice to avoid coding mistakes. The most
+important change to the behavior of the JavaScript runtime is that
+variables must be declared before use with the var keyword.</p>
+
+<p>The definition of bdk takes advantages or boolean expression
+short-curcuiting and either sets bdk to its previous value, if it
+isn't undefined (such as when already defined in another .js file or
+earlier in the current file) or to a default empty object. Keep in
+mind that a variable in JavaScript which hasn't been assigned a type
+of undefined</p>
+
+<p>Now a second-level namespace can be created under bdk to minimize
+namespace collisions without our own code:</p>
+
+<pre>
+bdk.helpers = bdk.helpers || {}
+</pre>
+
+<p>Adding functions to the bdk.helpers namespace is done like so:</p>
+
+<pre>
+bdk.helpers = function () {
+  var getQueryStringParameter = function (param) {
+    var queryString = document.URL.split('?')[1];
+      if (queryString) {
+        var params = queryString.split('&');
+        for (var i = 0; i < params.length; i++) {
+          var kvp = params[i].split('=');
+          if (param.toLowerCase() === kvp[0].toLowerCase()) {
+            return decodeURIComponent(kvp[1]);
+          }
+        }
+     }
+  }
+
+  var reconstructSharPointStandardTokens = function () {
+    return 'SPHostUrl=' + getQueryStringParameter('SPHostUrl') + '&' +
+           'SPHostTitle=' + getQueryStringParameter('SPHostTitle') + '&' +
+           'SPLanguage=' + getQueryStringParameter('SPLanguage') + '&' +
+           'SPClientTag=' + getQueryStringParameter('SPClientTag') + '&' +
+           'SPProductNumber=' + getQueryStringParameter('SPProductNumber');
+    };
+
+    return {
+        getQueryStringParameter: getQueryStringParameter,
+        reconstructSharPointStandardTokens: reconstructSharPointStandardTokens
+    };
+}();
+</pre>
+
+<p>The above code combines namespacing with the module pattern to
+simulate classes with public and private members. The module pattern
+is often implemented using clojures and immidiately invoked function
+expressions (IIFE, also known as self-executing functions). The IIFE
+is a function that is declared and then immidiately invoked to return
+a object. The closure part comes in because the object literal closes
+over the inner functions and variables.</p>
+
+<p>The two publicly available functions are exported by returning
+those using object literal syntax. The syntax defines name/value pairs
+of information and takes advantage of the fact that object literals
+can not only describe properties of an object but also functions
+available on it. Any function or variable not explicitly
+exported/closed over with the object literal is accessible only within
+the module.</p>
+
+<p>Incidentally, object literals also form the basis of JSON; a subset
+of the object literal syntax where names can only be strings. JSON
+doesn't disallow having function on objects, but given that JSON is
+mostly used for passing data around it's uncommon.</p>
+
+<p>Next, we create a bdk.dataAccess namespace from which bdk.helpers
+are used. Don't pay too much attention to the actual function
+implementation:</p>
+
+<pre>
+bdk.dataAccess = bdk.dataAccess || {}
+bdk.dataAccess = function () {
+  var getSites = function () {
+    return $.ajax({
+      url: '/BdkDocumentLibraryCreator/GetSites?' + bdk.helpers.reconstructSharPointStandardTokens(),
+      type: 'GET',
+      datatype: 'json',
+      contentType: 'application/json'
+    });
+  };
+
+  var getWebs = function (site) {
+    return $.ajax({
+      url: '/BdkDocumentLibraryCreator/GetWebsForSite?' + bdk.helpers.reconstructSharPointStandardTokens(),
+      type: 'GET',
+      data: { 'site': site },
+      datatype: 'json',
+      contentType: 'application/json'
+    });
+  };
+
+  var createBdkLibrary = function (site, web, title) {
+    return $.ajax({
+      url: '/BdkDocumentLibraryCreator/Create?' + bdk.helpers.reconstructSharPointStandardTokens(),
+      type: 'POST',
+      data: JSON.stringify({ 'selectedSite': site, 'selectedWeb': web, 'title': title }),
+      datatype: 'json',
+      contentType: 'application/json'
+    });
+  }
+
+  return {
+    getSites: getSites,
+    getWebs: getWebs,
+    createBdkLibrary: createBdkLibrary
+  };
+}();
+</pre>
+
+<p>The jQuery ajax function returns
+a <a href="http://api.jquery.com/category/deferred-object/">Deferred
+object</a>, which is jQuery's implementation of promises. The "then"
+function allows code to take different paths depending on if the call
+was successful or not -- there's also an "always" function, called in
+either case. The ajax method is asynchronous and thus returns
+immidiately before the server has had a change to respond. The
+asynchronous approach is needed because JavaScript within the browser
+execute in a single-threaded environment. Without a non-blocking
+mechanism in place, waiting for the server would cause the browser to
+become unresponsive.</p>
+
+<p>Finally, given a simple user interface containing dropdowns for
+site and web selection and a text box for title, here's how to use
+jQuery document ready mechanism to kick-off a call to one of the
+dataAccess functions:</p>
+
+<pre>
+function onGetSitesSuccess(r) {
+  var sites = $('#selectedSite');
+  for (var i = 0; i < r.length; i++) {
+    sites.append('&lt;option value="' + r[i] + '"&gt;' + r[i] + '</option>');
+  }
+}
+
+function onError(error) {
+  var status = $('#status');
+  status.text('An error occurred');
+  console.error(JSON.stringify(error));
+}
+
+$(function () {
+  bdk.dataAccess.getSites().then(onGetSitesSuccess, onError);
+});
+</pre>
+
+<p>This concludes our example of how to define a hierarchical
+namespace and attaching objects to it using the module pattern.</p>
+</div>
