@@ -19,7 +19,7 @@ namespaces, but the concept can be simulated using objects. To create
 a (carefully chosen) top-level namespace under which to add items,
 start with the following (in a script block or a .js file):</p>
 
-<pre>
+<pre class="prettyprint lang-js">
 'use strict';
 var bdk = window.bdk || {}; // typeof(bdk) initially 'undefined'
 </pre>
@@ -39,13 +39,13 @@ of undefined</p>
 <p>Now a second-level namespace can be created under bdk to minimize
 namespace collisions without our own code:</p>
 
-<pre>
+<pre class="prettyprint lang-js">
 bdk.helpers = bdk.helpers || {}
 </pre>
 
 <p>Adding functions to the bdk.helpers namespace is done like so:</p>
 
-<pre>
+<pre class="prettyprint lang-js">
 bdk.helpers = function () {
   var getQueryStringParameter = function (param) {
     var queryString = document.URL.split('?')[1];
@@ -99,7 +99,7 @@ mostly used for passing data around it isn't common.</p>
 are used. Don't pay too much attention to the actual function
 implementation:</p>
 
-<pre>
+<pre class="prettyprint lang-js">
 bdk.dataAccess = bdk.dataAccess || {}
 bdk.dataAccess = function () {
   var getSites = function () {
@@ -157,7 +157,7 @@ site and web selection and a text box for title, here's how to use
 jQuery document ready mechanism to kick-off a call to one of the
 dataAccess functions:</p>
 
-<pre>
+<pre class="prettyprint lang-js">
 function onGetSitesSuccess(r) {
   var sites = $('#selectedSite');
   for (var i = 0; i < r.length; i++) {
