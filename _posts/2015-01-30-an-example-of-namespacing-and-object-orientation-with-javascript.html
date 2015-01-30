@@ -11,9 +11,10 @@ and variables get added to the global window namespace of the browser,
 giving rise to potential naming conflicts. With JavaScript's conflicts
 resolution behavior of the last definition winning, namespace issues
 may be hard to track down. It may also be used to our advantage by
-intentionally overriding existing functionality or polyfilling.
+intentionally overriding existing functionality
+or <a href="http://en.wikipedia.org/wiki/Polyfill">polyfilling</a>.
 
-<p>Unfortunately JavaScript doesn't intrincically have a notion of
+<p>Unfortunately JavaScript doesn't intrinsically have a notion of
 namespaces, but the concept can be simulated using objects. To create
 a (carefully chosen) top-level namespace under which to add items,
 start with the following (in a script block or a .js file):</p>
@@ -29,7 +30,7 @@ important change to the behavior of the JavaScript runtime is that
 variables must be declared before use with the var keyword.</p>
 
 <p>The definition of bdk takes advantages or boolean expression
-short-curcuiting and either sets bdk to its previous value, if it
+short-circuiting and either sets bdk to its previous value, if it
 isn't undefined (such as when already defined in another .js file or
 earlier in the current file) or to a default empty object. Keep in
 mind that a variable in JavaScript which hasn't been assigned a type
@@ -76,19 +77,18 @@ bdk.helpers = function () {
 
 <p>The above code combines namespacing with the module pattern to
 simulate classes with public and private members. The module pattern
-is often implemented using clojures and immidiately invoked function
+is often implemented using closures and immediately invoked function
 expressions (IIFE, also known as self-executing functions). The IIFE
-is a function that is declared and then immidiately invoked to return
-a object. The closure part comes in because the object literal closes
+is a function that is declared and then immediately invoked to return
+an object. The closure part comes in because the object literal closes
 over the inner functions and variables.</p>
 
-<p>The two publicly available functions are exported by returning
-those using object literal syntax. The syntax defines name/value pairs
-of information and takes advantage of the fact that object literals
-can not only describe properties of an object but also functions
-available on it. Any function or variable not explicitly
-exported/closed over with the object literal is accessible only within
-the module.</p>
+<p>The two publicly available functions are exported by returning an
+object of name/value pairs of information and takes advantage of the
+fact that object literals can not only describe properties of an
+object but also functions available on it. Any function or variable
+not explicitly exported/closed over with the object literal is
+accessible only within the module.</p>
 
 <p>Incidentally, object literals also form the basis of JSON; a subset
 of the object literal syntax where names can only be strings. JSON
@@ -139,13 +139,14 @@ bdk.dataAccess = function () {
 }();
 </pre>
 
-<p>The jQuery ajax function returns
+<p>The jQuery <a href="http://api.jquery.com/jquery.ajax/">ajax
+function</a> returns
 a <a href="http://api.jquery.com/category/deferred-object/">Deferred
 object</a>, which is jQuery's implementation of promises. The "then"
 function allows code to take different paths depending on if the call
 was successful or not -- there's also an "always" function, called in
 either case. The ajax method is asynchronous and thus returns
-immidiately before the server has had a change to respond. The
+immediately before the server has had a change to respond. The
 asynchronous approach is needed because JavaScript within the browser
 execute in a single-threaded environment. Without a non-blocking
 mechanism in place, waiting for the server would cause the browser to
