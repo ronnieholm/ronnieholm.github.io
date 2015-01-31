@@ -14,6 +14,8 @@ may be hard to track down. It may also be used to our advantage by
 intentionally overriding existing functionality
 or <a href="http://en.wikipedia.org/wiki/Polyfill">polyfilling</a>.
 
+<h4>Simulating namespaces</h4>
+
 <p>Unfortunately JavaScript doesn't intrinsically have a notion of
 namespaces, but the concept can be simulated using objects. To create
 a (carefully chosen) top-level namespace under which to add items,
@@ -74,6 +76,8 @@ bdk.helpers = function () {
     };
 }();
 </pre>
+
+<h4>Simulating object-orientation</h4>
 
 <p>The above code combines namespacing with the module pattern to
 simulate classes with public and private members. The module pattern
@@ -175,6 +179,8 @@ $(function () {
   bdk.dataAccess.getSites().then(onGetSitesSuccess, onError);
 });
 </pre>
+
+<h4>Conclusion</h4>
 
 <p>This concludes our example of how to define a hierarchical
 namespace and attaching objects to it using the module pattern.</p>
