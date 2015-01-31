@@ -76,8 +76,8 @@ public class TraceLogger : ILogger {
 that only the actual message is provided as argument:</p>
 
 <pre class="prettyprint lang-cs">
-var l = new ConcreteLogger();
-l.Verbose("1 + 2 = {0}", 1 + 2);
+var tl = new TraceLogger();
+tl.Verbose("1 + 2 = {0}", 1 + 2);
 
 // results in:
 // dateAndTimeInUtc level callingMethod message
