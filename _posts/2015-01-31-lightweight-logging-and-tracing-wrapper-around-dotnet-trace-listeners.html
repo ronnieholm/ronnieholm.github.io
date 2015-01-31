@@ -1,0 +1,188 @@
+---
+layout: post
+title: "Lightweight logging and tracing wrapper around .NET trace listeners"
+date: 2015-01-31 12:00 UTC
+tags: [C#]
+
+---
+<div id="post">
+<p>With a large number of logging libraries to choose from (NLog,
+Log4Net, MS Logging Application Block, to name a few), I prefer to not
+use any of the heavy-weight libraries. Why take a depedency on one of
+these when I only require a tiny fraction of their functionality when
+usually a thin wrapper on top of the .NET trace listeners suffices? I
+would never venture into writing my own library from scratch. It's a
+deceptively simple task complicated by multi-threading and file
+locking issues.</p>
+
+<p>In order to avoid coupling client logging code to any particular
+framework, clients should log through an interface. It's one
+implementation of this interface which uses the .NET trace diagnostic
+logging. The interface itself should be mostly self-explanatory as
+it's used like Console.WriteLine or String.Format with a format string
+and values to be substributed in.</p>
+
+<pre class="prettyprint lang-cs">
+public interface ILogger {
+    void Verbose(string format, params object[] args);
+    void Warning(string format, params object[] args);
+    void Error(string format, params object[] args);
+}
+</pre>
+
+<p>The interface implementation defines a format for each entry such
+that only the actual message is provided as argument:</p>
+
+<pre class="prettyprint lang-cs">
+var l = new ConcreteLogger();
+l.Verbose("1 + 2 = {0}", 1 + 2);
+
+// results in:
+// dateAndTimeInUtc level callingMethod message
+// 1/31/2015 12:54:41 PM Verbose Testbed.Console.Program.Main 1 + 2 = 3
+</pre>
+
+<p>Next, let's implement the interface such that it logs uses the out
+of the box .NET trace listeners. How many listeners and how these
+listeners actually accomplish their logging is decoupled from code and
+defined in app.config or web.config:</p>
+
+<pre class="prettyprint lang-cs">
+public class TraceLogger : ILogger {
+    protected enum LogLevel {
+        None = 0,
+        Verbose,
+        Warning,
+        Error
+    };
+
+    public virtual void Verbose(string format, params object[] args) {
+        WriteLine(format, LogLevel.Verbose, args);
+    }
+
+    public virtual void Warning(string format, params object[] args) {
+        WriteLine(format, LogLevel.Warning, args);
+    }
+
+    public virtual void Error(string format, params object[] args) {
+        WriteLine(format, LogLevel.Error, args);
+    }
+
+    private void WriteLine(string format, LogLevel l, params object[] args) {
+        Trace.WriteLine(Format(format, l, args));
+    }
+
+    protected string Format(string format, LogLevel l, params object[] args) {
+        var frame = new StackFrame(3);
+        var method = frame.GetMethod();
+        var type = method.DeclaringType;
+        var name = method.Name;
+        return string.Format(
+            "{0} {1} {2}.{3} {4}",
+            DateTime.Now.ToUniversalTime(), l.ToString(), type, name, string.Format(format, args));
+    }
+}
+</pre>
+
+<p>Now, by attaching a console and file trace listener in the config
+file, the TraceLogger will pick up and log to both sources:</p>
+
+<pre>
+&lt;configuration&gt;
+  &lt;system.diagnostics&gt;
+    &lt;trace autoflush="true" indentsize="4"&gt;
+      &lt;listeners&gt;
+        &lt;add name="console" type="System.Diagnostics.ConsoleTraceListener" /&gt;
+        &lt;add name="file" type="System.Diagnostics.TextWriterTraceListener" initializeData="Bdk.Console.log" /&gt;
+      &lt;/listeners&gt;
+    &lt;/trace&gt;
+  &lt;/system.diagnostics&gt;
+  ...
+&lt;/configuration&gt;
+</pre>
+
+<p>
+The downside to
+using <a href="https://msdn.microsoft.com/en-us/library/system.diagnostics.consoletracelistener">ConsoleTraceListener</a>
+is that the trace lister doesn't know about log levels. After all, log
+levels is a concept local to the ILogger implementation. Nevertheless,
+during debugging it's useful to take advantage of the log level
+information and color code output accordingly. Warnings could become
+yellow text and errors red to make these conditions easier to spot
+among scrolling output.
+</p>
+
+<p>To stay true to
+the <a href="http://en.wikipedia.org/wiki/Liskov_substitution_principle">Liskov
+Substitution Principle</a>, I must ensure a colored console logger is
+substitutable with the TraceLogger class. It must keep logging to any
+registered listener but the ConsoleTraceListener, if one is
+registered. I want to explicitly trace to the console and with a
+ConsoleTraceLogger already registered every log message would appear
+twice.</p>
+
+<p>A custom logger would typically inherit from the
+.NET <a href="https://msdn.microsoft.com/en-us/library/system.diagnostics.tracelistener">TraceLogger</a>
+class and override the Write and WriteLine methods. This would enable
+one to add the custom trace listener class to the list of trace
+listeners in the config file. But as the TraceLogger class has no
+knowledge of log levels we'd have to add wrapper methods like the
+Verbose, Warning, and Errors ones to it which would call the
+overridden Write and WriteLine methods. The TraceLogger-derived
+classes form our low-level building blocks and polluting those with
+domain details is hardly good design. Instead, my ColoredConsoleLogger
+derives from my TraceLogger class and explicitly deals with any
+registered console logger:</p>
+
+<pre class="prettyprint lang-cs">
+public class ColoredConsoleLogger : TraceLogger {
+    public override void Verbose(string format, params object[] args) {
+        WriteLine(format, LogLevel.Verbose, System.Console.ForegroundColor, args);
+    }
+
+    public override void Warning(string format, params object[] args) {
+        WriteLine(format, LogLevel.Warning, ConsoleColor.Yellow, args);
+    }
+
+    public override void Error(string format, params object[] args) {
+        WriteLine(format, LogLevel.Error, ConsoleColor.Red);
+    }
+
+    private void WriteLine(string s, LogLevel l, ConsoleColor foregroundColor, params object[] args) {
+        var original = System.Console.ForegroundColor;
+        var logLine = Format(s, l, args);
+
+        Trace.Listeners
+            .Cast<TraceListener>()
+            .Where(tl => tl.GetType() != typeof(ConsoleTraceListener))
+            .ToList()
+            .ForEach(tl => tl.WriteLine(logLine));
+
+        switch (l) {
+            case LogLevel.Verbose:
+                System.Console.ForegroundColor = foregroundColor;
+                break;
+            case LogLevel.Warning:
+                System.Console.ForegroundColor = ConsoleColor.Yellow;
+                break;
+            case LogLevel.Error:
+                System.Console.ForegroundColor = ConsoleColor.Red;
+                break;
+            default:
+                throw new ArgumentException("Should never happen");
+        }
+
+        System.Console.WriteLine(logLine);
+        System.Console.ForegroundColor = original;
+    }
+}
+</pre>
+
+<p>The interface and the couple of concrete implementation usually
+suffices for my needs. I don't much differentiate between logging,
+tracing, and instrumentation as one tends to spill over into the
+other. I also don't limit the amount of output in production and
+prefer erring on the side of outputting too much. I can always filter
+the information using grep-like tools and that extra piece of
+information might come in handy.</p>
+</div>
