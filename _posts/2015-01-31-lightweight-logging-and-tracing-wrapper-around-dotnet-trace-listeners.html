@@ -8,19 +8,19 @@ tags: [C#]
 <div id="post">
 <p>With a large number of logging libraries to choose from (NLog,
 Log4Net, MS Logging Application Block, to name a few), I prefer to not
-use any of the heavy-weight libraries. Why take a depedency on one of
+use any of the heavyweight libraries. Why take a dependency on one of
 these when I only require a tiny fraction of their functionality when
 usually a thin wrapper on top of the .NET trace listeners suffices? I
 would never venture into writing my own library from scratch. It's a
 deceptively simple task complicated by multi-threading and file
-locking issues.</p>
+locking issues already taken care of by .NET trace listeners.</p>
 
 <p>In order to avoid coupling client logging code to any particular
 framework, clients should log through an interface. It's one
 implementation of this interface which uses the .NET trace diagnostic
 logging. The interface itself should be mostly self-explanatory as
 it's used like Console.WriteLine or String.Format with a format string
-and values to be substributed in.</p>
+and values to substitute in.</p>
 
 <pre class="prettyprint lang-cs">
 public interface ILogger {
@@ -87,7 +87,7 @@ public class TraceLogger : ILogger {
 <p>Now, by attaching a console and file trace listener in the config
 file, the TraceLogger will pick up and log to both sources:</p>
 
-<pre>
+<pre class="prettyprint lang-xml">
 &lt;configuration&gt;
   &lt;system.diagnostics&gt;
     &lt;trace autoflush="true" indentsize="4"&gt;
@@ -105,11 +105,11 @@ file, the TraceLogger will pick up and log to both sources:</p>
 The downside to
 using <a href="https://msdn.microsoft.com/en-us/library/system.diagnostics.consoletracelistener">ConsoleTraceListener</a>
 is that the trace lister doesn't know about log levels. After all, log
-levels is a concept local to the ILogger implementation. Nevertheless,
-during debugging it's useful to take advantage of the log level
-information and color code output accordingly. Warnings could become
-yellow text and errors red to make these conditions easier to spot
-among scrolling output.
+levels are local to ILogger implementations. Nevertheless, during
+debugging it's useful to take advantage of the log level information
+and color code output accordingly. Warnings could become yellow text
+and errors red to make these conditions easier to spot among scrolling
+output.
 </p>
 
 <p>To stay true to
@@ -179,7 +179,7 @@ public class ColoredConsoleLogger : TraceLogger {
 </pre>
 
 <p>The interface and the couple of concrete implementation usually
-suffices for my needs. I don't much differentiate between logging,
+satisfy my requirements. I don't much differentiate between logging,
 tracing, and instrumentation as one tends to spill over into the
 other. I also don't limit the amount of output in production and
 prefer erring on the side of outputting too much. I can always filter
