@@ -30,18 +30,6 @@ public interface ILogger {
 }
 </pre>
 
-<p>The interface implementation defines a format for each entry such
-that only the actual message is provided as argument:</p>
-
-<pre class="prettyprint lang-cs">
-var l = new ConcreteLogger();
-l.Verbose("1 + 2 = {0}", 1 + 2);
-
-// results in:
-// dateAndTimeInUtc level callingMethod message
-// 1/31/2015 12:54:41 PM Verbose Testbed.Console.Program.Main 1 + 2 = 3
-</pre>
-
 <p>Next, let's implement the interface such that it logs uses the out
 of the box .NET trace listeners. How many listeners and how these
 listeners actually accomplish their logging is decoupled from code and
@@ -82,6 +70,18 @@ public class TraceLogger : ILogger {
             DateTime.Now.ToUniversalTime(), l.ToString(), type, name, string.Format(format, args));
     }
 }
+</pre>
+
+<p>The interface implementation defines a format for each entry such
+that only the actual message is provided as argument:</p>
+
+<pre class="prettyprint lang-cs">
+var l = new ConcreteLogger();
+l.Verbose("1 + 2 = {0}", 1 + 2);
+
+// results in:
+// dateAndTimeInUtc level callingMethod message
+// 1/31/2015 12:54:41 PM Verbose Testbed.Console.Program.Main 1 + 2 = 3
 </pre>
 
 <p>Now, by attaching a console and file trace listener in the config
