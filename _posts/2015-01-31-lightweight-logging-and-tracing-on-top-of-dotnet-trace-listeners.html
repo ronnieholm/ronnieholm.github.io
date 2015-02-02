@@ -170,7 +170,7 @@ public class ColoredConsoleLogger : TraceLogger {
                 System.Console.ForegroundColor = ConsoleColor.Red;
                 break;
             default:
-                throw new ArgumentException("Should never happen");
+                throw new ArgumentException("Unsupported log level: " + l);
         }
 
         System.Console.WriteLine(logLine);
