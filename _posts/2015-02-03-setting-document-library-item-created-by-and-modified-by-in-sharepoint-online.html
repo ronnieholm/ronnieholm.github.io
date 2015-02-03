@@ -1,0 +1,176 @@
+---
+layout: post
+title: "Setting document library item Created By and Modified By in SharePoint Online"
+date: 2015-03-02 12:00 UTC
+tags: [C#]
+---
+<div id="post">
+
+<p>Working with document libraries programmatically, a common issue
+I've come across is how to set the value of Modified by and Created
+by. Doing so comes in handy during (light-weight) migration of
+documents or when creating minor versions on the fly from any
+application. In those cases, we might wish to override the default
+behavior where modified and created by are set to the credentials
+under which CSOM is running and modified and created timestamp is set
+to the current date and time.</p>
+
+<p>Following a bit of trial and error and an interaction with
+Microsoft support, I've put together a demo application which uses
+CSOM to set modified by, created by, date and time of both, and actual
+file content.</p>
+
+<p>First, locate a document library in SharePoint Online with support
+for minor versions enabled and upload any document to it. What we're
+after is the ID of the item (rather than creating the item with
+code).</p>
+
+<p>Second, we define metadata describing each minor version. In this
+case it's hardcoded, but it might as well have been extracted from
+another system, such as an earlier version of SharePoint.</p>
+
+<pre class="prettyprint lang-cs">
+class MinorVersionMetadata {
+    public double Version { get; set; }
+    public string CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string ModifiedBy { get; set; }
+    public DateTime ModifiedAt { get; set; }
+    public string Content { get; set; }
+}
+
+class SettingMinorVersionMetadata {
+    Uri _site = new Uri("https://&lt;tenant&gt;.sharepoint.com/&lt;site&gt;");
+    string _user = "&lt;user&gt;@&lt;tenant&gt;.onmicrosoft.com";
+    string _password = "&lt;password&gt;";
+    string _documentLibrary = "&lt;library&gt;";
+    int _documentId = 15;
+
+    List&lt;MinorVersionMetadata&gt; _metadata = new List&lt;MinorVersionMetadata&gt; {
+        new MinorVersionMetadata { 
+            Version = 0.2,
+            CreatedBy = "&lt;user1&gt;",
+            CreatedAt = DateTime.Now.AddDays(-5),
+            ModifiedBy = "&lt;user2&gt;",
+            ModifiedAt = DateTime.Now.AddDays(-4),
+            Content = "0.2"
+        },
+        new MinorVersionMetadata { 
+            Version = 0.3,
+            CreatedBy = "&lt;user3&gt;",
+            CreatedAt = DateTime.Now.AddDays(-3),
+            ModifiedBy = "&lt;user4&gt;",
+            ModifiedAt = DateTime.Now.AddDays(-2),
+            Content = "0.3"
+        }
+    };
+
+    // subsequent code in post goes here
+}
+</pre>
+
+<p>Conducting tests, I find it useful to always recreate the
+ClientContext. This ensures no residual state has been left over
+affecting later calls positively or negatively.</p>
+
+<pre class="prettyprint lang-cs">
+void RunCodeWithNewClientContext(Action&lt;ClientContext, ListItem&gt; callback) {
+    var securePassword = new SecureString();
+    _password.ToCharArray().ToList().ForEach(securePassword.AppendChar);
+    var credentials = new SharePointOnlineCredentials(_user, securePassword);
+
+    using (var ctx = new ClientContext(_site) { Credentials = credentials }) {
+        var web = ctx.Web;
+        var list = ctx.Web.Lists.GetByTitle(_documentLibrary);
+        var item = list.GetItemById(_documentId);
+        ctx.Load(item, f =&gt; f.File);
+        ctx.ExecuteQuery();
+        callback(ctx, item);
+    }
+}
+</pre>
+
+<p>Now, using our method for creating a new client context and passing
+in a lambda expression to execute as the last step, we first checkout
+the item in question, then update its content before checking it back
+it. The code updating the fields operate on the most recent version of
+the list item but doesn't itself create a new minor version -- that's
+what the initial checkout/checkin operations are for. It does modify
+and checkin the item, but an item doesn't explicitly have to be
+checked out in advance for the update logic to work (if you checkout
+the item yourself, you must also remember to checkin before changing
+the fields or the modifications are ignored).</p>
+
+<pre class="prettyprint lang-cs">
+void ProcessMinorVersions(MinorVersionMetadata mvmd) {
+    // check out item
+    RunCodeWithNewClientContext((ctx, item) =&gt; {
+        if (item.File.CheckOutType == CheckOutType.None) item.File.CheckOut();
+        ctx.ExecuteQuery();
+    });
+
+    // modify file contents
+    RunCodeWithNewClientContext((ctx, item) =&gt; {
+        var bytes = new byte[mvmd.Content.Length * sizeof(char)];
+        Buffer.BlockCopy(mvmd.Content.ToCharArray(), 0, bytes, 0, bytes.Length);
+        item.File.SaveBinary(new FileSaveBinaryInformation { Content = bytes });
+        ctx.ExecuteQuery();
+    });
+
+    // check in item
+    RunCodeWithNewClientContext((ctx, item) =&gt; {
+        item.File.CheckIn("Checked in by tool", CheckinType.MinorCheckIn);
+        ctx.ExecuteQuery();
+    });
+
+    // modify latest checkedin minor version
+    RunCodeWithNewClientContext((ctx, item) =&gt; {
+        const string template = "i:0#.f|membership|{0}@&lt;tenant&gt;.onmicrosoft.com";
+        var modifiedBy = ctx.Web.EnsureUser(string.Format(template, mvmd.ModifiedBy));
+        var createdBy = ctx.Web.EnsureUser(string.Format(template, mvmd.CreatedBy));
+
+        ctx.Load(modifiedBy);
+        ctx.Load(createdBy);
+        ctx.ExecuteQuery();
+
+        item["Editor"] = modifiedBy.Id;
+        var modifiedByField = new ListItemFormUpdateValue {
+            FieldName = "Modified_x0020_By",
+            FieldValue = modifiedBy.Id.ToString()
+        };
+
+        item["Author"] = createdBy.Id;
+        var createdByField = new ListItemFormUpdateValue {
+            FieldName = "Created_x0020_By",
+            FieldValue = createdBy.Id.ToString()
+        };
+
+        item["Modified"] = mvmd.ModifiedAt.ToUniversalTime();
+        item["Created"] = mvmd.CreatedAt.ToUniversalTime();
+
+        // it doesn't matter if you add both modifiedByField and createdByField.
+        // As long as the list is non-empty all changes appear to carry over.
+        var updatedValues = new List&lt;ListItemFormUpdateValue&gt; { modifiedByField, createdByField };
+        item.ValidateUpdateListItem(updatedValues, true, "Comment ignored when doing explicit checkin/checkout");
+        ctx.ExecuteQuery();
+    });
+}
+</pre>
+
+<p>Finally, we put everything together in a method to be called to kick of the demonstration:</p>
+
+<pre class="prettyprint lang-cs">
+public void Run() {
+    _metadata
+        .OrderBy(m =&gt; m.Version)
+        .ToList()
+        .ForEach(ProcessMinorVersions);
+}
+</pre>
+
+<p>So what's appearant from this code sample is that updating fields
+follow the traditional way of updating list items (the approach shown
+for the date fields), but for created by and modified by there's a
+speciel used in the form that's requires special handling.</p>
+
+</div>
