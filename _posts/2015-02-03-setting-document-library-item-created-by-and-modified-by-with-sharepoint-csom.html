@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Setting document library item Created By and Modified By with SharePoint CSOM"
-date: 2015-03-02 12:00 UTC
+date: 2015-02-03 12:00 UTC
 tags: [C#]
 ---
 <div id="post">
@@ -30,7 +30,7 @@ case it's hardcoded, but it might as well have been extracted from
 another system, such as an earlier version of SharePoint.</p>
 
 <pre class="prettyprint lang-cs">
-class MinorVersionMetadata {
+class VersionMetadata {
     public double Version { get; set; }
     public string CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -39,15 +39,15 @@ class MinorVersionMetadata {
     public string Content { get; set; }
 }
 
-class SettingMinorVersionMetadata {
+class SettingVersionMetadata {
     Uri _site = new Uri("https://&lt;tenant&gt;.sharepoint.com/&lt;site&gt;");
     string _user = "&lt;user&gt;@&lt;tenant&gt;.onmicrosoft.com";
     string _password = "&lt;password&gt;";
     string _documentLibrary = "&lt;library&gt;";
     int _documentId = 15;
 
-    List&lt;MinorVersionMetadata&gt; _metadata = new List&lt;MinorVersionMetadata&gt; {
-        new MinorVersionMetadata { 
+    List&lt;VersionMetadata&gt; _versions = new List&lt;VersionMetadata&gt; {
+        new VersionMetadata { 
             Version = 0.2,
             CreatedBy = "&lt;user1&gt;",
             CreatedAt = DateTime.Now.AddDays(-5),
@@ -55,7 +55,7 @@ class SettingMinorVersionMetadata {
             ModifiedAt = DateTime.Now.AddDays(-4),
             Content = "0.2"
         },
-        new MinorVersionMetadata { 
+        new VersionMetadata { 
             Version = 0.3,
             CreatedBy = "&lt;user3&gt;",
             CreatedAt = DateTime.Now.AddDays(-3),
@@ -102,7 +102,7 @@ the item yourself, you must also remember to checkin before changing
 the fields or the modifications are ignored).</p>
 
 <pre class="prettyprint lang-cs">
-void ProcessMinorVersions(MinorVersionMetadata mvmd) {
+void ProcessMinorVersion(VersionMetadata vm) {
     // check out item
     RunCodeWithNewClientContext((ctx, item) =&gt; {
         if (item.File.CheckOutType == CheckOutType.None) item.File.CheckOut();
@@ -111,8 +111,8 @@ void ProcessMinorVersions(MinorVersionMetadata mvmd) {
 
     // modify file contents
     RunCodeWithNewClientContext((ctx, item) =&gt; {
-        var bytes = new byte[mvmd.Content.Length * sizeof(char)];
-        Buffer.BlockCopy(mvmd.Content.ToCharArray(), 0, bytes, 0, bytes.Length);
+        var bytes = new byte[vm.Content.Length * sizeof(char)];
+        Buffer.BlockCopy(vm.Content.ToCharArray(), 0, bytes, 0, bytes.Length);
         item.File.SaveBinary(new FileSaveBinaryInformation { Content = bytes });
         ctx.ExecuteQuery();
     });
@@ -123,11 +123,11 @@ void ProcessMinorVersions(MinorVersionMetadata mvmd) {
         ctx.ExecuteQuery();
     });
 
-    // modify latest checkedin minor version
+    // modify latest minor version
     RunCodeWithNewClientContext((ctx, item) =&gt; {
         const string template = "i:0#.f|membership|{0}@&lt;tenant&gt;.onmicrosoft.com";
-        var modifiedBy = ctx.Web.EnsureUser(string.Format(template, mvmd.ModifiedBy));
-        var createdBy = ctx.Web.EnsureUser(string.Format(template, mvmd.CreatedBy));
+        var modifiedBy = ctx.Web.EnsureUser(string.Format(template, vm.ModifiedBy));
+        var createdBy = ctx.Web.EnsureUser(string.Format(template, vm.CreatedBy));
 
         ctx.Load(modifiedBy);
         ctx.Load(createdBy);
@@ -145,13 +145,13 @@ void ProcessMinorVersions(MinorVersionMetadata mvmd) {
             FieldValue = createdBy.Id.ToString()
         };
 
-        item["Modified"] = mvmd.ModifiedAt.ToUniversalTime();
-        item["Created"] = mvmd.CreatedAt.ToUniversalTime();
+        item["Modified"] = vm.ModifiedAt.ToUniversalTime();
+        item["Created"] = vm.CreatedAt.ToUniversalTime();
 
         // it doesn't matter if you add both modifiedByField and createdByField.
         // As long as the list is non-empty all changes appear to carry over.
         var updatedValues = new List&lt;ListItemFormUpdateValue&gt; { modifiedByField, createdByField };
-        item.ValidateUpdateListItem(updatedValues, true, "Comment ignored when doing explicit checkin/checkout");
+        item.ValidateUpdateListItem(updatedValues, true, "Ignored on explicit checkin/checkout");
         ctx.ExecuteQuery();
     });
 }
@@ -161,10 +161,10 @@ void ProcessMinorVersions(MinorVersionMetadata mvmd) {
 
 <pre class="prettyprint lang-cs">
 public void Run() {
-    _metadata
+    _versions
         .OrderBy(m =&gt; m.Version)
         .ToList()
-        .ForEach(ProcessMinorVersions);
+        .ForEach(ProcessMinorVersion);
 }
 </pre>
 
