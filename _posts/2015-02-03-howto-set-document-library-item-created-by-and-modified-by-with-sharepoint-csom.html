@@ -1,33 +1,30 @@
 ---
 layout: post
-title: "Setting document library item Created By and Modified By with SharePoint CSOM"
+title: "Howto set document library item Created By and Modified By with SharePoint CSOM"
 date: 2015-02-03 12:00 UTC
 tags: [C#]
 ---
 <div id="post">
 
-<p>Working with document libraries programmatically, a common issue
-I've come across is how to set the value of Modified by and Created
-by. Doing so comes in handy during (light-weight) migration of
-documents or when creating minor versions on the fly from any
-application. In those cases, we might wish to override the default
-behavior where modified and created by are set to the credentials
-under which CSOM is running and modified and created timestamp is set
-to the current date and time.</p>
+<p>Programmatically working with document libraries, a common issue
+I've come across is how to explicitly set the value of the Modified by
+and Created by fields displayed in the SharePoint UI. Doing so comes
+in handy during (lightweight) migration of documents or when creating
+minor versions from any application which doesn't impersonate the
+actual SharePoint user.  In those cases, we might wish to override the
+default behavior where Modified by and Created by are set to the
+credentials under which CSOM is executing and the Modified and Created
+timestamps are set to the current date and time.</p>
 
-<p>Following a bit of trial and error and an interaction with
-Microsoft support, I've put together a demo application which uses
-CSOM to set modified by, created by, date and time of both, and actual
-file content.</p>
+<p>To run the demo code, first locate a document library in SharePoint
+with support for minor versions enabled and upload any document to
+it. What we're after is the ID of the item rather than creating the
+item in code. Then adjust the demo code accordingly by replacing the
+&lt;tokens&gt; with actual values.</p>
 
-<p>First, locate a document library in SharePoint Online with support
-for minor versions enabled and upload any document to it. What we're
-after is the ID of the item (rather than creating the item with
-code).</p>
-
-<p>Second, we define metadata describing each minor version. In this
-case it's hardcoded, but it might as well have been extracted from
-another system, such as an earlier version of SharePoint.</p>
+<p>Next I define metadata describing each minor version. In this case
+it's hardcoded, but it might as well have come from another
+system.</p>
 
 <pre class="prettyprint lang-cs">
 class VersionMetadata {
@@ -69,8 +66,9 @@ class SettingVersionMetadata {
 }
 </pre>
 
-<p>Conducting tests, I find it useful to always recreate the
-ClientContext. This ensures no residual state has been left over
+<p>During testing, I find it helpful to recreate the
+ClientContext between SharePoint interactions. It makes the code more explcit and
+prevents any residual state being left over from earlier calls,
 affecting later calls positively or negatively.</p>
 
 <pre class="prettyprint lang-cs">
@@ -90,16 +88,18 @@ void RunCodeWithNewClientContext(Action&lt;ClientContext, ListItem&gt; callback)
 }
 </pre>
 
-<p>Now, using our method for creating a new client context and passing
-in a lambda expression to execute as the last step, we first checkout
-the item in question, then update its content before checking it back
-it. The code updating the fields operate on the most recent version of
-the list item but doesn't itself create a new minor version -- that's
-what the initial checkout/checkin operations are for. It does modify
-and checkin the item, but an item doesn't explicitly have to be
-checked out in advance for the update logic to work (if you checkout
-the item yourself, you must also remember to checkin before changing
-the fields or the modifications are ignored).</p>
+<p>Now, using RunCodeWithNewClientContext, passing in lambda
+expressions to execute, I first checkout the list item, then update
+its content and checks it back in, causing a new minor version to be
+created.</p>
+    
+<p>The last part, updating Modified by, Created by and the
+corresponding timestamp fields, doesn't create a new minor version. It
+operates on the most recent version which doesn't have to be checked
+out in advance for the update to work. The update will cause the
+current minor version to be checked in, though. If I'd checked out the
+item myself, I must also check it back in before modifying the
+modifier and author fields or the update is lost.</p>
 
 <pre class="prettyprint lang-cs">
 void ProcessMinorVersion(VersionMetadata vm) {
@@ -157,7 +157,7 @@ void ProcessMinorVersion(VersionMetadata vm) {
 }
 </pre>
 
-<p>Finally, we put everything together in a method to be called to kick of the demonstration:</p>
+<p>Finally, here's the method to kick of the sample:</p>
 
 <pre class="prettyprint lang-cs">
 public void Run() {
@@ -168,9 +168,9 @@ public void Run() {
 }
 </pre>
 
-<p>So what's appearant from this code sample is that updating fields
-follow the traditional way of updating list items (the approach shown
-for the date fields), but for created by and modified by there's a
-speciel used in the form that's requires special handling.</p>
+<p>What's appearant from this sample is that updating any field on the
+item follow the traditional approach. But Modified by and Created by
+are special UI fields whose updated values doesn't automatically get
+pushed to the UI.</p>
 
 </div>
