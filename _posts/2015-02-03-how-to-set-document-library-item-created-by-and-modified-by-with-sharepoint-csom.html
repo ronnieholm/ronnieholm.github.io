@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Howto set document library item Created By and Modified By with SharePoint CSOM"
+title: "How to set document library item Created by and Modified by with SharePoint CSOM"
 date: 2015-02-03 12:00 UTC
 tags: [C#]
 ---
@@ -8,11 +8,11 @@ tags: [C#]
 
 <p>Programmatically working with document libraries, a common issue
 I've come across is how to explicitly set the value of the Modified by
-and Created by fields displayed in the SharePoint UI. Doing so comes
-in handy during (lightweight) migration of documents or when creating
-minor versions from any application which doesn't impersonate the
-actual SharePoint user.  In those cases, we might wish to override the
-default behavior where Modified by and Created by are set to the
+and Created by fields displayed in the SharePoint UI. Being able to do
+so is useful during (lightweight) migration of documents or when
+creating minor versions from any application which doesn't impersonate
+the actual SharePoint user. In those cases, we might wish to override
+the default behavior where Modified by and Created by are set to the
 credentials under which CSOM is executing and the Modified and Created
 timestamps are set to the current date and time.</p>
 
@@ -66,8 +66,8 @@ class SettingVersionMetadata {
 }
 </pre>
 
-<p>During testing, I find it helpful to recreate the
-ClientContext between SharePoint interactions. It makes the code more explcit and
+<p>During testing, I find it helpful to recreate the ClientContext
+between SharePoint interactions. It makes the code more explicit and
 prevents any residual state being left over from earlier calls,
 affecting later calls positively or negatively.</p>
 
@@ -168,9 +168,9 @@ public void Run() {
 }
 </pre>
 
-<p>What's appearant from this sample is that updating any field on the
-item follow the traditional approach. But Modified by and Created by
-are special UI fields whose updated values doesn't automatically get
-pushed to the UI.</p>
+<p>Apparent from this sample is that updating any field on the item
+follows the traditional approach. But Modified by and Created by are
+special UI fields whose updated values doesn't automatically get
+propagated to the UI.</p>
 
 </div>
