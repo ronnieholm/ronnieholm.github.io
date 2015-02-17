@@ -157,7 +157,10 @@ public class ColoredConsoleLogger : TraceLogger {
             .Cast<TraceListener>()
             .Where(tl => tl.GetType() != typeof(ConsoleTraceListener))
             .ToList()
-            .ForEach(tl => tl.WriteLine(logLine));
+            .ForEach(tl => {
+                tl.WriteLine(logLine);
+                tl.Flush();
+            });
 
         switch (l) {
             case LogLevel.Verbose:
