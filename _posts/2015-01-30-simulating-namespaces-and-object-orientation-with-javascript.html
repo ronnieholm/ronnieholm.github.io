@@ -62,7 +62,7 @@ bdk.helpers = function () {
      }
   }
 
-  var reconstructSharPointStandardTokens = function () {
+  var reconstructSharePointStandardTokens = function () {
     return 'SPHostUrl=' + getQueryStringParameter('SPHostUrl') + '&' +
            'SPHostTitle=' + getQueryStringParameter('SPHostTitle') + '&' +
            'SPLanguage=' + getQueryStringParameter('SPLanguage') + '&' +
@@ -72,7 +72,7 @@ bdk.helpers = function () {
 
     return {
         getQueryStringParameter: getQueryStringParameter,
-        reconstructSharPointStandardTokens: reconstructSharPointStandardTokens
+        reconstructSharePointStandardTokens: reconstructSharePointStandardTokens
     };
 }();
 </pre>
@@ -108,7 +108,7 @@ bdk.dataAccess = bdk.dataAccess || {}
 bdk.dataAccess = function () {
   var getSites = function () {
     return $.ajax({
-      url: '/BdkDocumentLibraryCreator/GetSites?' + bdk.helpers.reconstructSharPointStandardTokens(),
+      url: '/BdkDocumentLibraryCreator/GetSites?' + bdk.helpers.reconstructSharePointStandardTokens(),
       type: 'GET',
       datatype: 'json',
       contentType: 'application/json'
@@ -117,7 +117,7 @@ bdk.dataAccess = function () {
 
   var getWebs = function (site) {
     return $.ajax({
-      url: '/BdkDocumentLibraryCreator/GetWebsForSite?' + bdk.helpers.reconstructSharPointStandardTokens(),
+      url: '/BdkDocumentLibraryCreator/GetWebsForSite?' + bdk.helpers.reconstructSharePointStandardTokens(),
       type: 'GET',
       data: { 'site': site },
       datatype: 'json',
@@ -127,7 +127,7 @@ bdk.dataAccess = function () {
 
   var createBdkLibrary = function (site, web, title) {
     return $.ajax({
-      url: '/BdkDocumentLibraryCreator/Create?' + bdk.helpers.reconstructSharPointStandardTokens(),
+      url: '/BdkDocumentLibraryCreator/Create?' + bdk.helpers.reconstructSharePointStandardTokens(),
       type: 'POST',
       data: JSON.stringify({ 'selectedSite': site, 'selectedWeb': web, 'title': title }),
       datatype: 'json',
