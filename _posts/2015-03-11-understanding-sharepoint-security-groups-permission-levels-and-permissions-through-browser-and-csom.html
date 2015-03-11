@@ -16,7 +16,7 @@ screenshots and code samples.</p>
 
 <h2>Setup</h2>
 
-<p>The code snippets in this post assumes the availability of a valid
+<p>The code snippets in this post assume the availability of a valid
 SharePoint context. For completeness sake, here's the code to setup
 the context:</p>
 
@@ -62,7 +62,7 @@ foreach (var group in rootWeb.SiteGroups) {
 }
 </pre>
 
-<p>Note how site is an ambigious term used by SharePoint to refer to
+<p>Note how site is an ambiguous term used by SharePoint to refer to
 either site collection or web, depending on the context. Here it's
 assumed to mean site collection.</p>
 
@@ -128,7 +128,7 @@ foreach (var ra in rootWeb.RoleAssignments) {
 <p>These are the standard role definitions created by SharePoint. And
 like with security groups, we can create our own and associate those
 with groups. For instance, we may want to create a custom role
-definition to support the case where contributers should only be
+definition to support the case where contributors should only be
 allowed to add items, but not the delete any.</p>
 
 <h2>Role definitions and base permissions</h2>
@@ -225,7 +225,7 @@ System.Console.WriteLine(web.AssociatedMemberGroup.Title);
 </pre>
 
 <p>Any security group can be designated owner, visitor, or member by
-assigning it to the corresponding property. It just so happens that
+assigning it to the corresponding property. It just happens that
 SharePoint creates groups with names of Owners, Visitors, and Members
 prefixed by site collection name and then sets up the association on
 our behalf.</p>
