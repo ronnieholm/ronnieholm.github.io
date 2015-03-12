@@ -25,7 +25,7 @@ class Program {
     static void Main() {
         var siteCollection = new Uri("https://bugfree.sharepoint.com/teams/AcmeCorpTeamSiteCollection");
         var user = "rh@bugfree.onmicrosoft.com";
-        var password = "<password>";
+        var password = "password";
         var securePassword = new SecureString();
         password.ToCharArray().ToList().ForEach(securePassword.AppendChar);
         var credentials = new SharePointOnlineCredentials(user, securePassword);
