@@ -36,9 +36,10 @@ using System;
 using Microsoft.WindowsAzure.Storage;
 using System.Diagnostics;
 
-namespace AzureBlobTest {
+namespace AzureBlobStorageSpeedTest {
     class Program {
         const int Megabyte = 1024 * 1024;
+        const int Megabit = 1000 * 1000;
 
         static void Main() {
             Console.Write("Enter blob size in megabytes: ");
@@ -63,7 +64,7 @@ namespace AzureBlobTest {
              Console.WriteLine(
                 "{0} megabytes uploaded in {1} seconds at {2} megabits/second",
                 sizeInMegabytes, watch.ElapsedMilliseconds / 1000.0,
-                (int)(randomizedContent.Length / (watch.ElapsedMilliseconds / 1000.0) * 8 / 1000 / 1000));
+                (int)(randomizedContent.Length / (watch.ElapsedMilliseconds / 1000.0) * 8 / Megabit));
         }
     }
 }
