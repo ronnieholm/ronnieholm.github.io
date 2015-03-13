@@ -26,9 +26,8 @@ everyone can upload to it. Finally, under the new storage account, we
 get the primary access key used for the connection string in a
 moment.</p>
 
-<p>Now, using the code below -- referencing the WindowsAzure.Storage
-NuGet package -- we'are able to upload blobs of configurable sizes to
-the new storage account:</p>
+<p>Now, using the code below we'are able to upload blobs of
+configurable sizes to the new storage account:</p>
 
 <pre class="prettyprint lang-cs">
 // reference WindowsAzure.Storage NuGet package
@@ -52,6 +51,8 @@ namespace AzureBlobStorageSpeedTest {
                 "AccountName=azurespeedtestpost;" +
                 "AccountKey=OzgbBQ+nkuT0CRjbhyZ0dK3aIvpkDltEdQ3xvuCBsJlZThRFVEIJ6zXz050BENnw/c6aaVeOrCKz/oNM5UYAeQ==");
             var client = account.CreateCloudBlobClient();
+
+            // adjust options for optimal performance
             client.DefaultRequestOptions.ParallelOperationThreadCount = 24;
             var container = client.GetContainerReference("default");
             var blob = container.GetBlockBlobReference("test-" + DateTime.Now);
@@ -61,7 +62,7 @@ namespace AzureBlobStorageSpeedTest {
             blob.UploadFromByteArray(randomizedContent, 0, randomizedContent.Length);
             watch.Stop();           
 
-             Console.WriteLine(
+            Console.WriteLine(
                 "{0} megabytes uploaded in {1} seconds at {2} megabits/second",
                 sizeInMegabytes, watch.ElapsedMilliseconds / 1000.0,
                 (int)(randomizedContent.Length / (watch.ElapsedMilliseconds / 1000.0) * 8 / Megabit));
