@@ -1,0 +1,103 @@
+---
+layout: post
+title: "Informally speed testing Azure blob storage"
+date: 2015-03-13 12:00 UTC
+tags: [C#]
+---
+<div id="post">
+
+<p>On a recent migration project from on-premise to cloud, we had to
+decide between (1) physically sending a disk containing a few
+terabytes of MS SQL server database backups to Microsoft, and have
+Microsoft upload its content to Azure blob storage, or (2) upload the
+contents ourselves. Regardless of the decision, once in Azure blob
+storage, the database backups are to be extracted and restored on
+multiple MS SQL servers to finish migrating in parallel.</p>
+
+<h2>Setup</h2>
+
+<p>As a crude way of measuring the upload capacity of Azure blob
+storage, in the Azure portal under Data services, Storage, Quick
+create, we created a new storage account called "azurespeedtestpost"
+and setup the storage account to be located in North Europe with
+locally redundant replication. Inside the storage account, we created
+a container called "default" with public container access, meaning
+everyone can upload to it. Finally, under the new storage account, we
+get the primary access key used for the connection string in a
+moment.</p>
+
+<p>Now, using the code below -- referencing the WindowsAzure.Storage
+NuGet package -- we'are able to upload blobs of configurable sizes to
+the new storage account:</p>
+
+<pre class="prettyprint lang-cs">
+// reference WindowsAzure.Storage NuGet package
+using System;
+using Microsoft.WindowsAzure.Storage;
+using System.Diagnostics;
+
+namespace AzureBlobTest {
+    class Program {
+        const int Megabyte = 1024 * 1024;
+
+        static void Main() {
+            Console.Write("Enter blob size in megabytes: ");
+            var sizeInMegabytes = Console.ReadLine();
+            var randomizedContent = new byte[Int32.Parse(sizeInMegabytes) * Megabyte];
+            new Random().NextBytes(randomizedContent);
+
+            var account = CloudStorageAccount.Parse(
+                "DefaultEndpointsProtocol=https;" +
+                "AccountName=azurespeedtestpost;" +
+                "AccountKey=OzgbBQ+nkuT0CRjbhyZ0dK3aIvpkDltEdQ3xvuCBsJlZThRFVEIJ6zXz050BENnw/c6aaVeOrCKz/oNM5UYAeQ==");
+            var client = account.CreateCloudBlobClient();
+            client.DefaultRequestOptions.ParallelOperationThreadCount = 24;
+            var container = client.GetContainerReference("default");
+            var blob = container.GetBlockBlobReference("test-" + DateTime.Now);
+
+            var watch = new Stopwatch();
+            watch.Start();
+            blob.UploadFromByteArray(randomizedContent, 0, randomizedContent.Length);
+            watch.Stop();           
+
+             Console.WriteLine(
+                "{0} megabytes uploaded in {1} seconds at {2} megabits/second",
+                sizeInMegabytes, watch.ElapsedMilliseconds / 1000.0,
+                (int)(randomizedContent.Length / (watch.ElapsedMilliseconds / 1000.0) * 8 / 1000 / 1000));
+        }
+    }
+}
+
+</pre>
+
+<p>Note how the application allocates a byte array of the designated
+size in megabytes. Given the 2GB memory limitation of a 32 bit Windows
+process, the application is compiled for 64 bit to avoid out of the
+memory exceptions.</p>
+
+<h2>Conclusion</h2>
+
+<p>Running the application on an Azure virtual machine, likely with
+direct connection to Azure blob storage, here's a typical
+execution:</p>
+
+<pre>
+Enter blob size in megabytes: 1024
+1024 megabytes uploaded in 54.629 seconds at 157 megabits/second
+</pre>
+
+<p>Running the application on my desktop, outside the Azure network,
+but with an internet connection capable of well over 200
+megabits/second, her's a typicla execution:</p>
+
+<pre>
+
+</pre>
+
+<p>In conclusion, Azure blob storage is sufficiently fast to not
+warrant shipping a disk of only a few terabytes. Even setting the bar
+50 megabits/second, uploading a terabyte would take about two days
+(1024^4 / 5e07 / 60^2 / 24). And that doesn't factor in uploading
+blobs in parallel from multiple locations.</p>
+
+</div>
