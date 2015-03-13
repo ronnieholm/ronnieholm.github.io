@@ -79,16 +79,16 @@ compile the application for 64 bit.</p>
 
 <h2>Conclusion</h2>
 
-<p>Running the application on an Azure virtual machine, likely with
-direct connection to Azure blob storage, here's a typical
-execution:</p>
+<p>Running the application on an Azure virtual machine running Windows
+server optimized network stack, and likely with direct connection to
+Azure blob storage, here's a representative execution:</p>
 
 <pre>
 Enter blob size in megabytes: 1024
 1024 megabytes uploaded in 54.629 seconds at 157 megabits/second
 </pre>
 
-<p>Running the application on my desktop, outside the Azure network,
+<p>Running the application on my desktop with Windows 7, likely, outside the Azure network,
 but with an internet connection capable of well over 200
 megabits/second, her's a typicla execution:</p>
 
