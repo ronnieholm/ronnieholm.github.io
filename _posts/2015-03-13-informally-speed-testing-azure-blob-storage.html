@@ -20,8 +20,8 @@ migration in parallel.</p>
 the Azure portal we setup a new "azurespeedtestpost" storage account
 in North Europe and with locally redundant replication. Inside the
 account, we created a "default" container with public access, meaning
-everyone can upload to it. Finally, in the portal, we fetched the
-primary access key to include in the connection string.</p>
+everyone can upload blobs to it. Finally, in the portal, we fetched
+the primary access key to include in the connection string.</p>
 
 <p>Now, using the code below we're able to upload blobs of
 configurable sizes:</p>
@@ -72,7 +72,7 @@ namespace AzureBlobStorageSpeedTest {
 <p>Note how the application allocates a byte array of the designated
 size in megabytes. With the 2GB memory allocation limit of 32 bit
 Windows processes, to avoid out of memory exceptions, make sure to
-compile in 64 bit mode.</p>
+compile the application in 64 bit mode.</p>
 
 <h2>Conclusion</h2>
 
@@ -87,8 +87,8 @@ Enter blob size in megabytes: 1024
 </pre>
 
 <p>On my Windows 7 laptop, running outside the Azure network, with a
-gigabit network card and an internet connection capable of roughly 200
-megabits/second according
+gigabit network card and an internet connection capable of well over
+200 megabits/second according
 to <a href="http://speedtest.net">speedtest.net</a>, a representative
 result is as follows:</p>
 
@@ -102,6 +102,7 @@ uploading ourselves is sufficiently fast to not warrant shipping a
 disk to Microsoft. Even setting the bar at 50 megabits/second,
 uploading a terabyte takes about two days (1024^4 / 5E+07 / 60^2 /
 24). But that doesn't factor in uploading blobs in parallel from
-multiple locations and re-assembling those once in storage.</p>
+multiple locations -- separate networks or multiple computers on the
+same network -- and re-assembling once in storage.</p>
 
 </div>
