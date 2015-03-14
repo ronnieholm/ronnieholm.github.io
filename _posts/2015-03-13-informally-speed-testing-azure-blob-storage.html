@@ -37,10 +37,18 @@ namespace AzureBlobStorageSpeedTest {
         const int Megabyte = 1024 * 1024;
         const int Megabit = 1000 * 1000;
 
-        static void Main() {
-            Console.Write("Enter blob size in megabytes: ");
-            var sizeInMegabytes = Console.ReadLine();
-            var randomizedContent = new byte[Int32.Parse(sizeInMegabytes) * Megabyte];
+        static double Time(Action codeToTime) {
+            var w = new Stopwatch();
+            w.Start();
+            codeToTime();
+            w.Stop();
+            return w.ElapsedMilliseconds / 1000.0;            
+        }
+
+        static void Main(string[] args) {
+            var sizeInMegabytes = int.Parse(args[0]);
+            var contentLength = sizeInMegabytes * Megabyte;
+            var randomizedContent = new byte[contentLength];
             new Random().NextBytes(randomizedContent);
 
             var account = CloudStorageAccount.Parse(
@@ -48,25 +56,21 @@ namespace AzureBlobStorageSpeedTest {
                 "AccountName=azurespeedtestpost;" +
                 "AccountKey=OzgbBQ+nkuT0CRjbhyZ0dK3aIvpkDltEdQ3xvuCBsJlZThRFVEIJ6zXz050BENnw/c6aaVeOrCKz/oNM5UYAeQ==");
             var client = account.CreateCloudBlobClient();
-
-            // adjust for optimal performance
             client.DefaultRequestOptions.ParallelOperationThreadCount = 24;
             var container = client.GetContainerReference("default");
             var blob = container.GetBlockBlobReference("test-" + DateTime.Now);
 
-            var watch = new Stopwatch();
-            watch.Start();
-            blob.UploadFromByteArray(randomizedContent, 0, randomizedContent.Length);
-            watch.Stop();           
+            var uploadTime = Time(() => blob.UploadFromByteArray(randomizedContent, 0, contentLength));
+            var downloadTime = Time(() => blob.DownloadRangeToByteArray(randomizedContent, 0, 0, contentLength));
 
             Console.WriteLine(
-                "{0} megabytes uploaded in {1} seconds at {2} megabits/second",
-                sizeInMegabytes, watch.ElapsedMilliseconds / 1000.0,
-                (int)(randomizedContent.Length / (watch.ElapsedMilliseconds / 1000.0) * 8 / Megabit));
+                "{0} megabytes uploaded in {1:0.0} seconds at {2:0.0} megabits/second\r\n" +
+                "{0} megabytes downloaded in {3:0.0} seconds at {4:0.0} megabits/second",
+                sizeInMegabytes, uploadTime, contentLength / uploadTime * 8 / Megabit,
+                downloadTime, contentLength / downloadTime * 8 / Megabit);
         }
     }
 }
-
 </pre>
 
 <p>Note how the application allocates a byte array of the designated
@@ -74,7 +78,7 @@ size in megabytes. With the 2GB memory allocation limit of 32 bit
 Windows processes, to avoid out of memory exceptions, make sure to
 compile the application in 64 bit mode.</p>
 
-<h2>Conclusion</h2>
+<h2>Execution</h2>
 
 <p>Running the speed test application on an Azure virtual machine
 running Windows 2012 and likely a server-optimized network stack and
@@ -82,8 +86,9 @@ likely with close to direct connection to Azure blob storage, here's a
 representative result:</p>
 
 <pre>
-Enter blob size in megabytes: 1024
-1024 megabytes uploaded in 54.629 seconds at 157 megabits/second
+%> ./AzureBlobStorageSpeedTest 1024
+1024 megabytes uploaded in 51.1 seconds at 168.2 megabits/second
+1024 megabytes downloaded in 140.8 seconds at 61.0 megabits/second
 </pre>
 
 <p>On my Windows 7 laptop, running outside the Azure network, with a
@@ -93,17 +98,19 @@ to <a href="http://speedtest.net">speedtest.net</a>, a representative
 result is as follows:</p>
 
 <pre>
-Enter blob size in megabytes: 1024
+%> ./AzureBlobStorageSpeedTest 1024
 1024 megabytes uploaded in 71.932 seconds at 119 megabits/second
+1024 megabytes downloaded in 188.972 seconds at 45 megabits/second
 </pre>
 
-<p>In conclusion, for a content size of a couple of terabytes,
-uploading ourselves is sufficiently fast to not warrant shipping a
-disk to Microsoft. Even setting the bar at 50 megabits/second,
-uploading a terabyte takes about two days (1024^4 / 5E+07 / 60^2 /
-24). But that doesn't factor in the possibility of uploading blobs in
-parallel from multiple locations -- separate networks or multiple
-computers on the same network -- and re-assembling these once in
-storage.</p>
+<h2>Conclusion</h2>
+
+<p>For a content size of a couple of terabytes, uploading ourselves is
+sufficiently fast to not warrant shipping a disk to Microsoft. Even
+setting the bar at 50 megabits/second, uploading a terabyte takes
+about two days (1024^4 / 5E+07 / 60^2 / 24). But that doesn't factor
+in the possibility of uploading blobs in parallel from multiple
+locations -- separate networks or multiple computers on the same
+network -- and re-assembling these once in storage.</p>
 
 </div>
