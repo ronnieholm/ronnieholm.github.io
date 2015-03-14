@@ -19,7 +19,7 @@ migration in parallel.</p>
 <p>As a crude measure of the upload capacity of Azure blob storage, in
 the Azure portal we setup a new "azurespeedtestpost" storage account
 in North Europe and with locally redundant replication. Inside the
-account, we created a "default" container with public, meaning
+account, we created a "default" container with public access, meaning
 everyone can upload to it. Finally, in the portal, we fetched the
 primary access key to include in the connection string.</p>
 
@@ -102,6 +102,6 @@ uploading ourselves is sufficiently fast to not warrant shipping a
 disk to Microsoft. Even setting the bar at 50 megabits/second,
 uploading a terabyte takes about two days (1024^4 / 5E+07 / 60^2 /
 24). But that doesn't factor in uploading blobs in parallel from
-multiple locations and re-assembling these once in blob storage.</p>
+multiple locations and re-assembling those once in storage.</p>
 
 </div>
