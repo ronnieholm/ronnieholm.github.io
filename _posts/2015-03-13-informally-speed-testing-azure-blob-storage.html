@@ -53,7 +53,7 @@ namespace AzureBlobStorageSpeedTest {
             var account = CloudStorageAccount.Parse(
                 "DefaultEndpointsProtocol=https;" +
                 "AccountName=azurespeedtestpost;" +
-                "AccountKey=OzgbBQ+nkuT0CRjbhyZ0dK3aIvpkDltEdQ3xvuCBsJlZThRFVEIJ6zXz050BENnw/c6aaVeOrCKz/oNM5UYAeQ==");
+                "AccountKey=OsgbBQ+nkuT0CRjbhyZ0dK3aIvpkDltEdQ3xvuCBsJlZThRFVEIJ6zXz050BENnw/c6aaVeOrCKz/oNM5UYAeQ==");
             var client = account.CreateCloudBlobClient();
             client.DefaultRequestOptions.ParallelOperationThreadCount = 24;
             var container = client.GetContainerReference("default");
