@@ -79,8 +79,8 @@ space limitation of 32 bit Windows processes.</p>
 
 <h2>Execution</h2>
 
-<p>Running the speed test application on an Azure virtual machine,
-here's a typical result:</p>
+<p>Running the speed test application on a Windows 2012 Azure virtual
+machine, here's a typical result:</p>
 
 <pre>
 %> ./AzureBlobStorageSpeedTest 1024
@@ -88,16 +88,16 @@ here's a typical result:</p>
 1024 megabytes downloaded in 140.8 seconds at 71.5 megabits/second
 </pre>
 
-<p>On a Windows 7 laptop, running outside the Azure network, with a
-gigabit network card, and an internet connection capable of 200
-megabits/second according
+<p>On a Windows 7 laptop, running outside Azure, but with a gigabit
+network card and an internet connection capable of 200
+megabits/second, according
 to <a href="http://speedtest.net">speedtest.net</a>, a typical result
 is as follows:</p>
 
 <pre>
 %> ./AzureBlobStorageSpeedTest 1024
-1024 megabytes uploaded in 71.932 seconds at 119 megabits/second
-1024 megabytes downloaded in 188.972 seconds at 45 megabits/second
+1024 megabytes uploaded in 106,4 seconds at 80,7 megabits/second
+1024 megabytes downloaded in 416,7 seconds at 20,6 megabits/second
 </pre>
 
 <h2>Conclusion</h2>
@@ -105,9 +105,14 @@ is as follows:</p>
 <p>For a content size of only a couple of terabytes, uploading is
 sufficiently fast to not warrant the overhead in time and trouble of
 shipping a disk to Microsoft. Even with a bandwidth of 50
-megabits/second, uploading one terabyte takes about two days. But that
-doesn't factor in the possibility of uploading blobs in parallel from
-multiple locations -- separate networks or multiple computers on the
-same network -- and re-assembling the blobs once in storage.</p>
+megabits/second, uploading one terabyte takes about two days. And that
+doesn't factor in uploading blobs in parallel. Either from computers
+on disperate networks or multiple computers on the same network. Once
+in storage, the blobs can be re-assembled and the database backup
+restored.</p>
+
+<p>Lastly, don't forget that download speed matters as
+well. Downloading happens at a considerably slower pace than
+uploading, but is subject to the same performance optimizations.</p>
 
 </div>
