@@ -6,8 +6,8 @@ tags: [C#]
 ---
 <div id="post">
 
-<p>Migrating a solution from on-premise to Azure cloud, we have to
-decide between (1) physically sending a disk containing a few
+<p>As part of migrating a solution from on-premise to Azure cloud, we
+have to decide between (1) physically sending a disk containing a few
 terabytes of database backups to Microsoft, and have Microsoft upload
 its content to Azure blob storage, or (2) upload the contents
 ourselves. Once in Azure blob storage, the database backups are to be
@@ -23,7 +23,7 @@ account, we created a "default" container with public, meaning
 everyone can upload to it. Finally, in the portal, we fetched the
 primary access key to include in the connection string.</p>
 
-<p>Now, using the code below we'are able to upload blobs of
+<p>Now, using the code below we're able to upload blobs of
 configurable sizes:</p>
 
 <pre class="prettyprint lang-cs">
