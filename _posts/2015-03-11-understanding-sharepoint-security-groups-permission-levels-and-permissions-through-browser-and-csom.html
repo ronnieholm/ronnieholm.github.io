@@ -282,36 +282,26 @@ ctx.ExecuteQuery();
 group added to the visitors security group operate have Full control
 permissions within the site collection.</p>
 
-<h2>Example: break role inheritance on library and assign custom permission level</h2>
-
-<p>abc</p>
-
-<pre class="prettyprint lang-cs">
-foo
-</pre>
-
 <h2>Conclusion</h2>
 
-<p>Internally, when SharePoint needs to determine if a user is
-authorized to carry out a specific action such as modify list item,
-the user's effective set of base permissions is computed by logically
-OR'ing together the base permissions of all security groups of which
-the user is a member.</p>
+<p>When SharePoint needs to determine if a user is authorized to carry
+out a certain action, such as modifying a list item, the user's
+effective set of base permissions is computed. The computation
+involves logically OR'ing the base permissions of all security groups
+of which the user is a member.</p>
 
-<p>In summary, here's a mental model for how the concepts of the
-client side object model fit together:</p>
+<p>In order to keep track of the concepts and their relationshps,
+think of the SharePoint security in terms of the following
+layering:</p>
 
 <pre>
 Securable object (Web, list, list item)
   Role assignments
-    Member (rh-prov-0068 Visitors, custom security groups)
+    Member (AcmeCorpTeamSiteCollection Visitors, custom security groups)
     RoleDefinitionBindings
       RoleDefinitions
         RoleDefinition (Read, Contribute, custom role definitions)
           BasePermissions (ViewListItem, EditListItem)
 </pre>
-
-<p>What all the layers of indirection add are ways to add or remove
-base permission in various intricate ways.</p>
 
 </div>
