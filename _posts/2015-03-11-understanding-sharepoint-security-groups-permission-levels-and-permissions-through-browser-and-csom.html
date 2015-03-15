@@ -284,14 +284,8 @@ permissions within the site collection.</p>
 
 <h2>Conclusion</h2>
 
-<p>When SharePoint needs to determine if a user is authorized to carry
-out a certain action, such as modifying a list item, the user's
-effective set of base permissions is computed. The computation
-involves logically OR'ing the base permissions of all security groups
-of which the user is a member.</p>
-
 <p>In order to keep track of the concepts and their relationships,
-think of the SharePoint security in terms of the following
+think of the SharePoint security model in terms of the following
 layering:</p>
 
 <pre>
@@ -303,5 +297,14 @@ Securable object (Web, list, list item)
         RoleDefinition (Read, Contribute, custom role definitions)
           BasePermissions (ViewListItem, EditListItem)
 </pre>
+
+<p>When SharePoint has to determine if a user is authorized to perform
+a certain action, such as editing a list item, SharePoint computes the
+user's effective set of base permissions for the securable object in
+question (in this case a list item). The computation involves taking
+into account all role assignments of the securable object and
+logically OR'ing together their indirectly related base
+permissions. Only if the resulting set includes EditListItem is the
+user allowed to edit a list item.</p>
 
 </div>
