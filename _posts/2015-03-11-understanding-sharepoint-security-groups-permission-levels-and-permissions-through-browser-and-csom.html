@@ -214,15 +214,24 @@ foreach (var roleDefinition in rootWeb.RoleDefinitions) {
 can only be modified by Microsoft. In principle, though, the set of
 base permissions could've been made extensible. We would then have
 been able to create domain specific base permissions and test on those
-in code. But given the already (too) complex security model, Mirosoft
-seems to have decided against it.</p>
+in code. But given the already (too) complex security model, the
+SharePoint team seems to have decided against it.</p>
 
 <h2>Example: web associated owner, visitor, and member groups</h2>
 
-<p>The Owners, Visitors, and Members groups (or more specifically the
-role assignments related to these groups) are intrinsic to the web
-object in that it has properties for setting each. Let's first list
-the associations and then we try and modify one:</p>
+<p>The owners, visitors, and members groups -- or more specifically
+the role assignments related to each group -- are intrinsic to the web
+object. It has distinct properties for associating an owner, visitor,
+and member group with a web object. This seems odd, compared to simply
+adding role assignments to the web object and having their role
+definitions and base permissions define what a user can do. For some
+reason, the SharePoint team decided to add an extra discrimator to the
+security equation so that inside a web, we can assert the user has a
+specific permission <emph>and</emph> is designated as a special group
+association.</p>
+
+<p>Let's first list the associations and then we try and modify
+one:</p>
 
 <pre class="prettyprint lang-cs">
 ctx.Load(rootWeb,
