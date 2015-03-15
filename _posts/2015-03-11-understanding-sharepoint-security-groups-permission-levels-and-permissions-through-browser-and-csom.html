@@ -173,10 +173,6 @@ PermissionKind enumeration. For each role definition, we may iterate
 this enumeration to get the base permissions which are turned on:</p>
 
 <pre class="prettyprint lang-cs">
-var kinds = Enum.GetValues(typeof(PermissionKind));
-ctx.Load(rootWeb, w => w.RoleDefinitions);
-ctx.ExecuteQuery();
-
 // Full Control
 //   EmptyMask
 //   ViewListItems
