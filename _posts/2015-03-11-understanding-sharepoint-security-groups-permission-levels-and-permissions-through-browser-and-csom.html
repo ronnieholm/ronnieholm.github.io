@@ -153,30 +153,24 @@ permission levels are in use by default:
   <img src="/content/sharepoint-permission-levels.png" width="55%">
 </p>
 
-<p>Click a permission level, we get to the complete list of
-permissions, each of which we can toggle (screenshot only includes the
-first couple of permissions):</p>
+<p>Clicking a permission level displays a list of permissions, each of
+which can be turned on or off. The screenshot only includes the first
+couple of permissions:</p>
 
 <p>
   <img src="/content/sharepoint-permissions.png" width="60%">
 </p>
 
-<p>Like with RoleDefinitionBindings storing the relationship between
-security groups and role definitions, a similar many-to-many
-relationship exists between RoleDefinitions and BasePermissions (and
-for the same reason of decoupling). Note how both the name of property
-on RoleDefinition and the property's underlying type is
+<p>Like with security groups and role definitions, a similar
+many-to-many relationship exists between RoleDefinitions and
+BasePermissions (and for the same reason of decoupling). Note also how
+it's slightly confusing that both the name of the property on the
+RoleDefinition class and the property's underlying type is
 BasePermissions.</p>
 
-<p>This set of base permissions is hardcoded into SharePoint and thus
-can only be extended by Microsoft. In principle, the base permissions
-could've been made extensible. Our code would then have been able to
-take advantage of domain specific base permissions.</p>
-
-<p>In the object model, base permission are represented by the
-PermissionKind enumeration. For each role definition, we can iterate
-this enumeration to get all the the base permissions which are turned
-on:</p>
+<p>In the object model, base permissions are represented by the
+PermissionKind enumeration. For each role definition, we may iterate
+this enumeration to get the base permissions which are turned on:</p>
 
 <pre class="prettyprint lang-cs">
 var kinds = Enum.GetValues(typeof(PermissionKind));
@@ -216,7 +210,14 @@ foreach (var roleDefinition in rootWeb.RoleDefinitions) {
 }
 </pre>
 
-<h2>Web associated owner, visitor, and member groups</h2>
+<p>The set of base permissions is hardcoded into SharePoint and thus
+can only be modified by Microsoft. In principle, though, the set of
+base permissions could've been made extensible. We would then have
+been able to create domain specific base permissions and test on those
+in code. But given the already (too) complex security model, Mirosoft
+seems to have decided against it.</p>
+
+<h2>Example: web associated owner, visitor, and member groups</h2>
 
 <p>The Owners, Visitors, and Members groups (or more specifically the
 role assignments related to these groups) are intrinsic to the web
