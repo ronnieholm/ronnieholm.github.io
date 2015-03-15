@@ -227,11 +227,11 @@ adding role assignments to the web object and having their role
 definitions and base permissions define what a user can do. For some
 reason, the SharePoint team decided to add an extra discrimator to the
 security equation so that inside a web, we can assert the user has a
-specific permission <emph>and</emph> is designated as a special group
+specific permission <em>and</em> has as a special group
 association.</p>
 
-<p>Let's first list the associations and then we try and modify
-one:</p>
+<p>Let's list the associations (don't believe there's a page
+displaying the same information):</p>
 
 <pre class="prettyprint lang-cs">
 ctx.Load(rootWeb,
@@ -248,22 +248,18 @@ System.Console.WriteLine(web.AssociatedVisitorGroup.Title);
 System.Console.WriteLine(web.AssociatedMemberGroup.Title);
 </pre>
 
-<p>Any security group can be designated owner, visitor, or member by
-assigning it to the corresponding property. It just happens that
-SharePoint creates groups with names of Owners, Visitors, and Members
-prefixed by site collection name and then sets up the association on
-our behalf.</p>
+<p>Any security group may be designated the web's owner, visitor, or
+member group by assigning it to the corresponding property on the
+web. It just so happened that during site collection creation,
+SharePoint created groups with names of owners, visitors, and members
+prefixed by site collection title and setup the associations on our
+behalf.</p>
 
-<p>Remember how in the previous section we learned that a security
-groups isn't useful in and of itself. It must be associated with one
-or more role definitions. Thus, by indirection, when we set the
-Associated properties on a web what we're really asking is to use the
-role assignments set for the group in the site collections.</p>
-
-<p>Let's try to redefining the default Visitors group associated with
-the root web. First we must locate the group used as visitor which can
-be any security groups. Then we load up the group's role assignments
-and modify its bindings to include Full Control.</p>
+<p>Now, let's redefine the default visitors group associated with the
+root web. First we locate the associated security group (it can be any
+custom created security groups previously assigned). Then we load the
+group's role assignments and modify its bindings to include Full
+Control.</p>
 
 <pre class="prettyprint lang-cs">
 ctx.Load(rootWeb.AssociatedVisitorGroup);
@@ -282,9 +278,17 @@ roleAssignmentsForVisitorGroup.Update();
 ctx.ExecuteQuery();
 </pre>
 
-<p>Now every SharePoint user and Active Directory group added to the
-visitors security group operate with these permissions inside the site
-collection.</p>
+<p>With the above change, every SharePoint user and Active Directory
+group added to the visitors security group operate have Full control
+permissions within the site collection.</p>
+
+<h2>Example: break role inheritance on library and assign custom permission level</h2>
+
+<p>abc</p>
+
+<pre class="prettyprint lang-cs">
+foo
+</pre>
 
 <h2>Conclusion</h2>
 
