@@ -8,7 +8,7 @@ tags: [C#]
 
 <p>Security groups, permission levels, and permissions are core
 concepts of SharePoint's role-based security model which can be hard
-to grock. Especially since the browser interface and the object model
+to grasp. Especially since the browser interface and the object model
 use different terminology for the same concepts and the object model
 adds additional concepts to record inter-object relationships. Thus,
 through screenshots and code, in this post, I'll attempt to correlate
@@ -134,12 +134,12 @@ create our own role definition and associate those with groups. For
 instance, we may deviate from the out of the box behavior and create a
 role definition for when contributors should only be allowed to add
 items to lists and not delete. Or where visitors should be able to
-create and save personal views on lists, which isn't allowed by
+create and save personal views on lists, which aren't allowed by
 default.</p>
 
 <p>In any event, never modify an out of the box role
 definition. Instead, create a new one and reset the binding where
-applicable. This'll make long-term maintainance, governance, and
+applicable. This'll make long-term maintenance, governance, and
 upgrading easier.</p>
 
 <h2>Role definitions and base permissions</h2>
@@ -225,9 +225,9 @@ object. It has distinct properties for associating an owner, visitor,
 and member group with a web object. This seems odd, compared to simply
 adding role assignments to the web object and having their role
 definitions and base permissions define what a user can do. For some
-reason, the SharePoint team decided to add an extra discrimator to the
-security equation so that inside a web, we can assert the user has a
-specific permission <em>and</em> has as a special group
+reason, the SharePoint team decided to add an extra discriminator to
+the security equation so that inside a web, we can assert the user has
+a specific permission <em>and</em> has as a special group
 association.</p>
 
 <p>Let's list the associations (don't believe there's a page
@@ -290,7 +290,7 @@ effective set of base permissions is computed. The computation
 involves logically OR'ing the base permissions of all security groups
 of which the user is a member.</p>
 
-<p>In order to keep track of the concepts and their relationshps,
+<p>In order to keep track of the concepts and their relationships,
 think of the SharePoint security in terms of the following
 layering:</p>
 
