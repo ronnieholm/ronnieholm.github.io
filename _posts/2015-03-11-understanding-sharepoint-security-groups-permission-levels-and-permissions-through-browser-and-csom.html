@@ -95,13 +95,14 @@ to an object used to track the many-to-many relationship between site
 groups on one hand and role definitions on the other. One site groups,
 such as Members, may be associated with any number of role
 definitions, such as Read or Edit or custom ones. Each role definition
-in turn may be used across any number of site groups.</p>
+in turn may be used across any number of site groups. In other words,
+the role assignment construct is an indirection mechanism used to
+decouple site groups from role definitions, furthering their
+reuse.</p>
 
-<p>The role assignment is an indirection mechanism used to decouple
-site groups from role definitions, furthering their reuse. It's these
-role assignments which the browser displays under Site permissions
-menu. What the user interface calls a permission level, the object
-model calls a role definition.</p>
+<p>It's this collection of role definitions the browser displays under
+the Site permissions menu. What the user interface calls permission
+levels, the object model calls role definitions.</p>
 
 <pre class="prettyprint lang-cs">
 // Excel Services Viewers
@@ -119,19 +120,25 @@ foreach (var ra in rootWeb.RoleAssignments) {
     ctx.Load(ra.Member);
     ctx.Load(ra.RoleDefinitionBindings);
     ctx.ExecuteQuery();
-    System.Console.WriteLine(ra.Member.Title);
 
+    System.Console.WriteLine(ra.Member.Title);
     foreach (var binding in ra.RoleDefinitionBindings) {
         System.Console.WriteLine("  " + binding.Name);
     }
 }
 </pre>
 
-<p>These are the standard role definitions created by SharePoint. And
-like with security groups, we can create our own and associate those
-with groups. For instance, we may want to create a custom role
-definition to support the case where contributors should only be
-allowed to add items, but not the delete any.</p>
+<p>These are the standard role definitions created by SharePoint
+during site collection creation. Like with security groups, we can
+create our own role definition and associate those with groups. For
+instance, we may deviate from the out of the box behavior and create a
+role definition for when contributors should only be allowed to add
+items to lists and not delete. Or where visitors should be able to
+create and save personal views on lists, which isn't allowed by
+default. In any event, never modify an out of the box role
+definition. Instead, create a new one and reset the binding where
+applicable. This'll make long-term maintainance, governance, and
+upgrading easier.</p>
 
 <h2>Role definitions and base permissions</h2>
 
