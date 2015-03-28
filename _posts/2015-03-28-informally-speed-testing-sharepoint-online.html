@@ -75,8 +75,8 @@ class like so:
 
 <pre class="prettyprint lang-cs">
 // take 1
-using (var ctx = SetupContext(new Uri("https://baneudv.sharepoint.com/teams/rh-prov-0100"))) {
-    var library = ctx.Web.Lists.GetByTitle("SpeedTest");
+using (var ctx = SetupContext(new Uri("https://bugfree.sharepoint.com/sites/test"))) {
+    var library = ctx.Web.Lists.GetByTitle("speedtest");
     var newFile =
         library.RootFolder.Files.Add(
             new FileCreationInformation {
