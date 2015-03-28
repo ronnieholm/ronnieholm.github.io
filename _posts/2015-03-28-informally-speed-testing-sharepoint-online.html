@@ -55,12 +55,12 @@ namespace SharePointOnlineSpeedTest {
             return new ClientContext(siteCollection) { Credentials = credentials };
         }
 
-        static double Time(Action toMeasure) {
-            var w = new Stopwatch();
-            w.Start();
-            toMeasure();
-            w.Stop();
-            return w.ElapsedMilliseconds / 1000.0;
+        static double Time(Action code) {
+            var sw = new Stopwatch();
+            sw.Start();
+            code();
+            sw.Stop();
+            return sw.ElapsedMilliseconds / 1000.0;
         }
 
         static void Main(string[] args) {
