@@ -82,10 +82,10 @@ using (var ctx = SetupContext(new Uri("https://bugfree.sharepoint.com/sites/test
 </pre>
 
 <p>The above code works well for file sizes less than two megabytes,
-but throws
-an <a href="http://stackoverflow.com/questions/20076871/sharepoint-2013-client-object-model-file-larger-than-2-mb-exception">exception</a>
-otherwise. As we require a file size larger than two megabytes to
-reliably gauge upload and download speeds, we turn to the second
+but
+otherwise <a href="http://stackoverflow.com/questions/20076871/sharepoint-2013-client-object-model-file-larger-than-2-mb-exception">throws
+an exception</a>. As we require a file size larger than two megabytes
+to reliably gauge upload and download speeds, we turn to the second
 option,
 using <a href="https://msdn.microsoft.com/en-us/library/ee538285.aspx">SaveBinaryDirect
 method</a> and
