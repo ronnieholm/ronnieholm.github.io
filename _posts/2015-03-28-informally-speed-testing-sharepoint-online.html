@@ -1,0 +1,162 @@
+---
+layout: post
+title: "Informally speed testing SharePoint Online"
+date: 2015-03-28 12:00 UTC
+tags: [C#]
+---
+<div id="post">
+
+<p>
+In order to help identify bottlenecks between your network and
+SharePoint Online, uploading and downloading files of various sizes to
+a document library may provide valuable insight. Using this simple
+technique, I've come across networks which apply throttling to inbound
+and outbound traffic, affecting the general experience of using
+SharePoint Online. Thus, in this post, I modify the console
+application for
+<a href="/blog/2015/03/13/informally-speed-testing-azure-blob-storage">benchmarking
+Azure blob storage</p> to work with files in a SharePoint document
+library.</p>
+
+<h2>Setup</h2>
+
+<p>Let's start with the usual setup for initializing the context
+object. Any subsequent code assumes this context has already been
+setup</p>
+
+<pre class="prettyprint lang-cs">
+// 1. Reference Microsoft.SharePoint.Client.dll and Microsoft.SharePoint.Client.Runtime.dll
+//    from C:\Program Files\Common Files\Microsoft Shared\Web Server Extensions\16\ISAPI or
+//    download from https://github.com/OfficeDev/PnP/tree/master/Assemblies/16
+// 2. Build as 64 bit assembly to avoid OutOfMemoryExceptions
+
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Security;
+using Microsoft.SharePoint.Client;
+using SPOFile = Microsoft.SharePoint.Client.File;
+
+namespace SharePointOnlineSpeedTest {
+    class Program {       
+        const int Megabyte = 1024 * 1024;
+        const int Megabit = 1000 * 1000;
+
+        static ClientContext SetupContext(Uri siteCollection) {
+            var user = "rh@bugfree.onmicrosoft.com";
+            var password = "password";
+            var securePassword = new SecureString();
+            password.ToCharArray().ToList().ForEach(securePassword.AppendChar);
+            var credentials = new SharePointOnlineCredentials(user, securePassword);
+            return new ClientContext(siteCollection) { Credentials = credentials };
+        }
+
+        static double Time(Action toMeasure) {
+            var w = new Stopwatch();
+            w.Start();
+            toMeasure();
+            w.Stop();
+            return w.ElapsedMilliseconds / 1000.0;
+        }
+
+        static void Main(string[] args) {
+            // code below goes here
+        }
+    }   
+}
+</pre>
+
+<p>The SharePoint client-side object model provides (at least) two
+ways of uploading files to a document library. One approach would be
+using
+the <a href="https://msdn.microsoft.com/en-us/library/microsoft.sharepoint.client.filecreationinformation.aspx">FileCreationInformation</a>
+class like so:
+
+<pre class="prettyprint lang-cs">
+// take 1
+using (var ctx = SetupContext(new Uri("https://baneudv.sharepoint.com/teams/rh-prov-0100"))) {
+    var library = ctx.Web.Lists.GetByTitle("SpeedTest");
+    var newFile =
+        library.RootFolder.Files.Add(
+            new FileCreationInformation {
+                Url = "randombits",
+                Content = System.IO.File.ReadAllBytes(@"c:\users\rh\desktop\randombits")
+            });
+    ctx.Load(newFile);
+    ctx.ExecuteQuery();
+}
+</pre>
+
+<p>The above works as intended for a file size less than two
+megabytes. Uploading files larger than that results in
+an <a href="http://stackoverflow.com/questions/20076871/sharepoint-2013-client-object-model-file-larger-than-2-mb-exception">exception</a>.</p>
+
+<p>To reliably gauge the transfer speed we need to upload files larger
+than two megabytes. Otherwise, the setup cost will take up too much
+time compared to the transfer time. Thus, we turn to the second upload
+option, using
+the <a href="https://msdn.microsoft.com/en-us/library/ee538285.aspx">SaveBinaryDirect
+method</a> which uses
+the <a href="http://en.wikipedia.org/wiki/WebDAV">WebDAV protocol</a>
+under the covers.</p>
+
+<pre class="prettyprint lang-cs">
+// take 2
+var destination = new Uri(args[0]);
+var sizeInMegabytes = int.Parse(args[1]);
+var contentLength = sizeInMegabytes * Megabyte;
+var randomizedContent = new byte[contentLength];
+new Random().NextBytes(randomizedContent);
+
+using (var ctx = SetupContext(destination)) {
+    // internally the context uses HttpWebRequest to upload and download files.
+    // Thus, uploading or downloading large files, we may experience
+    //   Unhandled Exception: System.Net.WebException: The operation has timed out
+    // unless we don't change the default timeout period of 180 seconds.
+    ctx.RequestTimeout = Timeout.Infinite;
+
+    var uploadTime = Time(() => {
+        using (var sr = new MemoryStream(randomizedContent)) {
+            SPOFile.SaveBinaryDirect(ctx, destination.LocalPath, sr, true);
+        }
+    });
+
+    var downloadTime = Time(() => {
+        var fileInformation = SPOFile.OpenBinaryDirect(ctx, destination.LocalPath);
+        using (var sr = new StreamReader(fileInformation.Stream)) { 
+            sr.ReadToEnd(); 
+        }
+    });
+
+    Console.WriteLine(
+        "{0} MB uploaded in {1:0.0} seconds at {2:0.0} Mbit/s\r\n" +
+        "{0} MB downloaded in {3:0.0} seconds at {4:0.0} Mbit/s",
+        sizeInMegabytes, uploadTime, contentLength / uploadTime * 8 / Megabit,
+        downloadTime, contentLength / downloadTime * 8 / Megabit);
+    }
+}
+</pre>
+
+<h2>Execution</h2>
+
+<p>Running the speed test application on a Windows 2012 Azure virtual machine, here's an average result:</p>
+
+<pre>
+%> ./SharePointOnlineSpeedTest.exe https://bugfree.sharepoint.com/sites/test/speedtest/testfile 1024
+
+</pre>
+
+<h2>Conclusion</h2>
+
+<p>Uploading and downloading a document of one gigabyte in size is
+surprisely fast compared to the speed of Azure blob storage and
+considering that SharePoint need to store the file in a SQL Server
+content database</p>
+
+<p>In terms of bandwidth, to some extend we could use SharePoint
+Online document libraries as an alternative to Azure blob storage. But
+SharePoint not being transactional would likely cause issues down the
+road.</p>
+
+</div>
