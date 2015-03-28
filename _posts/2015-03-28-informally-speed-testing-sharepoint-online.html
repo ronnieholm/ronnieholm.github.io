@@ -117,8 +117,8 @@ using (var ctx = SetupContext(destination)) {
     ctx.RequestTimeout = Timeout.Infinite;
 
     var uploadTime = Time(() => {
-        using (var sr = new MemoryStream(randomizedContent)) {
-            SPOFile.SaveBinaryDirect(ctx, destination.LocalPath, sr, true);
+        using (var ms = new MemoryStream(randomizedContent)) {
+            SPOFile.SaveBinaryDirect(ctx, destination.LocalPath, ms, true);
         }
     });
 
@@ -143,14 +143,20 @@ using (var ctx = SetupContext(destination)) {
 <p>Running the speed test application on a Windows 2012 Azure virtual machine, here's an average result:</p>
 
 <pre>
-%> ./SharePointOnlineSpeedTest.exe https://bugfree.sharepoint.com/sites/test/speedtest/testfile 1024
-
+%> ./SharePointOnlineSpeedTest.exe https://bugfree.sharepoint.com/sites/test/speedtest/testfile 512
+1024 MB uploaded in 280.9 seconds at 30.6 Mbit/s
+1024 MB downloaded in 95.6 seconds at 89.8 Mbit/s
 </pre>
+
+<p>According
+to <a href="https://support.office.com/en-au/article/SharePoint-Online-software-boundaries-and-limits-8f34ff47-b749-408b-abc0-b605e1f6d498">software
+boundaries and limits for ShraePoint Online</a>, the file attachment
+size limit is 250MB and file upload limit is 2GB per file.</p>
 
 <h2>Conclusion</h2>
 
 <p>Uploading and downloading a document of one gigabyte in size is
-surprisely fast compared to the speed of Azure blob storage and
+surprisingly fast compared to the speed of Azure blob storage and
 considering that SharePoint need to store the file in a SQL Server
 content database. In terms of bandwidth, to some extend we could use
 SharePoint Online document libraries as an alternative to Azure blob
