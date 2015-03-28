@@ -6,11 +6,14 @@ tags: [C#]
 ---
 <div id="post">
 
-<p>In order to systematically identify potential bottlenecks between a
-computer on a local network and SharePoint Online, we modify the
-console application for
+<p>In order to systematically identify potential bottlenecks between
+my computer on a local network and SharePoint Online, I've modified
+the console application for
 <a href="/blog/2015/03/13/informally-speed-testing-azure-blob-storage">benchmarking
-Azure blob storage</a> to work with SharePoint document libraries.</p>
+Azure blob storage</a> to work with SharePoint document
+libraries. Benchmarking involves providing a path to a document
+library and a file size and in return the SharePointOnlineSpeedTest
+generates a report with the upload and download speeds.</p>
 
 <h2>Setup</h2>
 
@@ -82,12 +85,12 @@ using (var ctx = SetupContext(new Uri("https://bugfree.sharepoint.com/sites/test
 }
 </pre>
 
-<p>The above code works well for file sizes less than two megabytes,
-but
-otherwise throws a <a href="http://stackoverflow.com/questions/20076871/sharepoint-2013-client-object-model-file-larger-than-2-mb-exception">request message too long exception</a>. As we require a file size larger than two megabytes
-to reliably gauge upload and download speeds, we turn to the second
-option,
-using <a href="https://msdn.microsoft.com/en-us/library/ee538285.aspx">SaveBinaryDirect
+<p>This approach works well for file sizes less than two megabytes,
+but otherwise throws
+a <a href="http://stackoverflow.com/questions/20076871/sharepoint-2013-client-object-model-file-larger-than-2-mb-exception">request
+message too long exception</a>. Hence we turn to the second option,
+using
+the <a href="https://msdn.microsoft.com/en-us/library/ee538285.aspx">SaveBinaryDirect
 method</a> and
 the <a href="http://en.wikipedia.org/wiki/WebDAV">WebDAV
 protocol</a>.</p>
@@ -102,9 +105,9 @@ new Random().NextBytes(randomizedContent);
 
 using (var ctx = SetupContext(destination)) {
     // internally the context uses HttpWebRequest to upload and download files.
-    // Thus, uploading or downloading large files, we may experience
+    // Thus, when uploading or downloading large files, we may experience
     //   Unhandled Exception: System.Net.WebException: The operation has timed out
-    // unless we don't change the default timeout period of 180 seconds.
+    // unless we change the default timeout period of 180 seconds.
     ctx.RequestTimeout = Timeout.Infinite;
 
     var uploadTime = Time(() => {
@@ -145,12 +148,12 @@ size limit is 250MB and file upload limit is 2GB per file.</p>
 
 <h2>Conclusion</h2>
 
-<p>Uploading and downloading a document of one gigabyte in size is
+<p>Uploading and downloading a document of one gigabyte is
 surprisingly fast, considering that SharePoint must store the file in
 an SQL Server content database (as opposed to blob storage build to
-handle large files). In terms of bandwidth, to some extend we could
-use SharePoint Online document libraries as an alternative to Azure
-blob storage. But SharePoint not being transactional will likely cause
-issues down the road.</p>
+handle large files). In terms of available bandwidth, to some extend
+we could use SharePoint Online document libraries as an alternative to
+Azure blob storage. But SharePoint not being transactional will likely
+cause issues down the road.</p>
 
 </div>
