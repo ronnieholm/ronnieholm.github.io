@@ -6,23 +6,18 @@ tags: [C#]
 ---
 <div id="post">
 
-<p>
-In order to help identify bottlenecks between your network and
-SharePoint Online, uploading and downloading files of various sizes to
-a document library may provide valuable insight. Using this simple
-technique, I've come across networks which apply throttling to inbound
-and outbound traffic, affecting the general experience of using
-SharePoint Online. Thus, in this post, I modify the console
+<p>In order to identify bottlenecks between a computer on a local
+network and SharePoint Online, the simple technique of uploading and
+downloading files of various sizes to and from a document library can
+provide valuable feedback. Thus, in this post, we modify the console
 application for
 <a href="/blog/2015/03/13/informally-speed-testing-azure-blob-storage">benchmarking
-Azure blob storage</a> to work with files in a SharePoint document
-library.</p>
+Azure blob storage</a> to work with SharePoint document libraries.</p>
 
 <h2>Setup</h2>
 
-<p>Let's start with the usual setup for initializing the context
-object. Any subsequent code assumes this context has already been
-setup</p>
+<p>Let's start with the usual setup for initializing the SharePoint
+context:</p>
 
 <pre class="prettyprint lang-cs">
 // 1. Reference Microsoft.SharePoint.Client.dll and Microsoft.SharePoint.Client.Runtime.dll
@@ -68,9 +63,8 @@ namespace SharePointOnlineSpeedTest {
 }
 </pre>
 
-<p>The SharePoint client-side object model provides (at least) two
-ways of uploading files to a document library. One approach would be
-using
+<p>The SharePoint client side object model offers (at least) two ways
+of uploading files to a document library. One way is using
 the <a href="https://msdn.microsoft.com/en-us/library/microsoft.sharepoint.client.filecreationinformation.aspx">FileCreationInformation</a>
 class like so:
 
@@ -89,18 +83,16 @@ using (var ctx = SetupContext(new Uri("https://bugfree.sharepoint.com/sites/test
 }
 </pre>
 
-<p>The above works as intended for a file size less than two
-megabytes. Uploading files larger than that results in
-an <a href="http://stackoverflow.com/questions/20076871/sharepoint-2013-client-object-model-file-larger-than-2-mb-exception">exception</a>.</p>
-
-<p>To reliably gauge the transfer speed we need to upload files larger
-than two megabytes. Otherwise, the setup cost will take up too much
-time compared to the transfer time. Thus, we turn to the second upload
-option, using
-the <a href="https://msdn.microsoft.com/en-us/library/ee538285.aspx">SaveBinaryDirect
-method</a> which uses
-the <a href="http://en.wikipedia.org/wiki/WebDAV">WebDAV protocol</a>
-under the covers.</p>
+<p>The above code works well for file sizes less than two megabytes,
+but throws
+an <a href="http://stackoverflow.com/questions/20076871/sharepoint-2013-client-object-model-file-larger-than-2-mb-exception">exception</a>
+otherwise. As we require a file size larger than two megabytes to
+reliably gauge upload and download speeds, we turn to the second
+option,
+using <a href="https://msdn.microsoft.com/en-us/library/ee538285.aspx">SaveBinaryDirect
+method</a> and
+the <a href="http://en.wikipedia.org/wiki/WebDAV">WebDAV
+protocol</a>.</p>
 
 <pre class="prettyprint lang-cs">
 // take 2
@@ -156,11 +148,11 @@ size limit is 250MB and file upload limit is 2GB per file.</p>
 <h2>Conclusion</h2>
 
 <p>Uploading and downloading a document of one gigabyte in size is
-surprisingly fast compared to the speed of Azure blob storage and
-considering that SharePoint need to store the file in a SQL Server
-content database. In terms of bandwidth, to some extend we could use
-SharePoint Online document libraries as an alternative to Azure blob
-storage. But SharePoint not being transactional would likely cause
+surprisingly fast, considering that SharePoint must store the file in
+an SQL Server content database (as opposed to blob storage build to
+handle large files). In terms of bandwidth, to some extend we could
+use SharePoint Online document libraries as an alternative to Azure
+blob storage. But SharePoint not being transactional will likely cause
 issues down the road.</p>
 
 </div>
