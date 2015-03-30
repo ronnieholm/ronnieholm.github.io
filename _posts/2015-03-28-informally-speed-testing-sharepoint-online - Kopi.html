@@ -72,7 +72,7 @@ namespace SharePointOnlineSpeedTest {
 <p>The SharePoint client side object model offers (at least) two ways
 of uploading files to a document library. One way is using
 the <a href="https://msdn.microsoft.com/en-us/library/microsoft.sharepoint.client.filecreationinformation.aspx">FileCreationInformation</a>
-class like so:
+class:
 
 <pre class="prettyprint lang-cs">
 // take 1
@@ -137,7 +137,13 @@ using (var ctx = SetupContext(destination)) {
 
 <h2>Execution</h2>
 
-<p>Running the speed test application on a Windows 2012 Azure virtual machine, here's an average result:</p>
+<p>According
+to <a href="https://support.office.com/en-au/article/SharePoint-Online-software-boundaries-and-limits-8f34ff47-b749-408b-abc0-b605e1f6d498">software
+boundaries and limits for SharePoint Online</a>, the file attachment
+size limit is 250MB and file upload limit is 2GB per file.</p>
+
+<p>Running the application on a Windows 2012 Azure virtual machine,
+here's an average result:</p>
 
 <pre>
 %> ./SharePointOnlineSpeedTest.exe https://bugfree.sharepoint.com/sites/test/speedtest/testfile 1024
@@ -145,19 +151,18 @@ using (var ctx = SetupContext(destination)) {
 1024 MB downloaded in 95.6 seconds at 89.8 Mbit/s
 </pre>
 
-<p>According
-to <a href="https://support.office.com/en-au/article/SharePoint-Online-software-boundaries-and-limits-8f34ff47-b749-408b-abc0-b605e1f6d498">software
-boundaries and limits for SharePoint Online</a>, the file attachment
-size limit is 250MB and file upload limit is 2GB per file.</p>
+<p>Beware that SharePoint document libraries are version-enabled by
+default. Running the test with large files may cause the site
+collection to run out of space.</p>
 
 <h2>Conclusion</h2>
 
 <p>Uploading and downloading a document of one gigabyte is
-surprisingly fast, considering that SharePoint must store the file in
-an SQL Server content database (as opposed to blob storage build to
-handle large files). In terms of available bandwidth, to some extend
-we could use SharePoint Online document libraries as an alternative to
-Azure blob storage. But SharePoint not being transactional will likely
-cause issues down the road.</p>
+surprisingly fast, considering how SharePoint must store the file in
+an SQL Server content database as opposed to blob storage build to
+handle large files. In terms of bandwidth, to some extend we could use
+SharePoint Online document libraries as an alternative to Azure blob
+storage. But SharePoint not being transactional will likely cause
+issues down the road.</p>
 
 </div>
