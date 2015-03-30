@@ -12,7 +12,7 @@ the console application for
 <a href="/blog/2015/03/13/informally-speed-testing-azure-blob-storage">benchmarking
 Azure blob storage</a> to work with SharePoint document libraries. By
 providing the application with a path to a document library and a file
-size, it'll report on the upload and download speeds.</p>
+size, it'll report back on the upload and download speeds.</p>
 
 <p>The idea is then to benchmark on an ad hoc basis or periodically
 through a script. Wrapped in a script, end-users may even run the
@@ -152,8 +152,8 @@ here's an average result:</p>
 </pre>
 
 <p>Beware that SharePoint document libraries are version-enabled by
-default. Running the test with large files may cause the site
-collection to run out of space.</p>
+default. Repeatedly running the test with large files may cause the
+site collection to run out of space.</p>
 
 <h2>Conclusion</h2>
 
