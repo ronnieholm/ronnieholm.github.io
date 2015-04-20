@@ -100,9 +100,9 @@ the role assignment construct is an indirection mechanism used to
 decouple site groups from role definitions, furthering their
 reuse.</p>
 
-<p>It's this collection of role definitions the browser displays under
-the Site permissions menu. What the user interface calls permission
-levels, the object model calls role definitions.</p>
+<p>It's this collection of role definitions which the browser displays
+under the Site permissions menu. What the user interface calls
+permission levels, the object model calls role definitions.</p>
 
 <pre class="prettyprint lang-cs">
 // Excel Services Viewers
@@ -139,8 +139,8 @@ default.</p>
 
 <p>In any event, never modify an out of the box role
 definition. Instead, create a new one and reset the binding where
-applicable. This'll make long-term maintenance, governance, and
-upgrading easier.</p>
+applicable. This'll make long-term maintenance and upgrading
+easier.</p>
 
 <h2>Role definitions and base permissions</h2>
 
@@ -267,7 +267,7 @@ var roleAssignmentsForVisitorGroup = rootWeb.RoleAssignments.GetByPrincipal(root
 ctx.Load(roleAssignmentsForVisitorGroup, ra => ra.RoleDefinitionBindings);
 ctx.ExecuteQuery();
 
-// the Read permission level is the added by SharePoint by default
+// the Read permission level is added by SharePoint by default
 //roleAssignmentsForVisitorGroup.RoleDefinitionBindings.RemoveAll();
 roleAssignmentsForVisitorGroup.RoleDefinitionBindings.Add(availableRoleDefinitions.GetByName("Full Control"));
 roleAssignmentsForVisitorGroup.Update();
