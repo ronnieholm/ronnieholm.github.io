@@ -1,0 +1,268 @@
+---
+layout: post
+title: "Creating a reusable backlog list in SharePoint"
+date: 2015-04-29 12:00 UTC
+tags: [C#]
+---
+
+- BDD style description where possible (add as default value?)
+
+<div id="post">
+
+<p>
+Working with clients, I tend to require a simple system for tracking
+tasks such as new features and defects. I want to make sure I
+understand the tasks I'm there to solve and we all agree on their
+prioritization, status, etc. In many cases the client doesn't have an
+existing solution or process in place or it's too complex for my
+relative simple needs. Rather than defaulting to mail, I prefer a more
+transparent and structured approach, such as a spreadsheet or a
+SharePoint list. A spreadsheet tend to be best suited if you're its
+sole maintainer whereas a SharePoint list work better in a group
+setting. Working with users starting out with SharePoint, such a
+real-world use case may even be a technology enabler.
+</p>
+
+<!-- insert example image here -->
+
+<p>
+The problem with a SharePoint list over a spreadsheet is that it
+requires a considerable amount of point and clicking setting up in a
+new environment, and it may be hard remembering exactly how you setup
+everything in previous environment (if you can still access it). First
+possible solution would be saving the initial list as a template and
+importing in into a new environment. I don't fancy this approach
+because actual setup is now opaque and a template cannot necessarily
+be imported across versions of SharePoint. Second possible solution is
+document in Word form all the setup steps, but that's just mindless
+duplicate effort which quickly grows stale.
+</p>
+
+<p>
+My preferred solution to re-creating artefacts across SharePoint
+instances is scripting. For the exact reason that it makes the whole
+setup transparent and easy to make small local adjustments. For
+scripting I tend to go with console applications as Visual Studio is
+always readily available.
+</p>
+
+<h2>Scripting backlog creation and configuration</h2>
+
+<p>Let's start by established a container to insert code into. This
+script is intended to be run against SharePoint Online but with minor
+modifications to the SetupContext methods it can target recent
+SharePoint on-prem versions as well.</p>
+
+<p>
+While it may seem a lot of code, it's really just standard
+authentication code and the same XML adjusted for variations in field
+types. The easiest way to get at this XML is configuring the field
+through the browser and then use a tool
+like <a href="http://spcb.codeplex.com">SharePoint 2013 Client
+Browser</a> to browse the client-side object model and extract the
+proper XML to be parameterized.
+</p>
+
+<pre class="prettyprint lang-cs">
+// add reference to:
+//   C:\Program Files\Common Files\microsoft shared\Web Server Extensions\16\ISAPI\Microsoft.SharePoint.Client.dll
+//   C:\Program Files\Common Files\microsoft shared\Web Server Extensions\16\ISAPI\Microsoft.SharePoint.Client.Runtime.dll
+
+using Microsoft.SharePoint.Client;
+using System;
+using System.Linq;
+using System.Security;
+using System.Text;
+using System.Xml.Linq;
+
+namespace BugfreeConsultingBacklog {
+    class Program {
+        static ClientContext SetupContext(Uri siteCollection) {
+            var user = "ronnieholm@bugfree.onmicrosoft.com";
+            var password = "password";
+            var securePassword = new SecureString();
+            password.ToCharArray().ToList().ForEach(securePassword.AppendChar);
+            var credentials = new SharePointOnlineCredentials(user, securePassword);
+            return new ClientContext(siteCollection) { Credentials = credentials };
+        }
+
+        static XElement CreateNoteField(string internalName, string displayName, bool appendOnly = false) {
+            return
+                new XElement("Field",
+                    new XAttribute("Type", "Note"),
+                    new XAttribute("DisplayName", displayName),
+                    new XAttribute("Required", "FALSE"),
+                    new XAttribute("EnforceUniqueValues", "FALSE"),
+                    new XAttribute("Indexed", "FALSE"),
+                    new XAttribute("NumLines", "6"),
+                    new XAttribute("RichText", "FALSE"),
+                    new XAttribute("Sortable", "FALSE"),
+                    new XAttribute("ID", Guid.NewGuid()),
+                    new XAttribute("StaticName", internalName),
+                    new XAttribute("Name", internalName),
+                    new XAttribute("AppendOnly", appendOnly));
+        }
+
+        static XElement CreateTextField(string internalName, string displayName) {
+            return
+                new XElement("Field",
+                    new XAttribute("Type", "Text"),
+                    new XAttribute("DisplayName", displayName),
+                    new XAttribute("Description", ""),
+                    new XAttribute("Required", "FALSE"),
+                    new XAttribute("EnforceUniqueValues", "FALSE"),
+                    new XAttribute("Indexed", "FALSE"),
+                    new XAttribute("MaxLength", "255"),
+                    new XAttribute("ID", Guid.NewGuid()),
+                    new XAttribute("StaticName", internalName),
+                    new XAttribute("Name", internalName));
+        }
+
+        static XElement CreateNumberField(string internalName, string displayName) {
+            return
+                new XElement("Field",
+                    new XAttribute("Type", "Number"),
+                    new XAttribute("DisplayName", displayName),
+                    new XAttribute("Required", "FALSE"),
+                    new XAttribute("EnforceUniqueValues", "FALSE"),
+                    new XAttribute("Indexed", "FALSE"),
+                    new XAttribute("ID", Guid.NewGuid()),
+                    new XAttribute("StaticName", internalName),
+                    new XAttribute("Name", internalName));
+        }
+
+        static XElement CreateChoiceField(string internalName, string displayName, string[] choices, string defaultChoice = "") {
+            var choicesElement = new XElement("CHOICES");
+            choices.ToList().ForEach(c => choicesElement.Add(new XElement("CHOICE", c)));
+
+            return
+                new XElement("Field",
+                    new XAttribute("Type", "Choice"),
+                    new XAttribute("DisplayName", displayName),
+                    new XAttribute("Description", ""),
+                    new XAttribute("Required", "FALSE"),
+                    new XAttribute("EnforceUniqueValues", "FALSE"),
+                    new XAttribute("Indexed", "FALSE"),
+                    new XAttribute("Format", "Dropdown"),
+                    new XAttribute("FillInChoice", "FALSE"),
+                    new XAttribute("ID", Guid.NewGuid()),
+                    new XAttribute("StaticName", internalName),
+                    new XAttribute("Name", internalName),
+                    new XElement("Default", defaultChoice),
+                    choicesElement);
+        }
+
+        static XElement CreateUserField(string internalName, string displayName) {
+            return
+                new XElement("Field",
+                    new XAttribute("Type", "User"),
+                    new XAttribute("DisplayName", displayName),
+                    new XAttribute("Description", ""),
+                    new XAttribute("List", "UserInfo"),
+                    new XAttribute("Required", "FALSE"),
+                    new XAttribute("EnforceUniqueValues", "FALSE"),
+                    new XAttribute("ShowField", "ImnName"),
+                    new XAttribute("UserSelectionMode", "PeopleOnly"),
+                    new XAttribute("UserSelectionScope", "0"),
+                    new XAttribute("ID", Guid.NewGuid()),
+                    new XAttribute("StaticName", internalName),
+                    new XAttribute("Name", internalName));
+        }
+
+        static void Main(string[] args) {
+            // code below goes here.
+        }
+    }
+}
+</pre>
+
+<p>
+The main 
+</p>
+
+<pre class="prettyprint lang-cs">
+using (var ctx = SetupContext(new Uri("https://bugfree.sharepoint.com/sites/migration"))) {
+    var backlog = ctx.Web.Lists.Add(new ListCreationInformation {
+        Title = "BugfreeConsultingBacklog",
+        TemplateType = (int)ListTemplateType.GenericList
+    });
+
+    ctx.Load(backlog, l => l.Fields, l => l.DefaultView);
+    backlog.Title = "Bugfree Consulting Backlog";
+    backlog.EnableVersioning = true;
+    backlog.Update();
+    ctx.ExecuteQuery();
+
+    new[] {
+        CreateNoteField("Description", "Description"),
+        CreateNoteField("HowToTest", "How to test"),
+        CreateNumberField("BusinessPriority", "Business priority"),
+        CreateChoiceField("Classification", "Classification", new[] { "Change", "Defect" }),
+        CreateTextField("Area", "Area"),
+        CreateUserField("AssignedTo", "Assigned to"),
+        CreateUserField("BusinessContact", "Business contact"),
+        CreateChoiceField(
+            "Status", 
+            "Status", 
+            new[] { 
+                "Received", 
+                "Needs clarification", 
+                "Ready for development", 
+                "Under development", 
+                "Development completed", 
+                "Blocked", 
+                "Ready for test", 
+                "Test succeeded", 
+                "Test failed", 
+                "Completed", 
+                "Closed" 
+            },
+            "Received"),
+        CreateNumberField("OriginalEstimate", "Original estimate"),
+        CreateNumberField("RemainingEstimate", "Remaining estimate"),
+        CreateNoteField("Comments", "Comments", true),
+    }
+    .ToList()
+    .ForEach(schema => backlog.Fields.AddFieldAsXml(schema.ToString(), false, AddFieldOptions.DefaultValue));
+    ctx.ExecuteQuery();
+
+    var comments = ctx.CastTo&lt;FieldMultiLineText&gt;(backlog.Fields.GetByTitle("Comments"));
+    ctx.Load(comments);
+    ctx.ExecuteQuery();
+    comments.AppendOnly = true;
+    comments.Update();
+
+    backlog.DefaultView.DeleteObject();
+    ctx.ExecuteQuery();
+
+    var newView = backlog.Views.Add(new ViewCreationInformation {
+        Title = "AllItems",
+        ViewFields = new[] { 
+            "ID", "LinkTitle", "Area", "AssignedTo", "Classification", 
+            "BusinessPriority", "Status", "OriginalEstimate", "RemainingEstimate"
+        },
+        SetAsDefaultView = true,
+        Paged = true
+    });
+    newView.Title = "All Items";
+    newView.Update();
+    ctx.ExecuteQuery();
+}
+</pre>
+
+<p>
+A couple of notes about the main scripts: firstly, I chose the
+build-in GenericList over the IssueTracking type because I like to
+start with as little baggage as possible and extend the list rather
+than trying to figure out how Microsoft configured the IssueTracking
+and how to remove the functionality. Secondly, I strive for as few
+field, views, etc. as possible as I don't want to implement a
+fully-featured task tracking system in SharePoint. Instead of adding
+all sorts of fields, I tend to fallback to using the Comments field
+for those exceptional cases. Lastly, business priority is intended for
+the business for the business to priority their tasks. Business isn't
+a single entity so it should be viewed together Area. Tasks can then
+ordered relative to each other.
+</p>
+
+</div>
