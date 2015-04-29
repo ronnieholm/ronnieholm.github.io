@@ -255,13 +255,12 @@ using (var ctx = SetupContext(new Uri("https://bugfree.sharepoint.com/sites/migr
 </pre>
 
 <p>
-A couple of notes about the main scripts: firstly, I chose the
-build-in GenericList over the IssueTracking type because I like to
-start with as little baggage as possible and extend the list rather
-than trying to figure out how Microsoft configured the IssueTracking
-and how to remove the functionality. Secondly, I strive for as few
-field, views, etc. as possible as I don't want to implement a
-fully-featured task tracking system in SharePoint. Instead of adding
+Firstly, I chose the build-in GenericList over the IssueTracking type because I
+like to start with as little baggage as possible and extend the list
+rather than trying to figure out how Microsoft configured the
+IssueTracking and how to remove the functionality. Secondly, I strive
+for as few field, views, etc. as possible as I don't want to implement
+a fully-featured task tracking system in SharePoint. Instead of adding
 all sorts of fields, I tend to fallback to using the Comments field
 for those exceptional cases. Lastly, business priority is intended for
 the business for the business to priority their tasks. Business isn't
