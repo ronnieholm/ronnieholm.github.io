@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Áutomating the creating of a task list in SharePoint to minimize lead time"
+title: "Automating the creating of a task list in SharePoint to minimize lead time"
 date: 2015-04-29 12:00 UTC
 tags: [C#]
 ---
@@ -78,7 +78,7 @@ other with each business area.
 </li>
 </ul>
 
-<h2>Automated setup of backlog</h2>
+<h2>Setting up the backlog</h2>
 
 <p>
 Setting up a SharePoint list requires a considerable amount of point
@@ -291,8 +291,7 @@ comments.Update();
 backlog.DefaultView.DeleteObject();
 ctx.ExecuteQuery();
 
-var newView = backlog.Views.Add(new ViewCreationInformation
-{
+var newView = backlog.Views.Add(new ViewCreationInformation {
     Title = "AllItems",
     ViewFields = new[] { 
         "ID", "LinkTitle", "Area", "AssignedTo", "Classification", 
