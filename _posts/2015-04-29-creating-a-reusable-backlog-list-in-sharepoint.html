@@ -10,12 +10,12 @@ tags: [C#]
 <p>
 The first part of this post describes the backlog I like to use when
 working with client and the rationale behind it. On SharePoint
-projects, I implement the backlog using a SharePoint list. If for no
-other reason, it helps show some of the capabilities of the
-(potentially new) platform and have users engage with it. The second
-part outlines how to automate the setup of the task list. I use the
-same list across multiple clients and thus automate its setup using
-the client side object model.
+projects, I implement the backlog using a SharePoint list (otherwise,
+I tend to go for a spreadsheet). If for no other reason, it helps show
+some of the capabilities of the potentially new platform and have
+users engage with it. The second part outlines how to automate the
+setup of the task list. I use the same list across multiple clients
+and thus automate its setup using the client side object model.
 </p>
 
 <h2>Motivation</h2>
@@ -81,41 +81,28 @@ other with each business area.
 <h2>Automated setup of backlog</h2>
 
 <p>
-The problem with a SharePoint list over a spreadsheet is that it
-requires a considerable amount of point and clicking setting up in a
-new environment, and it may be hard remembering exactly how you setup
-everything in previous environment (if you can still access it). First
-possible solution would be saving the initial list as a template and
-importing in into a new environment. I don't fancy this approach
-because actual setup is now opaque and a template cannot necessarily
-be imported across versions of SharePoint. Second possible solution is
-document in Word form all the setup steps, but that's just mindless
-duplicate effort which quickly grows stale.
+Setting up a SharePoint list requires a considerable amount of point
+and clicking, and it may be hard to recall exactly how we setup the
+previous environment (if we still have access it). One possible
+solution would be saving the initial list as a template and importing
+in into a new environment. I dislike this approach because setup has
+now become opaque and a template cannot always be imported across
+versions of SharePoint. Another solution is to create a document
+outlining the setup, but that's a duplicate effort resulting in a
+stale document.
 </p>
 
 <p>
-My preferred solution to re-creating artefacts across SharePoint
-instances is scripting. For the exact reason that it makes the whole
-setup transparent and easy to make small local adjustments. For
-scripting I tend to go with console applications as Visual Studio is
-always readily available.
+My preferred solution for re-creating artefacts across SharePoint
+instances is scripting. It makes the whole setup transparent and
+making local adjustments is easy.
 </p>
 
 <p>
 Let's start by established a container to insert code into. This
-script is intended to be run against SharePoint Online but with minor
-modifications to the SetupContext methods it can target recent
-SharePoint on-prem versions as well.
-</p>
-
-<p>
-While it may seem a lot of code, it's really just standard
-authentication code and the same XML adjusted for variations in field
-types. The easiest way to get at this XML is configuring the field
-through the browser and then use a tool
-like <a href="http://spcb.codeplex.com">SharePoint 2013 Client
-Browser</a> to browse the client-side object model and extract the
-proper XML to be parameterized.
+script is intended to be run against SharePoint Online but can target
+SharePoint on-prem with minor modifications to the SetupContext
+method.
 </p>
 
 <pre class="prettyprint lang-cs">
@@ -236,7 +223,17 @@ namespace BugfreeConsultingBacklog {
 </pre>
 
 <p>
-With the helper routines out of our way, here's the main script:
+While it may seem like a lot of code, it's really standard
+authentication code and XML adjusted for variations in field
+types. The easiest way to get at this XML is configuring the field
+through the browser and then use a tool
+like <a href="http://spcb.codeplex.com">SharePoint 2013 Client
+Browser</a> to browse the client-side object model and extract the
+proper XML and parameterize it.
+</p>
+
+<p>
+With the helper routines in place, here's the main script:
 </p>
 
 <pre class="prettyprint lang-cs">
@@ -312,7 +309,11 @@ ctx.ExecuteQuery();
 <h2>Conclusion</h2>
 
 <p>
-xx
+I doubt it would be possible to express the same unambigious steps in
+a free-text style document in as little space. We're developers so why
+not use the notation we're accustomed to and create an executable
+specification for setting up the backlog across different SharePoint
+instances.
 </p>
 
 </div>
