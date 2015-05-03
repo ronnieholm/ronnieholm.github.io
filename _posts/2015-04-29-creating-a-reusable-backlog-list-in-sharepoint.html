@@ -1,39 +1,41 @@
 ---
 layout: post
-title: "Creating a reusable backlog list in SharePoint to minimize lead time"
+title: "Áutomating the creating of a task list in SharePoint to minimize lead time"
 date: 2015-04-29 12:00 UTC
 tags: [C#]
 ---
 
-<!-- 
-Create the first part to be copy/pasted to clients (or shown) and
-the latter more developer focused for setting up the list
- -->
-
 <div id="post">
 
 <p>
-In this post, I'll describe the SharePoint backlog list I use when
-working with clients and how to easily re-use it across clients. The
-first part shows the backlog and describe the rationale behind it, and
-it's the part I use as client documentation. The second part is more
-technical and outlines the script to automate setting up the backlog.
+The first part of this post describes the backlog I like to use when
+working with client and the rationale behind it. On SharePoint
+projects, I implement the backlog using a SharePoint list. If for no
+other reason, it helps show some of the capabilities of the
+(potentially new) platform and have users engage with it. The second
+part outlines how to automate the setup of the task list. I use the
+same list across multiple clients and thus automate its setup using
+the client side object model.
 </p>
 
-<h2>Motivation and end-goal</h2>
+<h2>Motivation</h2>
 
 <p>
-Oftentimes clients don't have existing solutions or processes in place
-for smaller tasks and tend to default to mail. I prefer a more
-transparent and structured approach, such as a SharePoint
-list. SharePoint lists are good for creating a simple system for
-tracking tasks such as features and defects, and make sure everyone
-share a common understanding. Not only of the immidiate task, but its
-relative priority, and what constitutes its done-done criteria. With
-the backlog, my goal isn't to adhere to a formal process, such as
-Scrum, but instead focus
+Many clients don't have existing processes in place for tracking a
+backlog of tasks and thus default to mail, which is anything but
+transparant and structured. A host of sites provide free tracking
+tools for this purpose but, assuming the client already has
+SharePoint, I prefer a simple SharePoint list. Its decent for creating
+a simple system to track a backlog of features and defects and ensure
+it's visible to everyone. The ultimate goal isn't to adhere to a
+formal process such as Scrum, but to focus
 on <a href="http://www.ustream.tv/recorded/6149220">minimizing lead
-time to results</a> through simple tools.</p>
+time to results</a> through a simple tool.
+</p>
+
+<p>
+Here's a screenshot of what an item in the backlog list looks like:
+</p>
 
 <p>
 <img src="/content/bugfree-consulting-backlog.png" />
@@ -43,31 +45,40 @@ time to results</a> through simple tools.</p>
 
 <ul>
 <li>
-I started from the build-in GenericList and not the IssueTracking list
-template because I like to kick off with as little baggage as possible
-and extend the list rather than trying to figure out how Microsoft
-configured IssueTracking and how to remove functionality from it.
+It's based on the build-in GenericList rather than the IssueTracking
+list template because I prefer extending lists rather than trying to
+figure out how IssueTracking is configured to remove undesired
+functionality.
 </li>
 <li>
-I strive for as few fields, views, etc. as possible to make usage
-intuitive and fast. I simply fallback to using the Comments field for
-the few and varying cases not covered by structured fields. The
-Comments field is append-only so that it shows the evolution of the
-list item as its timing may come in handy in prioritizing and
-implementing the task.
+I strive for as few modifications as possible. Just enough to satisfy
+the basic needs. I don't want to leave users with the impression that
+it's a fully-fledged task tracking system. Thus, I've included as few
+fields, views, etc. as possible and fallback to using the Comments
+field for the few cases not covered by the existing fields. In
+addition, the Comments field is append-only as tracking comments over
+time may come in handy in prioritizing and implementing the task.
 </li>
 <li>
-Use BDD style formulation for description field where make sense and
-elaborate with regular phrasing afterwards, if necesssary.
+I tend to
+use <a href="http://en.wikipedia.org/wiki/Behavior-driven_development">Behavior
+driven development (BDD)</a>-style wording in the Description field
+and elaborate with regular phrasing afterwards, if necesssary. The BDD
+format and the <a href="http://en.wikipedia.org/wiki/5_Whys">Five Whys
+technique</a> help ensure I ask the right questions upfront. I wish to
+understand the task from both a business and a technical point of
+view.
 </li>
 <li>
-Business priority is intended for the business for the business to
-priority their tasks. Business isn't a single entity so it should be
-viewed together Area. Tasks can then ordered relative to each other
+Business priority is intended for the business responsible to priority
+their tasks. As multiple parts of the business may submit backlog
+items, business isn't a single entity and should be viewed in
+conjuction with Area. Backlog items can then ordered relative to each
+other with each business area.
 </li>
 </ul>
 
-<h2>Technical implementation</h2>
+<h2>Automated setup of backlog</h2>
 
 <p>
 The problem with a SharePoint list over a spreadsheet is that it
@@ -216,7 +227,7 @@ namespace BugfreeConsultingBacklog {
         }
 
         static void Main(string[] args) {
-            using (var ctx = SetupContext(new Uri("https://baneudv.sharepoint.com/sites/rh-test-english"))) {
+            using (var ctx = SetupContext(new Uri("https://bugfree.sharepoint.com/sites/migration"))) {
                 // code below goes here.
             }
         }
