@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Automating the setup of a backlog in SharePoint Online"
+title: "Scripting the setup of a backlog in SharePoint Online"
 date: 2015-04-29 12:00 UTC
 tags: [C#]
 ---
@@ -33,9 +33,9 @@ to a formal process such
 as <a href="http://en.wikipedia.org/wiki/Scrum_(software_development)">Scrum</a>
 or <a href="http://en.wikipedia.org/wiki/Kanban">Kanban</a>, but to
 focus on <a href="http://www.ustream.tv/recorded/61492206">minimizing
-lead time to business impact by being predictable</a>. The bells and
-whistles and knobs and dials of many tools cause you to lose focus on
-the end goal.
+lead time to business impact by striving for predictability</a>. The
+bells and whistles and knobs and dials of many tools cause you to lose
+focus on the end goal.
 </p>
 
 <p>
@@ -105,7 +105,7 @@ for on-prem by replacing to the SetupContext logic.
 </p>
 
 <pre class="prettyprint lang-cs">
-// add reference to:
+// add references to:
 //   C:\Program Files\Common Files\microsoft shared\Web Server Extensions\16\ISAPI\Microsoft.SharePoint.Client.dll
 //   C:\Program Files\Common Files\microsoft shared\Web Server Extensions\16\ISAPI\Microsoft.SharePoint.Client.Runtime.dll
 
@@ -315,7 +315,7 @@ client side object model provides an internal domain specific language
 for defining SharePoint artefacts. We shouldn't fall back to opaque
 template definitions or ambiguous documents outlining the setup just
 because SharePoint provides that option. It would be akin to a SQL
-server administration not using SQL scripts for setting up the
+server administration not using SQL scripts for manipulating a
 database.
 </p>
 
