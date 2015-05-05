@@ -24,20 +24,20 @@ client side object model.
 <p>
 Oftentimes clients don't have a process (backed by tooling) in place
 for tracking a backlog of tasks. The default is then to gravitate
-toward mail, which is anything but transparant and structured. With a
+toward mail, which is anything but transparent and structured. With a
 host of sites providing free tracking tools, a SharePoint list (or
-spreadsheet for that matter) may seem like a overly simplistic
-tool. But when all you need is a simple system to track a backlog of
-task, and ensure it's visible to everyone, it's good enough. The goal
-isn't to adhere to a formal process such as Scrum or Kanban, but to
-focus on <a href="http://www.ustream.tv/recorded/61492206">minimizing
-lead time to results</a>. With all their bells and whistles and knobs
-and dials, many tools causes you to lose focus on that goal.
+spreadsheet for that matter) may seem overly simplistic. But when all
+you need is a simple system to track a backlog of task, and ensure
+it's visible to everyone, it's good enough. The goal isn't to adhere
+to a formal process such as Scrum or Kanban, but to focus
+on <a href="http://www.ustream.tv/recorded/61492206">minimizing lead
+time to results</a>. With all their bells and whistles and knobs and
+dials, many tools causes you to lose focus on that goal.
 </p>
 
 <p>
-To get specifc, here's a screenshot of what an item in my backlog list
-may look like:
+To get specific, here's a screenshot of what an item in my backlog
+list may look like:
 </p>
 
 <p>
@@ -57,7 +57,7 @@ remove undesired functionality.
 I strive for as few modifications to the Generic list as
 possible. Just enough fields, views, and so on to satisfy the basic
 needs of a backlog as I don't want to leave anyone with the impression
-that it's a fully-fledged task tracker. Then I fallback on the
+that it's a fully-fledged task tracker. Then I fall back on the
 append-only Comments field for cases not covered by other fields.
 </li>
 <li>
@@ -70,11 +70,11 @@ technique</a>, I'm more inclined to understand the issue from both a
 business and a technical point of view.
 </li>
 <li>
-The intension of Business priority is for business responsibles to
-prioritize tasks by providing a relative priority of each task. As
-parties from multiple areas of business may add to the backlog,
-Business priority should be viewed in conjuction with Area as a way to
-order items relative to each other within each area.
+The intension of Business priority is for the business responsible to
+prioritize tasks by providing a relative priority. Parties from
+multiple areas of business may add to the backlog and thus Business
+priority should be viewed in conjunction with Area to create as many
+orderings as there're areas.
 </li>
 </ul>
 
@@ -219,17 +219,19 @@ namespace BugfreeConsultingBacklog {
 </pre>
 
 <p>
-While it may seem like a lot of code, it's really standard
-authentication logic and generation of XML adjusted for variations in
-field type and available properties. The easiest way to get at this
-XML is configuring the field through the browser and then use a tool
+While it may seem like a lot of code, it's mostly standard SharePoint
+Online authentication logic and generation of XML adjusted for
+variations in field types and available properties. The easiest way to
+get at this XML is by configuring the field through the regular
+browser and use a tool
 like <a href="http://spcb.codeplex.com">SharePoint 2013 Client
-Browser</a> to browse the list definition and extract the proper XML
-and parameterize it.
+Browser</a> to browse the list definition and extract the XML for
+parameterization.
 </p>
 
 <p>
-With the container in place, we can move on to the crux of the script:
+With the container in place, now we can fill it with the actual
+script:
 </p>
 
 <pre class="prettyprint lang-cs">
@@ -306,12 +308,12 @@ ctx.ExecuteQuery();
 <p>
 As developers we should use the tools and notations we're most
 accustomed to to create an executable specification for setting up the
-backlog across different SharePoint environments -- in essense the
+backlog across different SharePoint environments -- in essence the
 client side object model provides an internal domain specific language
-for defining artefacts. We shouldn't fall back to an opaque template
-definition or an ambigiuous document outlining the setup just because
-SharePoint provides the former as an option or because end-users do
-both.
+for defining artefacts. We shouldn't fall back to opaque template
+definitions or ambigiuous documents outlining the setup just because
+SharePoint provides that option. It would be akin to a SQL server
+administration not using SQL scripts for setting up the database.
 </p>
 
 </div>
