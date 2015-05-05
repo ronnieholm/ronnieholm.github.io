@@ -32,7 +32,7 @@ it's visible to everyone, it's good enough. The goal isn't to adhere
 to a formal process such as Scrum or Kanban, but to focus
 on <a href="http://www.ustream.tv/recorded/61492206">minimizing lead
 time to results</a>. With all their bells and whistles and knobs and
-dials, many tools causes you to lose focus on that goal.
+dials, many tools cause you to lose focus on that goal.
 </p>
 
 <p>
@@ -98,7 +98,7 @@ local adjustments easier.
 Let's start by established a container to insert code the main
 scripting logic into. This script uses the client side object model
 and is intended to be run against SharePoint Online. It can be adapted
-for for on-prem by replacing to the SetupContext logic.
+for on-prem by replacing to the SetupContext logic.
 </p>
 
 <pre class="prettyprint lang-cs">
@@ -221,12 +221,11 @@ namespace BugfreeConsultingBacklog {
 <p>
 While it may seem like a lot of code, it's mostly standard SharePoint
 Online authentication logic and generation of XML adjusted for
-variations in field types and available properties. The easiest way to
-get at this XML is by configuring the field through the regular
-browser and use a tool
+variations in field types and available properties. The XML can be
+extracted from SharePoint by first configuring the field through a
+regular browser and then use a tool
 like <a href="http://spcb.codeplex.com">SharePoint 2013 Client
-Browser</a> to browse the list definition and extract the XML for
-parameterization.
+Browser</a> to browse the list definition.
 </p>
 
 <p>
@@ -311,7 +310,7 @@ accustomed to to create an executable specification for setting up the
 backlog across different SharePoint environments -- in essence the
 client side object model provides an internal domain specific language
 for defining artefacts. We shouldn't fall back to opaque template
-definitions or ambigiuous documents outlining the setup just because
+definitions or ambiguous documents outlining the setup just because
 SharePoint provides that option. It would be akin to a SQL server
 administration not using SQL scripts for setting up the database.
 </p>
