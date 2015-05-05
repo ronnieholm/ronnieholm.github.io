@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Automating the creation of custom backlog list SharePoint Online"
+title: "Automating the creation of a backlog in SharePoint Online"
 date: 2015-04-29 12:00 UTC
 tags: [C#]
 ---
@@ -9,32 +9,35 @@ tags: [C#]
 
 <p>
 The first part of this post describes the backlog I like to use when
-working with client and the rationale behind it. On SharePoint
-projects, I implement the backlog using a SharePoint list (otherwise,
-I tend to go for a spreadsheet). If for no other reason, it helps show
-some of the capabilities of the potentially new platform and have
-users engage with it. The second part outlines how to automate the
-setup of the task list. I use the same list across multiple clients
-and thus automate its setup using the client side object model.
+working with clients and the rationale behind it. On SharePoint
+projects, I tend to implement it as a SharePoint list -- otherwise a
+spreadsheet is a decent fallback. If for no other reason, storing it
+in SharePoint helps display some of the capabilities of SharePoint
+which clients may be unaccustomed to. The second part of this post
+outlines an approach to automate the setup of the backlog since I use
+it across multiple clients. It relies on the scripting using the
+client side object model.
 </p>
 
 <h2>Motivation</h2>
 
 <p>
-Many clients don't have existing processes in place for tracking a
-backlog of tasks and thus default to mail, which is anything but
-transparant and structured. A host of sites provide free tracking
-tools for this purpose but, assuming the client already has
-SharePoint, I prefer a simple SharePoint list. Its decent for creating
-a simple system to track a backlog of features and defects and ensure
-it's visible to everyone. The ultimate goal isn't to adhere to a
-formal process such as Scrum, but to focus
-on <a href="http://www.ustream.tv/recorded/6149220">minimizing lead
-time to results</a> through the use of simple tool.
+Oftentimes clients don't have a process (backed by tooling) in place
+for tracking a backlog of tasks. The default is then to gravitate
+toward mail, which is anything but transparant and structured. With a
+host of sites providing free tracking tools, a SharePoint list (or
+spreadsheet for that matter) may seem like a overly simplistic
+tool. But when all you need is a simple system to track a backlog of
+task, and ensure it's visible to everyone, it's good enough. The goal
+isn't to adhere to a formal process such as Scrum or Kanban, but to
+focus on <a href="http://www.ustream.tv/recorded/61492206">minimizing
+lead time to results</a>. With all their bells and whistles and knobs
+and dials, many tools causes you to lose focus on that goal.
 </p>
 
 <p>
-Here's a screenshot of what an item in the backlog list looks like:
+To get specifc, here's a screenshot of what an item in my backlog list
+may look like:
 </p>
 
 <p>
@@ -47,62 +50,55 @@ Here's a screenshot of what an item in the backlog list looks like:
 <li>
 It's based on the build-in GenericList rather than the IssueTracking
 list template because I prefer extending lists rather than trying to
-figure out how IssueTracking is configured to remove undesired
-functionality.
+figure out how the IssueTracking template is configured and how to
+remove undesired functionality.
 </li>
 <li>
-I strive for as few modifications as possible. Just enough to satisfy
-the basic needs. I don't want to leave users with the impression that
-it's a fully-fledged task tracking system. Thus, I've included as few
-fields, views, etc. as possible and fallback to using the Comments
-field for the few cases not covered by the existing fields. In
-addition, the Comments field is append-only as tracking comments over
-time may come in handy in prioritizing and implementing the task.
+I strive for as few modifications to the Generic list as
+possible. Just enough fields, views, and so on to satisfy the basic
+needs of a backlog as I don't want to leave anyone with the impression
+that it's a fully-fledged task tracker. Then I fallback on the
+append-only Comments field for cases not covered by other fields.
 </li>
 <li>
-I tend to
-use <a href="http://en.wikipedia.org/wiki/Behavior-driven_development">Behavior
-driven development (BDD)</a>-style wording in the Description field
-and elaborate with regular phrasing afterwards, if necesssary. The BDD
-format and the <a href="http://en.wikipedia.org/wiki/5_Whys">Five Whys
-technique</a> help ensure I ask the right questions upfront. I wish to
-understand the task from both a business and a technical point of
-view.
+For the Description field, I tend to follow the
+<a href="http://en.wikipedia.org/wiki/Behavior-driven_development">Behavior
+driven development (BDD)</a>-phrasing of a task and elaborate with
+regular prose. Backed by BDD and
+the <a href="http://en.wikipedia.org/wiki/5_Whys">Five Whys
+technique</a>, I'm more inclined to understand the issue from both a
+business and a technical point of view.
 </li>
 <li>
-Business priority is intended for the business responsible to priority
-their tasks. As multiple parts of the business may submit backlog
-items, business isn't a single entity and should be viewed in
-conjuction with Area. Backlog items can then ordered relative to each
-other with each business area.
+The intension of Business priority is for business responsibles to
+prioritize tasks by providing a relative priority of each task. As
+parties from multiple areas of business may add to the backlog,
+Business priority should be viewed in conjuction with Area as a way to
+order items relative to each other within each area.
 </li>
 </ul>
 
-<h2>Setting up the backlog</h2>
+<h2>Automatic setup of backlog</h2>
 
 <p>
-Setting up a SharePoint list requires a considerable amount of point
-and clicking, and it may be hard to recall exactly how we setup the
-previous environment (if we still have access it). One possible
-solution would be saving the initial list as a template and importing
-in into a new environment. I dislike this approach because setup has
-now become opaque and a template cannot always be imported across
-versions of SharePoint. Another solution is to create a document
-outlining the setup, but that's a duplicate effort resulting in a
-stale document.
-</p>
-
-<p>
+It may be hard to recall exactly how the backup was point-and-click
+setup in a previous environment, even if we still have access to the
+environment. One possible solution to not having to remember
+everything would be saving the original backlog as a template and
+importing in into a new environment. I dislike this approach because
+setup becomes opaque and the template cannot necessarily be imported
+across versions of SharePoint. Another solution is to document setup,
+but that's a duplicate effort usually resulting in a stale document.
 My preferred solution for re-creating artefacts across SharePoint
-instances is scripting. It makes the whole setup transparent and
-making local adjustments is easy.
+environments is scripting. It makes the setup transparent and makes
+local adjustments easier.
 </p>
 
 <p>
-Let's start by established a container to insert code into. This
-script is intended to be run against SharePoint Online but can target
-SharePoint on-prem with minor modifications to the SetupContext
-method.
+Let's start by established a container to insert code the main
+scripting logic into. This script uses the client side object model
+and is intended to be run against SharePoint Online. It can be adapted
+for for on-prem by replacing to the SetupContext logic.
 </p>
 
 <pre class="prettyprint lang-cs">
@@ -224,16 +220,16 @@ namespace BugfreeConsultingBacklog {
 
 <p>
 While it may seem like a lot of code, it's really standard
-authentication code and XML adjusted for variations in field
-types. The easiest way to get at this XML is configuring the field
-through the browser and then use a tool
+authentication logic and generation of XML adjusted for variations in
+field type and available properties. The easiest way to get at this
+XML is configuring the field through the browser and then use a tool
 like <a href="http://spcb.codeplex.com">SharePoint 2013 Client
-Browser</a> to browse the client-side object model and extract the
-proper XML and parameterize it.
+Browser</a> to browse the list definition and extract the proper XML
+and parameterize it.
 </p>
 
 <p>
-With the helper routines in place, here's the main script:
+With the container in place, we can move on to the crux of the script:
 </p>
 
 <pre class="prettyprint lang-cs">
@@ -308,11 +304,14 @@ ctx.ExecuteQuery();
 <h2>Conclusion</h2>
 
 <p>
-I doubt it would be possible to express the same unambigious steps in
-a free-text style document in as little space. We're developers so why
-not use the notation we're accustomed to and create an executable
-specification for setting up the backlog across different SharePoint
-instances.
+As developers we should use the tools and notations we're most
+accustomed to to create an executable specification for setting up the
+backlog across different SharePoint environments -- in essense the
+client side object model provides an internal domain specific language
+for defining artefacts. We shouldn't fall back to an opaque template
+definition or an ambigiuous document outlining the setup just because
+SharePoint provides the former as an option or because end-users do
+both.
 </p>
 
 </div>
