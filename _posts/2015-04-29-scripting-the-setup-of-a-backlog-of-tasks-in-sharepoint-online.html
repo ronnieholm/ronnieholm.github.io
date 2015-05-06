@@ -66,7 +66,7 @@ a fully-fledged task tracker. For situations not covered by the common
 task structure, I fall back to using append-only Comments.
 </li>
 <li>
-For Description, I like to follow the
+For Description, I like to follow a
 <a href="http://en.wikipedia.org/wiki/Behavior-driven_development">Behavior-driven
 development (BDD)</a>-style and elaborate with regular prose. Using
 BDD and keeping the
@@ -263,7 +263,7 @@ ctx.ExecuteQuery();
 
 new[] {
     CreateNoteField("Description", "Description"),
-    CreateNoteField("HowToTest", "How to test"),
+    CreateNoteField("AcceptanceCriteria", "Acceptance criteria"),
     CreateNumberField("BusinessPriority", "Business priority"),
     CreateChoiceField("Classification", "Classification", new[] { "Change", "Defect" }, ""),
     CreateTextField("Area", "Area"),
@@ -272,8 +272,7 @@ new[] {
     CreateChoiceField(
         "Status", 
         "Status", 
-        new[] 
-        { 
+        new[] { 
             "Received", 
             "Needs clarification", 
             "Ready for development", 
