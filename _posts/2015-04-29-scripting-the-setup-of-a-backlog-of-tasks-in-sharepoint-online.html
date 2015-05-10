@@ -104,8 +104,8 @@ local adjustments.
 <p>
 Let's start scripting by creating a container for the main scripting
 logic to go into. This script relies on the SharePoint client side
-object model and is intended to be run against SharePoint Online, but
-can be adapted for on-prem by replacing the SetupContext logic.
+object model and is intended for SharePoint Online, but can be adapted
+for on-prem by replacing the SetupContext logic.
 </p>
 
 <pre class="prettyprint lang-cs">
@@ -226,12 +226,11 @@ namespace BugfreeConsultingBacklog {
 </pre>
 
 <p>
-While it may seem like a lot of code, it's mostly standard SharePoint
-Online authentication logic and generation of XML adjusted for
-variations in field types and available properties. The XML can be
-extracted from SharePoint by first configuring the field through a
-regular browser and then use a tool
-like <a href="http://spcb.codeplex.com">SharePoint 2013 Client
+While it may seem like a lot of code, it's mostly SharePoint Online
+authentication logic and XML generation. The non-parameterized field
+XML was extracted from SharePoint by first configuring the field
+through the browser and then
+using <a href="http://spcb.codeplex.com">SharePoint 2013 Client
 Browser</a> to browse the list definition.
 </p>
 
