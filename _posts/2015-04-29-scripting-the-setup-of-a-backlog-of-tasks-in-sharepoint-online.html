@@ -94,18 +94,18 @@ Relying on a point and click approach to backlog setup makes
 remembering the steps involved hard, even with access to an existing
 backlog. One alternative would be saving the original backlog as a
 template and importing in into a new environment. I dislike this
-approach because the steps are equally opaque. Another alternative
-would be to document the setup with screenshots and prose, but that's
-a duplicate effort, usually resulting in stale documentation. Instead,
-I prefer scripting. It makes setup transparent and makes local
-adjustments easier.
+approach because steps is equally opaque. Another alternative would be
+to document the setup with screenshots and prose, but that's a
+duplicate effort, usually resulting in stale documentation. Instead, I
+prefer scripting. It makes setup transparent and makes for easier
+local adjustments.
 </p>
 
 <p>
-Let's start by established a container to insert code the main
-scripting logic into. This script uses the client side object model
-and is intended to be run against SharePoint Online. It can be adapted
-for on-prem by replacing to the SetupContext logic.
+Let's start scripting by creating a container for the main scripting
+logic to go into. This script relies on the SharePoint client side
+object model and is intended to be run against SharePoint Online. By
+replating the SetupContext logic, it can be adapted for on-prem.
 </p>
 
 <pre class="prettyprint lang-cs">
