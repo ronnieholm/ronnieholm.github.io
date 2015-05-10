@@ -226,17 +226,15 @@ namespace BugfreeConsultingBacklog {
 </pre>
 
 <p>
-While it may seem like a lot of code, it's mostly SharePoint Online
-authentication logic and XML generation. The non-parameterized field
-XML was extracted from SharePoint by first configuring the field
-through the browser and then
+While it may seem like a lot of code, it's mostly authentication logic
+and XML generation. The non-parameterized field XML was extracted from
+SharePoint by first configuring the field through the browser and then
 using <a href="http://spcb.codeplex.com">SharePoint 2013 Client
 Browser</a> to browse the list definition.
 </p>
 
 <p>
-With the container in place, now we can fill it with the actual
-script:
+With the container in place, we can move on to the crux of the script:
 </p>
 
 <pre class="prettyprint lang-cs">
@@ -306,6 +304,12 @@ newView.Title = "All Items";
 newView.Update();
 ctx.ExecuteQuery();
 </pre>
+
+<p>
+Notice how the script creates readable URLs for both the list and view
+as these tend to go into mails when communicating with business
+responsibles, e.g., including a link to a particular tasks.
+</p>
 
 <h2>Conclusion</h2>
 
