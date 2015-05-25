@@ -1,0 +1,138 @@
+---
+layout: post
+title: "Minimal requirements for a SharePoint Online provisioning engine"
+date: 2015-05-25 12:00 UTC
+---
+
+<div id="post">
+
+<p>This post outlines a minimal set of requirements for an artefact
+provisioning engine. In broad terms, such an engine is any piece of
+software which creates and applies changes to state over
+time. Examples include doing database migrations or upgrading
+configuration files with new releases. The example I use throughout
+this post is that of a SharePoint Online provisioning engine. Its task
+is to create and query site collections, webs, document libraries,
+views, pages, and the like in a safe and reliable manner.
+</p>
+
+<h2>Organizing principles</h2>
+
+<p>Inspired by
+the <a href="http://en.wikipedia.org/wiki/Command_pattern">Command</a>
+and <a href="http://en.wikipedia.org/wiki/Command%E2%80%93query_separation#Command_Query_Responsibility_Segregation">Command
+Query Responsibility Segregation</a> patterns, the main organizing
+principle behind the SharePoint Online provisioning engine is the
+grouping of functionality into reusable commands and
+queries. Commands, such as create site collection, create list, and
+add web part to page, may read and write to SharePoint whereas
+queries, such as a recursive web visitor, is read-only.
+</p>
+
+<p>For the commands to be truly reliable and reusable, each must have
+the properties listed below. Queries being read-only are simpler and
+must only support composability.</p>
+
+<h3>Idempotent</h3>
+
+<p>Executing the same command or set of commands against an artefact
+more than once must not cause additional state changes. For instance,
+attempting to create the same list more than once should only result
+in a single instance of the list being created.</p>
+
+<h3>Additive</h3>
+
+<p>Executing a command shouldn't delete or overwrite user created
+structure or content, unless of course it's an explicit delete
+command. Once an artefact has been provisioned, it should be uniquely
+identifiable for its entire life-cycle and commands should only add to
+it.</p>
+
+<p>Performing non-additive upgrades to SharePoint artefacts is
+particularly challenging as users are outright encouraged to change
+both structure and content. Contrast this with a SQL database whose
+structure remains constant in between upgrades. Then take Entity
+Framework migrations as an example, and consider the work that has to
+go into supporting generic SharePoint non-additive upgrades.</p>
+
+<p>Instead, non-additive upgrades should be small and localized to
+avoid undesired side effects. They should be delegated to separate,
+short run-once scripts. As a corollary, once an existing artefact has
+been upgraded (or failed an upgrade), we never roll back. Instead we
+roll forward by creating new run-once scripts.</p>
+
+<h3>Composable</h3>
+
+<p>More complex commands are formed from simpler ones using a Lego
+brick metaphor. Composing commands ad infinitum, and not having each
+interfere with the other, requires each command (and query) to be as
+self-contained as possible to ensure that SharePoint transitions from
+one valid state to the next.</p>
+
+<p>Suppose we want to provision an instance of the Acme Corp project
+site collection template. We'd create a top-level
+CreateAcmeCorpProjectSiteCollection command and compose it from
+smaller commands. These commands come in two flavors: the general ones
+with no dependency on Acme Corp business logic, and the specific ones
+which encapsulate specific Acme Corp business logic.</p>
+
+<pre>
+CreateAcmeCorpProjectSiteCollection (specific)
+  CreateSiteCollection (generic)
+  CreateContentType (generic)
+  CreateAnalysisWeb (specific)
+    CreateWeb (generic)
+    CreateAcmeDocumentLibrary (specific)
+      CreateList (generic)
+      AddColumn (generic)
+      AddView (generic)
+  CreateDesignWeb (specific)
+  ...
+</pre>
+
+<p>In object oriented terms, think of each command as a class with an
+Execute method, accepting parameters specific to the command. The
+CreateSiteCollection, for instance, must be passed the title, URL,
+template, size, and language which it passes along to the CSOM site
+collection creation API. Encapsulated within each command's Execute
+method is
+a <a href="http://martinfowler.com/eaaCatalog/transactionScript.html">transaction
+script pattern</a>, calling out to individual commands.</p>
+
+<p>In order to provision artefacts in the right order, the
+provisioning engine does a depth-first traversal of the dependency
+tree. This ordering translates nicely to the call stack metaphor of a
+programming language.</p>
+
+<h2>Comparison with PnP provisioning engine</h2>
+
+<p>The work on my provisioning engine predates that of the on-going
+effort of the SharePoint community to develop
+its <a href="https://github.com/OfficeDev/PnP-Provisioning-Schema">PnP
+engine</a>. While I like the idea of a shared engine, my preference is
+toward an internal provisioning DSL. It enables the use of Visual
+Studio's refactoring options and compiler support when creating
+templates.</p>
+
+<p>The PnP engine appears to rely heavily on the definition of an XML
+schema and a mapping of properties from CSOM to schema and back. As
+the CSOM API and schema evolves, it seems challenging to maintain
+without breaking existing templates. The PnP engine would also have to
+parse XML documents into an abstract syntax tree and, while traversing
+the tree, call the CSOM API or user provided provisioning plugins. To
+me it seems to introduces a considerable amount of accidental
+complexity and work.</p>
+
+<p>Finally, the PnP provisioning engine seems to focus on defining an
+end state for artefacts whereas my approach focuses on the state
+transitions that ultimately lead to an end state.</p>
+
+<h2>Conclusion</h2>
+
+<p>In this post I outlined a couple of core requirements which a
+SharePoint Online provisioning engine must adhere to for it to be
+reliable. I've implemented and put in production an engine that
+fulfills these properties. In the process I looked at the early PnP
+engine and gained, but went down a different path.</p>
+
+</div>
