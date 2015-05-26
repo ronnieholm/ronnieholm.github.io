@@ -17,7 +17,7 @@ webs, document libraries, views, pages, and the like in a safe and
 reliable manner.
 </p>
 
-<h2>Organizing principles</h2>
+<h2>Guiding principles</h2>
 
 <p>Inspired by
 the <a href="http://en.wikipedia.org/wiki/Command_pattern">Command</a>
@@ -73,7 +73,7 @@ small amount of shared state, such as the client context.</p>
 Corp project site collection template. We'd create a top-level
 CreateAcmeCorpProjectSiteCollection command and compose it from
 smaller commands as illustrated below. These smaller commands come in
-two flavors: the general ones which are independant of any Acme Corp
+two flavors: the general ones which are independent of any Acme Corp
 provisioning and the specific ones which encapsulate Acme Corp
 business logic.</p>
 
@@ -102,34 +102,33 @@ script</a>, calling out to other commands.</p>
 
 <p>In order to provision artefacts in the right order, the
 provisioning engine does a depth-first traversal of the dependency
-tree. This ordering translates nicely to the call stack metaphore.</p>
+tree. This ordering translates nicely to the call stack metaphor.</p>
 
 <h2>Comparison with PnP provisioning engine</h2>
 
-<p>My provisioning engine predates the on-going community work on the
+<p>My provisioning engine predates the on-going community work in
+progress on the
 <a href="https://github.com/OfficeDev/PnP-Provisioning-Schema">PnP
-engine</a>. The latter seem to depend heavily on XML and a mapping of
+engine</a>. The PnP engine depend heavily on XML and mapping
 properties from CSOM to XML and back. As the CSOM API and XML schema
 evolves, maintaining parity and backward compatibility between the two
-would seem challenging. The PnP engine must also parse XML documents
-into an abstract syntax tree and, while traversing the tree, call the
-CSOM API or provided plugins. To me it seems to introduces a
-considerable amount of accidental complexity. Not being closer to the
-metal also makes debugging more tricky.</p>
+would seem challenging. Also, the PnP engine parses XML into an
+abstract syntax tree and, while traversing the tree, calls the CSOM
+API or provided plugins. It seems to introduces a considerable amount
+of accidental complexity.</p>
 
-<p>While I like the idea of a shared provisioning engine, I'm not too
-fund about the use of an external XML domain specific provisioning
-language. I much prefer an internal one, expressing the template in C#
-and taking advantage of Visual Studio's refactoring and compiler
-support.</p>
+<p>While I like the idea of a shared provisioning engine, I opt for
+being closer to the metal and not using an external domain specific
+provisioning language in the form of XML. I much prefer expressing the
+template in C# and taking advantage of Visual Studio's refactoring,
+compiler, and debugging support.</p>
 
-<p>The PnP provisioning engine focuses on being declarative and
-defining an end state for artefacts whereas my approach focuses on
-state transitions that ultimately lead to an end state. I rely on
-loops, helper methods, and other programming constructs. In principle
-nothing precludes expressing the same constructs in XML. That's
-essentially what MSBuild does, but the XML becomes hard to write and
-maintain.</p>
+<p>My C# approach focuses on state transitions leading to some end
+state, whereas the PnP approach focuses on declaratively defining the
+end state. In my template definitions, I rely on loops, helper
+methods, and other programming constructs to configure the
+artefacts. In principle nothing precludes using the same constructs in
+XML. That's essentially the philosophy behind MSBuild and NAnt.</p>
 
 <h2>Conclusion</h2>
 
