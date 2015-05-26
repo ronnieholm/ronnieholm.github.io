@@ -7,13 +7,14 @@ date: 2015-05-25 12:00 UTC
 <div id="post">
 
 <p>This post outlines a minimal set of requirements for an artefact
-provisioning engine. In broad terms, such an engine is any piece of
+provisioning engine. In broad terms, such engine is any piece of
 software which creates and applies changes to state over
 time. Examples include doing database migrations or upgrading
-configuration files with new releases. The example I use throughout
-this post is that of a SharePoint Online provisioning engine. Its task
-is to create and query site collections, webs, document libraries,
-views, pages, and the like in a safe and reliable manner.
+configuration files with new releases of a piece of software. The
+example I use throughout this post is that of a SharePoint Online
+provisioning engine. Its task is to create and query site collections,
+webs, document libraries, views, pages, and the like in a safe and
+reliable manner.
 </p>
 
 <h2>Organizing principles</h2>
@@ -25,56 +26,56 @@ Query Responsibility Segregation</a> patterns, the main organizing
 principle behind the SharePoint Online provisioning engine is the
 grouping of functionality into reusable commands and
 queries. Commands, such as create site collection, create list, and
-add web part to page, may read and write to SharePoint whereas
-queries, such as a recursive web visitor, is read-only.
+add web part to page, are allowed to read and write to SharePoint
+whereas queries, such as a recursive web visitor, are read-only.
 </p>
 
-<p>For the commands to be truly reliable and reusable, each must have
-the properties listed below. Queries being read-only are simpler and
-must only support composability.</p>
+<p>For commands to be truly reliable and reusable, they must have the
+properties listed below. Queries being read-only are simpler and can
+get away with being idempotent and composable.</p>
 
 <h3>Idempotent</h3>
 
-<p>Executing the same command or set of commands against an artefact
-more than once must not cause additional state changes. For instance,
-attempting to create the same list more than once should only result
-in a single instance of the list being created.</p>
+<p>Executing the same command or query against an artefact more than
+once must not change the result beyond the initial application. For
+instance, attempting to create a list more than once should only
+result in a single instance of the list being created.</p>
 
 <h3>Additive</h3>
 
-<p>Executing a command shouldn't delete or overwrite user created
+<p>Executing a command must not delete or overwrite user created
 structure or content, unless of course it's an explicit delete
-command. Once an artefact has been provisioned, it should be uniquely
-identifiable for its entire life-cycle and commands should only add to
-it.</p>
+command. For this to work, each provisioned artefact must be uniquely
+identifiable. For instance, lists, views, and web parts have a title,
+and content types have a name. </p>
 
-<p>Performing non-additive upgrades to SharePoint artefacts is
+<p>Applying non-additive updates to SharePoint artefacts is
 particularly challenging as users are outright encouraged to change
-both structure and content. Contrast this with a SQL database whose
-structure remains constant in between upgrades. Then take Entity
-Framework migrations as an example, and consider the work that has to
-go into supporting generic SharePoint non-additive upgrades.</p>
+both structure and content. Contrast this with the work involved in
+updating a SQL database whose structure remains constant in between
+upgrades.</p>
 
-<p>Instead, non-additive upgrades should be small and localized to
-avoid undesired side effects. They should be delegated to separate,
-short run-once scripts. As a corollary, once an existing artefact has
-been upgraded (or failed an upgrade), we never roll back. Instead we
-roll forward by creating new run-once scripts.</p>
+<p>Non-additive updates should be small and localized to avoid
+undesired side effects, and should be delegated to separate run-once
+scripts. As a corollary, once an artefact has been updated (or failed
+an update), we never roll back. Instead we roll forward by creating
+new run-once scripts.</p>
 
 <h3>Composable</h3>
 
-<p>More complex commands are formed from simpler ones using a Lego
-brick metaphor. Composing commands ad infinitum, and not having each
-interfere with the other, requires each command (and query) to be as
-self-contained as possible to ensure that SharePoint transitions from
-one valid state to the next.</p>
+<p>More complex commands or queries are composed from simpler ones ad
+infinitum. In order for each to not interfere with the other, or have
+a certain imposed ordering, commands and queries must be as
+self-contained as possible. Performance considerations may require a
+small amount of shared state, such as the client context.</p>
 
-<p>Suppose we want to provision an instance of the Acme Corp project
-site collection template. We'd create a top-level
+<p>As an example, suppose we want to provision an instance of the Acme
+Corp project site collection template. We'd create a top-level
 CreateAcmeCorpProjectSiteCollection command and compose it from
-smaller commands. These commands come in two flavors: the general ones
-with no dependency on Acme Corp business logic, and the specific ones
-which encapsulate specific Acme Corp business logic.</p>
+smaller commands as illustrated below. These smaller commands come in
+two flavors: the general ones which are independant of any Acme Corp
+provisioning and the specific ones which encapsulate Acme Corp
+business logic.</p>
 
 <pre>
 CreateAcmeCorpProjectSiteCollection (specific)
@@ -90,42 +91,45 @@ CreateAcmeCorpProjectSiteCollection (specific)
   ...
 </pre>
 
-<p>In object oriented terms, think of each command as a class with an
-Execute method, accepting parameters specific to the command. The
-CreateSiteCollection, for instance, must be passed the title, URL,
-template, size, and language which it passes along to the CSOM site
-collection creation API. Encapsulated within each command's Execute
-method is
+<p>In object oriented terms, each command and query is modelled as a
+class with an Execute method, accepting parameters specific to its
+functioning. The CreateSiteCollection command, for instance, is passed
+the title, URL, template, size, and language and in turn passes it
+along to the CSOM site collection creation API. As for the body of the
+Execute method, it's
 a <a href="http://martinfowler.com/eaaCatalog/transactionScript.html">transaction
-script pattern</a>, calling out to individual commands.</p>
+script</a>, calling out to other commands.</p>
 
 <p>In order to provision artefacts in the right order, the
 provisioning engine does a depth-first traversal of the dependency
-tree. This ordering translates nicely to the call stack metaphor of a
-programming language.</p>
+tree. This ordering translates nicely to the call stack metaphore.</p>
 
 <h2>Comparison with PnP provisioning engine</h2>
 
-<p>The work on my provisioning engine predates that of the on-going
-effort of the SharePoint community to develop
-its <a href="https://github.com/OfficeDev/PnP-Provisioning-Schema">PnP
-engine</a>. While I like the idea of a shared engine, my preference is
-toward an internal provisioning DSL. It enables the use of Visual
-Studio's refactoring options and compiler support when creating
-templates.</p>
+<p>My provisioning engine predates the on-going community work on the
+<a href="https://github.com/OfficeDev/PnP-Provisioning-Schema">PnP
+engine</a>. The latter seem to depend heavily on XML and a mapping of
+properties from CSOM to XML and back. As the CSOM API and XML schema
+evolves, maintaining parity and backward compatibility between the two
+would seem challenging. The PnP engine must also parse XML documents
+into an abstract syntax tree and, while traversing the tree, call the
+CSOM API or provided plugins. To me it seems to introduces a
+considerable amount of accidental complexity. Not being closer to the
+metal also makes debugging more tricky.</p>
 
-<p>The PnP engine appears to rely heavily on the definition of an XML
-schema and a mapping of properties from CSOM to schema and back. As
-the CSOM API and schema evolves, it seems challenging to maintain
-without breaking existing templates. The PnP engine would also have to
-parse XML documents into an abstract syntax tree and, while traversing
-the tree, call the CSOM API or user provided provisioning plugins. To
-me it seems to introduces a considerable amount of accidental
-complexity and work.</p>
+<p>While I like the idea of a shared provisioning engine, I'm not too
+fund about the use of an external XML domain specific provisioning
+language. I much prefer an internal one, expressing the template in C#
+and taking advantage of Visual Studio's refactoring and compiler
+support.</p>
 
-<p>Finally, the PnP provisioning engine seems to focus on defining an
-end state for artefacts whereas my approach focuses on the state
-transitions that ultimately lead to an end state.</p>
+<p>The PnP provisioning engine focuses on being declarative and
+defining an end state for artefacts whereas my approach focuses on
+state transitions that ultimately lead to an end state. I rely on
+loops, helper methods, and other programming constructs. In principle
+nothing precludes expressing the same constructs in XML. That's
+essentially what MSBuild does, but the XML becomes hard to write and
+maintain.</p>
 
 <h2>Conclusion</h2>
 
@@ -133,6 +137,6 @@ transitions that ultimately lead to an end state.</p>
 SharePoint Online provisioning engine must adhere to for it to be
 reliable. I've implemented and put in production an engine that
 fulfills these properties. In the process I looked at the early PnP
-engine and gained, but went down a different path.</p>
+engine, but chose a different path.</p>
 
 </div>
