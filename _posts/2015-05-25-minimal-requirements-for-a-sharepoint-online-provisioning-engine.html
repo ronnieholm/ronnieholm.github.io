@@ -12,9 +12,9 @@ engine is any piece of software which creates and applies changes to
 state over time. Examples include doing database migrations or
 upgrading configuration files with new releases of a piece of
 software. The example I use throughout this post is that of a
-SharePoint Online provisioning engine. Its task is to create and query
-site collections, webs, document libraries, views, pages, and the like
-in a safe and reliable manner.
+SharePoint Online provisioning engine I developed. Its task is to
+create and query site collections, webs, document libraries, views,
+pages, and the like in a safe and reliable manner.
 </p>
 
 <h2>Guiding principles</h2>
@@ -98,7 +98,7 @@ the title, URL, template, size, and language and in turn passes it
 along to the CSOM site collection creation API. As for the body of the
 Execute method, it's
 a <a href="http://martinfowler.com/eaaCatalog/transactionScript.html">transaction
-script</a>, calling out to commands and queries.</p>
+script</a> calling out to commands and queries.</p>
 
 <p>In order to provision artefacts in the right order, the
 provisioning engine does a depth-first traversal of the dependency
