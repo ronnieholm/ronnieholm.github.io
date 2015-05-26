@@ -114,13 +114,13 @@ engine</a>
 (<a href="https://github.com/OfficeDev/PnP/tree/master/OfficeDevPnP.Core/OfficeDevPnP.Core/Framework/Provisioning">source</a>)
 probably being the most predominant.</p>
 
-<p>The PnP engine depend heavily on XML and mapping properties from
+<p>The PnP engine depends heavily on XML and mapping properties from
 CSOM to XML and back. As the CSOM API and XML schema evolves,
 maintaining parity and backward compatibility between the two seems
 challenging. Also, the PnP engine parses XML into an abstract syntax
-tree and, while traversing the tree, calls the CSOM API or provided
-plugins. It seems to introduces a considerable amount of accidental
-complexity.</p>
+tree and, while traversing the tree, calls the CSOM API and possible
+custom plugins. It seems to introduces a considerable amount of
+accidental complexity.</p>
 
 <p>While I like the idea of a shared provisioning engine, I opt for
 being closer to the metal and not rely on XML as an external domain
