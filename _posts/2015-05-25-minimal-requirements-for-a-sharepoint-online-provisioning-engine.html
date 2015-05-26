@@ -108,19 +108,18 @@ tree. This ordering translates nicely to the call stack metaphor.</p>
 
 <p>As of current,
 a <a href="http://wp.sjkp.dk/sharepoint-site-provisioning-engine">number
-of provisioning engines exists</a> with
+of provisioning engines exist</a> with
 the <a href="https://github.com/OfficeDev/PnP-Provisioning-Schema">PnP
 engine</a>
 (<a href="https://github.com/OfficeDev/PnP/tree/master/OfficeDevPnP.Core/OfficeDevPnP.Core/Framework/Provisioning">source</a>)
 probably getting the most attention.</p>
 
 <p>The PnP engine depends heavily on XML and a mapping of properties
-from CSOM to XML and back. As the CSOM API and XML schema evolves,
-maintaining feature parity and backward compatibility seems
-challenging. Also, the PnP engine parses XML into an abstract syntax
-tree and, while traversing the tree, calls the CSOM API and possible
-custom plugins. It seems to introduces a considerable amount of
-accidental complexity.</p>
+from CSOM to XML and back. As the two evolve, maintaining feature
+parity and backward compatibility seems challenging. Also, the PnP
+engine parses XML into an abstract syntax tree and, while traversing
+the tree, calls the CSOM API and possible custom plugins. It seems to
+introduces a considerable amount of accidental complexity.</p>
 
 <p>While I like the idea of a shared provisioning engine, I opt for
 being closer to the metal and not rely on XML as an external domain
