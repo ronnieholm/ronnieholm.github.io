@@ -106,22 +106,27 @@ tree. This ordering translates nicely to the call stack metaphor.</p>
 
 <h2>Comparison with PnP provisioning engine</h2>
 
-<p>My provisioning engine predates the on-going community work in
-progress on the
-<a href="https://github.com/OfficeDev/PnP-Provisioning-Schema">PnP
-engine</a>. The PnP engine depend heavily on XML and mapping
-properties from CSOM to XML and back. As the CSOM API and XML schema
-evolves, maintaining parity and backward compatibility between the two
-would seem challenging. Also, the PnP engine parses XML into an
-abstract syntax tree and, while traversing the tree, calls the CSOM
-API or provided plugins. It seems to introduces a considerable amount
-of accidental complexity.</p>
+<p>As of current,
+a <a href="http://wp.sjkp.dk/sharepoint-site-provisioning-engine">number
+of provisioning engines exists</a>, with
+the <a href="https://github.com/OfficeDev/PnP-Provisioning-Schema">PnP
+engine</a>
+(<a href="https://github.com/OfficeDev/PnP/tree/master/OfficeDevPnP.Core/OfficeDevPnP.Core/Framework/Provisioning">source</a>)
+being the most predominant one.</p>
+
+<p>The PnP engine depend heavily on XML and mapping properties from
+CSOM to XML and back. As the CSOM API and XML schema evolves,
+maintaining parity and backward compatibility between the two seems
+challenging. Also, the PnP engine parses XML into an abstract syntax
+tree and, while traversing the tree, calls the CSOM API or provided
+plugins. It seems to introduces a considerable amount of accidental
+complexity.</p>
 
 <p>While I like the idea of a shared provisioning engine, I opt for
-being closer to the metal and not using an external domain specific
-provisioning language in the form of XML. I much prefer expressing the
-template in C# and taking advantage of Visual Studio's refactoring,
-compiler, and debugging support.</p>
+being closer to the metal and not use an external domain specific
+provisioning language in the form of XML. I'm developer focused and
+prefer expressing the template in code and taking advantage of Visual
+Studio's refactoring, compiler, and debugging support.</p>
 
 <p>My C# approach focuses on state transitions leading to some end
 state, whereas the PnP approach focuses on declaratively defining the
@@ -132,10 +137,11 @@ XML. That's essentially the philosophy behind MSBuild and NAnt.</p>
 
 <h2>Conclusion</h2>
 
-<p>In this post I outlined a couple of core requirements which a
-SharePoint Online provisioning engine must adhere to for it to be
-reliable. I've implemented and put in production an engine that
-fulfills these properties. In the process I looked at the early PnP
-engine, but chose a different path.</p>
+<p>In this post I outlined what I define as core requirements for a
+developer-centric SharePoint Online provisioning engine. In reflects
+an engine having been in production for a few months creating site
+collections from fairly involved templates. As I was finishing the
+engine, the PnP one started to gain tracktion. But I chose not to
+follow path, primarily because of its XML-based nature.</p>
 
 </div>
