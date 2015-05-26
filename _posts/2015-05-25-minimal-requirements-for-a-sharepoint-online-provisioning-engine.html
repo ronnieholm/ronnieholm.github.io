@@ -115,11 +115,12 @@ engine</a>
 probably getting the most attention.</p>
 
 <p>The PnP engine depends heavily on XML and a mapping of properties
-from CSOM to XML and back. As the two evolve, maintaining feature
-parity and backward compatibility seems challenging. Also, the PnP
-engine parses XML into an abstract syntax tree and, while traversing
-the tree, calls the CSOM API and possible custom plugins. It seems to
-introduces a considerable amount of accidental complexity.</p>
+from CSOM to XML and back. As the two evolve, maintaining both feature
+parity and backward compatibility seems challenging. Being XML-based,
+the PnP engine has to parse XML into an abstract syntax tree and,
+while traversing the tree, call the CSOM API and possible custom
+plugins. It would seem to introduces a considerable amount of
+accidental complexity.</p>
 
 <p>While I like the idea of a shared provisioning engine, I opt for
 being closer to the metal and not rely on XML as an external domain
