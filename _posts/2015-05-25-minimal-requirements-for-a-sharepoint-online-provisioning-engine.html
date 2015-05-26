@@ -114,27 +114,28 @@ engine</a>
 (<a href="https://github.com/OfficeDev/PnP/tree/master/OfficeDevPnP.Core/OfficeDevPnP.Core/Framework/Provisioning">source</a>)
 probably getting the most attention.</p>
 
-<p>The PnP engine depends heavily on XML and a mapping of properties
-from CSOM to XML and back. As the two evolve, maintaining both feature
-parity and backward compatibility seems challenging. Being XML-based,
-the PnP engine has to parse XML into an abstract syntax tree and,
-while traversing the tree, call the CSOM API and possible custom
-plugins. It would seem to introduces a considerable amount of
-accidental complexity.</p>
+<p>The PnP engine is heavily dependent on XML and a mapping of
+properties from CSOM to XML and back. As the two evolve, maintaining
+both feature parity and backward compatibility seems
+challenging. Being XML-based, the PnP engine has to parse XML into an
+abstract syntax tree and, while traversing the tree, call the CSOM API
+and possible custom plugins. It would seem to introduce a considerable
+amount of accidental complexity.</p>
 
 <p>While I like the idea of a shared provisioning engine, I opt for
 being closer to the metal and not rely on XML as an external domain
-specific language. I'm developer-focused and prefer expressing the
-template in code and take advantage of Visual Studio's refactoring,
-compiler, and debugging support. Taking the long view, I'm not
-convinced that having users define templates is such a good idea.</p>
+specific language. I'm more developer-focused and prefer expressing
+the template in code and take advantage of Visual Studio's
+refactoring, compiler, and debugging support. Taking the long view on
+maintainability, I'm not convinced that having users define templates
+is such a good idea.</p>
 
-<p>My code approach focuses on state transitions leading to some end
-state, whereas the PnP approach focuses on declaratively defining the
-end state. I rely on loops, helper methods, and other programming
-constructs to configure the artefacts. In principle nothing precludes
-introducing the same constructs in XML. That's essentially the
-philosophy of MSBuild and NAnt.</p>
+<p>Finally, my developer-centric approach focuses on state transitions
+leading to some end state, whereas the PnP approach focuses on
+declaratively defining the end state. I rely on loops, helper methods,
+and other programming constructs to configure the artefacts. In
+principle nothing precludes having the same constructs available in
+XML. That's the philosophy of MSBuild and NAnt.</p>
 
 <h2>Conclusion</h2>
 
