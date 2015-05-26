@@ -114,9 +114,9 @@ engine</a>
 (<a href="https://github.com/OfficeDev/PnP/tree/master/OfficeDevPnP.Core/OfficeDevPnP.Core/Framework/Provisioning">source</a>)
 probably getting the most attention.</p>
 
-<p>The PnP engine depends heavily on XML and mapping properties from
-CSOM to XML and back. As the CSOM API and XML schema evolves,
-maintaining parity and backward compatibility between the two seems
+<p>The PnP engine depends heavily on XML and a mapping of properties
+from CSOM to XML and back. As the CSOM API and XML schema evolves,
+maintaining feature parity and backward compatibility seems
 challenging. Also, the PnP engine parses XML into an abstract syntax
 tree and, while traversing the tree, calls the CSOM API and possible
 custom plugins. It seems to introduces a considerable amount of
@@ -124,17 +124,17 @@ accidental complexity.</p>
 
 <p>While I like the idea of a shared provisioning engine, I opt for
 being closer to the metal and not rely on XML as an external domain
-specific provisioning language. I'm developer-focused and prefer
-expressing the template in code and take advantage of Visual Studio's
-refactoring, compiler, and debugging support. Taking the long view,
-I'm not convinced having users define templates is a good idea.</p>
+specific language. I'm developer-focused and prefer expressing the
+template in code and take advantage of Visual Studio's refactoring,
+compiler, and debugging support. Taking the long view, I'm not
+convinced that having users define templates is such a good idea.</p>
 
-<p>My C# approach focuses on state transitions leading to some end
+<p>My code approach focuses on state transitions leading to some end
 state, whereas the PnP approach focuses on declaratively defining the
-end state. In my template definitions, I rely on loops, helper
-methods, and other programming constructs to configure the
-artefacts. In principle nothing precludes using the same constructs in
-XML. That's essentially the philosophy behind MSBuild and NAnt.</p>
+end state. I rely on loops, helper methods, and other programming
+constructs to configure the artefacts. In principle nothing precludes
+introducing the same constructs in XML. That's essentially the
+philosophy of MSBuild and NAnt.</p>
 
 <h2>Conclusion</h2>
 
