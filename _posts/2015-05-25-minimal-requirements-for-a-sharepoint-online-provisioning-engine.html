@@ -123,10 +123,11 @@ plugins. It seems to introduces a considerable amount of accidental
 complexity.</p>
 
 <p>While I like the idea of a shared provisioning engine, I opt for
-being closer to the metal and not use an external domain specific
-provisioning language in the form of XML. I'm developer focused and
-prefer expressing the template in code and taking advantage of Visual
-Studio's refactoring, compiler, and debugging support.</p>
+being closer to the metal and not rely on XML as an external domain
+specific provisioning language. I'm developer-focused and prefer
+expressing the template in code and take advantage of Visual Studio's
+refactoring, compiler, and debugging support. Taking the long view,
+I'm not convinced having users define templates is a good idea.</p>
 
 <p>My C# approach focuses on state transitions leading to some end
 state, whereas the PnP approach focuses on declaratively defining the
