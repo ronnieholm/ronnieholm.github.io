@@ -2,7 +2,7 @@
 body {
   padding-top: 60px;
   padding-bottom: 20px;
-  width: 750px;
+  max-width: 750px;
 }
 
 .page-header {
