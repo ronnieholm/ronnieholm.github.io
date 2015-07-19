@@ -4,6 +4,10 @@ body {
   padding-bottom: 20px;
 }
 
+.container {
+  width: 750px;
+}
+
 .page-header {
   margin-top: 0px;
 }
