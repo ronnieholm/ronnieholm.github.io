@@ -44,9 +44,19 @@ operator token type and an associated string (+, -, *, /, or ^) representing
 the operator. But for better type safety, I stick with unique cases, ending up
 with the following types of tokens:</p>
 
-<pre class="prettyprint lang-cs"> type Token = | Integer of Int32 | BinPlusOp |
-BinMinOp | BinMulOp | BinDivOp | BinExpOp  | UnaryPlusOp | UnaryMinOp | LParen
-| RParen </pre>
+<pre class="prettyprint lang-cs"> 
+type Token =
+    | Integer of Int32
+    | BinPlusOp
+    | BinMinOp
+    | BinMulOp
+    | BinDivOp
+    | BinExpOp
+    | UnaryPlusOp
+    | UnaryMinOp
+    | LParen
+    | RParen
+</pre>
     
 <p>Given these types of tokens, parsing "-12+34*56" should therefore yield the
 following list of tokens: [UnaryMinOp, Integer(12), BinPlusOp, Integer(34),
