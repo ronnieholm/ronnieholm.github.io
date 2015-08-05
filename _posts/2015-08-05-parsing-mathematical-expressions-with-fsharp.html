@@ -1,0 +1,267 @@
+---
+layout: post
+title: "Parsing mathematical expressions with F#"
+date: 2015-08-05 12:00 UTC
+---
+
+Include type signatures
+
+Include link to source code (support FSI execution)
+
+Paste in new code
+
+<div id="post">
+
+<p>In this post I show how to parse a list of characters making up a
+mathematical expression, such as "-12+34*56", into a list of higher-level
+tokens, such as UnaryMinOp, Integer 12, BinPlusOp, Integer 34, BinMulOp, and
+Integer 56. In order to transform characters into tokens, I develop a set of
+smaller parser functions for low-level language elements like numbers and
+operators and combine these into a more complex one for the entire
+expression.</p> 
+
+<p>Parsing input left to right, returning a list of tokens is sufficient when
+no or only a simple evaluation step is requires. Within the domain of
+mathematical expressions, however, operator precedence and associativity may
+result in a non-left to right evaluation order. Evaluation is thus the topic of
+the next time.</p>
+
+<h2>Defining types of tokens</h2>
+
+<p>Parsing at the character level is generally referred to as tokenization or
+lexing of a string. The idea is that instead of dealing with single characters,
+related characters (by some definition of related) are grouped into
+higher-level constructs called tokens. These tokens may then be fed into
+another parser, which may return an even higher-level data structure, such as a
+list or tree or perhaps only a single value. This multi-stage process serves to
+make the overall task more tractable.</p>
+
+<p>Perhaps unsurprisingly, the exact types of tokens required depend heavily on
+the desired result. Evaluating mathematical expressions, I could model each
+digit as a separate type of tokens. But at no point during parsing do I need to
+conditionally branch on the actual value, and thus a single Integer token type
+with an associated value suffices. For operators and parenthesis, however, I do
+need to discriminate as they affect the evaluation order.</p>
+
+<p>In terms of representation, in principle I could make due with a single
+operator token type and an associated string (+, -, *, /, or ^) representing
+the operator. But for better type safety, I stick with unique cases, ending up
+with the following types of tokens:</p>
+
+<pre class="prettyprint lang-cs"> type Token = | Integer of Int32 | BinPlusOp |
+BinMinOp | BinMulOp | BinDivOp | BinExpOp  | UnaryPlusOp | UnaryMinOp | LParen
+| RParen </pre>
+    
+<p>Given these types of tokens, parsing "-12+34*56" should therefore yield the
+following list of tokens: [UnaryMinOp, Integer(12), BinPlusOp, Integer(34),
+BinMulOp, Integer(56)].</p>
+
+<h2>Parsing characters into tokens</h2>
+
+<p>To kick off the tokenization process, I start by defining a helper function
+to deconstruct an input string into a list of characters. In effect, I apply an
+initial, low-level form of parsing to the input.</p>
+
+<p>Following each subsequent function definition, I include a couple of Unquote
+test cases to illustrate what each function does.</p>
+
+<pre class="prettyprint lang-cs">
+// val toArray : s:string -> char list
+let toArray (s: string) = s.ToCharArray() |> List.ofArray
+
+test <@ toArray "" = [] @>
+test <@ toArray "1" = ['1'] @>
+test <@ toArray "1+2" = ['1'; '+'; '2'] @>
+</pre>
+
+<p>A common approach to parsing by hand is to create a set of small parsers.
+Each such parser attempts to consume (group together) characters of the input
+from left to right until enough characters have been grouped to constitute a
+token or determine that no match is possible. With a successful match, both the
+token and the remaining characters of the input are returned. The process is
+then repeated, passing the remaining input into another parse, collecting the
+tokens returned.<p>
+
+<p>Thus, in terms of small parsers for mathematical expressions, the order in
+which each get invoked defines what makes up valid expressions. If there're no
+more parsers to apply and the input is non-empty, the expression must be
+invalid.</p>
+
+<p>A small parser capable of parsing only a single digit may be implemented as
+follows. I could've implemented a more general regular expression parser, but
+chose not to in order to keep things straightforward:</p>
+
+<pre class="prettyprint lang-cs">
+// val parseDigit : _arg1:char list -> (int * char list) option
+let parseDigit = function
+    | hd :: tl ->
+        match hd with
+        |'0'|'1'|'2'|'3'|'4'
+        |'5'|'6'|'7'|'8'|'9' as digit -> 
+            Some (Char.GetNumericValue(digit) |> int, tl)
+        | _ -> None
+    | _ -> None
+
+test <@ parseDigit ("" |> toArray) = None @>
+test <@ parseDigit ("." |> toArray) = None @>
+test <@ parseDigit ("2" |> toArray) = Some(2, []) @>
+test <@ parseDigit ("12" |> toArray) = Some(1, ['2']) @>
+test <@ parseDigit ("123" |> toArray) = Some(1, ['2'; '3']) @>
+</pre>
+
+<p>Parsing a number made up of multiple digits means defining another parser
+which calls parseDigit one or more times until it returns None. In general,
+repeatedly applying a parser is such a common pattern of parsing that I
+could've implemented it more generally. But for the sake of furthering
+understanding, I made a specific parseInteger parser:</p>
+
+<pre class="prettyprint lang-cs">
+// val parseInteger : input:char list -> (Token * char list) option
+let parseInteger input =
+    let rec parse' input digits =
+        match parseDigit input with
+        | Some (digit, rest) -> parse' rest (digit :: digits)
+        | None -> (digits, input)
+
+    let (digits, tl) = parse' input []
+    let s = digits |> List.rev |> List.fold (fun acc d -> acc + d.ToString()) ""
+    let (isInteger, integer) = Int32.TryParse(s)
+    if isInteger then Some(Integer(integer), tl) else None
+
+test <@ parseInteger ("" |> toArray) = None @>
+test <@ parseInteger ("1" |> toArray) = Some(Integer 1, []) @>
+test <@ parseInteger ("01" |> toArray) = Some(Integer 1, []) @>
+test <@ parseInteger ("12" |> toArray) = Some(Integer 12, []) @>
+test <@ parseInteger ("12.3" |> toArray) = Some(Integer 12, ['.'; '3']) @>
+</pre>
+
+<p>Next, I focus on parsing parenthesis. Coming from digits, they're relatively
+easy to deal with:</p>
+
+<pre class="prettyprint lang-cs">
+// val parseParen : _arg1:char list -> (Token * char list) option
+let parseParen = function
+    | hd :: tl ->
+        match hd with
+        | '(' -> Some(LParen, tl)
+        | ')' -> Some(RParen, tl)
+        | _ -> None
+    | _ -> None
+
+test <@ parseParen ("" |> toArray) = None @>
+test <@ parseParen ("1" |> toArray) = None @>
+test <@ parseParen ("(" |> toArray) = Some(LParen, []) @>
+test <@ parseParen (")" |> toArray) = Some(RParen, []) @>
+test <@ parseParen (")+1" |> toArray) = Some(RParen, ['+'; '1']) @>
+</pre>
+
+<p>Now, because I went with separate tokens for unary minus and unary plus, I
+need to create a parser for those. Problem is, I cannot discriminate UnaryOp
+from BinOp without a priori knowledge of the last matched token, if any. No
+such context is passed to parseUnaryOp and given its name it shouldn't care
+about binary operators. Instead, the disambiguation happens in a higher-level
+parser. In retrospect it might have been simpler to include parsing the sign in
+the integer parser. Nonetheless, it shows how sometime additional work is
+required to disambiguate when to call which parser.</p>
+
+<pre class="prettyprint lang-cs">
+// val parseBinOp : _arg1:char list -> (Token * char list) option
+let parseBinOp = function
+    | hd :: tl ->
+        match hd with
+        | '+' -> Some(BinPlusOp, tl)
+        | '-' -> Some(BinMinOp, tl)
+        | '*' -> Some(BinMulOp, tl)
+        | '/' -> Some(BinDivOp, tl)
+        | '^' -> Some(BinExpOp, tl)
+        | _ -> None
+    | _ -> None
+
+test <@ parseBinOp ("" |> toArray) = None @>
+test <@ parseBinOp ("1" |> toArray) = None @>
+test <@ parseBinOp ("+" |> toArray) = Some(BinPlusOp, []) @>
+test <@ parseBinOp ("^12" |> toArray) = Some(BinExpOp, ['1'; '2']) @>
+</pre>
+
+<p>Finally, combining calls to the previously defined parsers and backtracking
+upon failure, it's time for the top-level parser:</p>
+
+<pre class="prettyprint lang-cs"
+// val parseExpression : input:char list -> Token list
+let parseExpression input =
+    // some types of tokens requires input to be consumed more
+    // greedy than others. Try the most greedy one first to
+    // resolve any ambiguity that might arise.
+
+    // val parse' : Token list -> char list -> Token list
+    let rec parse' tokens rest =
+        match parseInteger rest with 
+        | Some (integer, tl) -> parse' (integer :: tokens) tl
+        | _ ->
+            match parseUnaryOp rest with
+            | Some (unaryOp, tl) -> 
+                let ops = [BinPlusOp; BinMinOp; BinMinOp; BinDivOp; BinExpOp; LParen]
+                if (List.length tokens = 0) || (ops |> List.exists (fun o -> o = (List.head tokens))) then
+                    parse' (unaryOp :: tokens) tl
+                else 
+                    // no? Must be BinPlusOp or BinMinOp instead then
+                    match unaryOp with
+                    | UnaryMinOp -> parse' (BinMinOp :: tokens) tl 
+                    | UnaryPlusOp -> parse' (BinPlusOp :: tokens) tl
+                    | _ -> failwith "Should never happen"
+            | _ -> 
+                match parseBinOp rest with
+                | Some (binOp, tl) -> parse' (binOp :: tokens) tl
+                | _ ->
+                    match parseParen rest with
+                    | Some (paren, tl) -> parse' (paren :: tokens) tl
+                    | _ -> tokens
+        
+    parse' [] input |> List.rev
+
+test <@ parseExpression ("" |> toArray) = [] @>
+test <@ parseExpression ("1" |> toArray) = [Integer 1] @>
+test <@ parseExpression ("1+2" |> toArray) = [Integer 1; BinPlusOp; Integer 2] @>
+test <@ parseExpression ("1-2" |> toArray) = [Integer 1; BinMinOp; Integer 2] @>
+
+// is this legal math syntax? PowerShell can only parse "1-(-2)"
+// whereas LibreOffice parses and evaluates supports "1--2"
+test <@ parseExpression ("1--2" |> toArray) = [Integer 1; BinMinOp; UnaryMinOp; Integer 2] @>
+test <@ parseExpression ("-1" |> toArray) = [UnaryMinOp; Integer 1] @>
+test <@ parseExpression ("+1" |> toArray) = [UnaryPlusOp; Integer 1] @>
+test <@ parseExpression ("1+-2" |> toArray) = [Integer 1; BinPlusOp; UnaryMinOp; Integer 2] @>
+test <@ parseExpression ("-(1+2*3/4^5)" |> toArray) = 
+    [UnaryMinOp; LParen; Integer 1; BinPlusOp; Integer 2; BinMulOp; 
+     Integer 3; BinDivOp; Integer 4; BinExpOp; Integer 5; RParen] @>
+</pre>
+
+<p>Focusing on the inner workings of the parse' function, as an example say I
+want to parse "1+2". parse' states that a valid expression must either start
+with an integer, a unary operator, or an parenthesis (also including ")" which
+yield unmatched parenthesis during evaluation. I could extend the tokenizer
+with this rule), but it generally isn't the tokenizer's job to make the list of
+tokens makes sense overall.</p>
+
+<p>Having consumed the first integer, parse' calls itself with "+2".  Clearly,
+this doesn't match an integer. Question is, given the context, whether "+"
+means unary or binary addition. I start out by assuming it means unary minus
+and then attempt to prove that hypothesis. It can only hold true if I haven't
+matches any tokens thus far (as in "-1") or the last matches token was a binary
+operator (as in "1+-2"). Otherwise, it's a binary subtraction or addition.</p>
+
+<h2>Conclusion</h2>
+
+<p>In practice, I wouldn't write my own parser as above, but instead use a
+parser combinator library like FParsec, Sprache, or Ivory. But trying to
+understand how to use any of these libraries, providing generalized parsing
+constructs, is hard without at least a working knowledge of how to parse by
+hand. It also makes it clear how much manual work is involved in providing
+useful error messages, including line and column offsets, and actual sub-string
+matched or length.</p>
+
+<p>For large input, instead of first tokenizing everything, the next stage
+parser could pull the next token from the lexer on demand. And as part of the
+"next token" function, start by removing any whitespace. That's simpler than
+including whitespace removal in every little parser (stream of tokens).</p>
+
+</div>
