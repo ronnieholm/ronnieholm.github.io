@@ -44,7 +44,7 @@ operator token type and an associated string (+, -, *, /, or ^) representing
 the operator. But for better type safety, I stick with unique cases, ending up
 with the following types of tokens:</p>
 
-<pre class="prettyprint lang-cs"> 
+<pre class="prettyprint lang-cs">
 type Token =
     | Integer of Int32
     | BinPlusOp
@@ -193,7 +193,7 @@ test <@ parseBinOp ("^12" |> toArray) = Some(BinExpOp, ['1'; '2']) @>
 upon failure, it's time for the top-level parser:</p>
 
 <pre class="prettyprint lang-cs"
-// val parseExpression : input:char list -> Token list
+// val parseExpression : input:string -> Token list
 let parseExpression input =
     // some types of tokens requires input to be consumed more
     // greedy than others. Try the most greedy one first to
@@ -206,11 +206,13 @@ let parseExpression input =
         | _ ->
             match parseUnaryOp rest with
             | Some (unaryOp, tl) -> 
-                let ops = [BinPlusOp; BinMinOp; BinMinOp; BinDivOp; BinExpOp; LParen]
-                if (List.length tokens = 0) || (ops |> List.exists (fun o -> o = (List.head tokens))) then
+                let isPrevTokenBinaryOp token = 
+                    [BinPlusOp; BinMinOp; BinMinOp; BinDivOp; BinExpOp; LParen] 
+                    |> List.exists (fun o -> o = token)
+                if (List.length tokens = 0) || isPrevTokenBinaryOp (List.head tokens) then
                     parse' (unaryOp :: tokens) tl
                 else 
-                    // no? Must be BinPlusOp or BinMinOp instead then
+                    // No? Must be BinPlusOp or BinMinOp instead then
                     match unaryOp with
                     | UnaryMinOp -> parse' (BinMinOp :: tokens) tl 
                     | UnaryPlusOp -> parse' (BinPlusOp :: tokens) tl
@@ -223,22 +225,22 @@ let parseExpression input =
                     | Some (paren, tl) -> parse' (paren :: tokens) tl
                     | _ -> tokens
         
-    parse' [] input |> List.rev
+    parse' [] (input |> toArray) |> List.rev
 
-test <@ parseExpression ("" |> toArray) = [] @>
-test <@ parseExpression ("1" |> toArray) = [Integer 1] @>
-test <@ parseExpression ("1+2" |> toArray) = [Integer 1; BinPlusOp; Integer 2] @>
-test <@ parseExpression ("1-2" |> toArray) = [Integer 1; BinMinOp; Integer 2] @>
+test <@ parseExpression "" = [] @>
+test <@ parseExpression "1" = [Integer 1] @>
+test <@ parseExpression "1+2" = [Integer 1; BinPlusOp; Integer 2] @>
+test <@ parseExpression "1-2" = [Integer 1; BinMinOp; Integer 2] @>
 
 // is this legal math syntax? PowerShell can only parse "1-(-2)"
 // whereas LibreOffice parses and evaluates supports "1--2"
-test <@ parseExpression ("1--2" |> toArray) = [Integer 1; BinMinOp; UnaryMinOp; Integer 2] @>
-test <@ parseExpression ("-1" |> toArray) = [UnaryMinOp; Integer 1] @>
-test <@ parseExpression ("+1" |> toArray) = [UnaryPlusOp; Integer 1] @>
-test <@ parseExpression ("1+-2" |> toArray) = [Integer 1; BinPlusOp; UnaryMinOp; Integer 2] @>
-test <@ parseExpression ("-(1+2*3/4^5)" |> toArray) = 
-    [UnaryMinOp; LParen; Integer 1; BinPlusOp; Integer 2; BinMulOp; 
-     Integer 3; BinDivOp; Integer 4; BinExpOp; Integer 5; RParen] @>
+test <@ parseExpression "1--2" = [Integer 1; BinMinOp; UnaryMinOp; Integer 2] @>
+test <@ parseExpression "-1" = [UnaryMinOp; Integer 1] @>
+test <@ parseExpression "+1" = [UnaryPlusOp; Integer 1] @>
+test <@ parseExpression "1+-2" = [Integer 1; BinPlusOp; UnaryMinOp; Integer 2] @>
+test <@ parseExpression "-(1+2*3/4^5)" =
+            [UnaryMinOp; LParen; Integer 1; BinPlusOp; Integer 2; BinMulOp; 
+             Integer 3; BinDivOp; Integer 4; BinExpOp; Integer 5; RParen] @>
 </pre>
 
 <p>Focusing on the inner workings of the parse' function, as an example say I
