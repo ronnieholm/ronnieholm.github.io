@@ -6,7 +6,8 @@ date: 2015-08-05 12:00 UTC
 
 <div id="post">
 
-<p>Code in this post is available in its entirety here.</p>
+<p>Code in this post is available in its
+entirety <a href="https://github.com/ronnieholm/ExpressionParsers/blob/master/ShuntingYardParser.FSharp/SeparateLexerParserStages.fs">here</a>.</p>
 
 <p>In this post I show how to parse a list of characters making up a
 mathematical expression, such as "-12+34*56", into a list of higher-level
@@ -261,13 +262,15 @@ operator (as in "1+-2"). Otherwise, it's a binary subtraction or addition.</p>
 
 <h2>Conclusion</h2>
 
-<p>In practice, I wouldn't write my own parser as above, but instead use a
-parser combinator library like FParsec, Sprache, or Ivory. But trying to
-understand how to use any of these libraries, providing generalized parsing
-constructs, is hard without at least a working knowledge of how to parse by
-hand. It also makes it clear how much manual work is involved in providing
-useful error messages, including line and column offsets, and actual sub-string
-matched or length.</p>
+<p>In practice, I wouldn't write my own parser as above, but instead
+use a parser combinator library
+like <a href="http://www.quanttec.com/fparsec/tutorial.html">FParsec</a>, <a href="https://github.com/sprache/Sprache">Sprache,
+or <a href="https://irony.codeplex.com">Irony</a>. But trying to
+understand how to use any of these libraries, providing generalized
+parsing constructs, is hard without at least a working knowledge of
+how to parse by hand. It also makes it clear how much manual work is
+involved in providing useful error messages, including line and column
+offsets, and actual sub-string matched or length.</p>
 
 <p>For large input, instead of first tokenizing everything, the next stage
 parser could pull the next token from the lexer on demand. And as part of the
