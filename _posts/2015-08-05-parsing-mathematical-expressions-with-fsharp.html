@@ -44,8 +44,7 @@ operator token type and an associated string (+, -, *, /, or ^) representing
 the operator. But for better type safety, I stick with unique cases, ending up
 with the following types of tokens:</p>
 
-<pre class="prettyprint lang-cs">
-type Token =
+<pre class="prettyprint lang-cs">type Token =
     | Integer of Int32
     | BinPlusOp
     | BinMinOp
@@ -192,7 +191,7 @@ test <@ parseBinOp ("^12" |> toArray) = Some(BinExpOp, ['1'; '2']) @>
 <p>Finally, combining calls to the previously defined parsers and backtracking
 upon failure, it's time for the top-level parser:</p>
 
-<pre class="prettyprint lang-cs"
+<pre class="prettyprint lang-cs">
 // val parseExpression : input:string -> Token list
 let parseExpression input =
     // some types of tokens requires input to be consumed more
@@ -209,7 +208,8 @@ let parseExpression input =
                 let isPrevTokenBinaryOp token = 
                     [BinPlusOp; BinMinOp; BinMinOp; BinDivOp; BinExpOp; LParen] 
                     |> List.exists (fun o -> o = token)
-                if (List.length tokens = 0) || isPrevTokenBinaryOp (List.head tokens) then
+                if List.length tokens = 0 ||
+                   isPrevTokenBinaryOp (List.head tokens) then
                     parse' (unaryOp :: tokens) tl
                 else 
                     // No? Must be BinPlusOp or BinMinOp instead then
@@ -234,10 +234,12 @@ test <@ parseExpression "1-2" = [Integer 1; BinMinOp; Integer 2] @>
 
 // is this legal math syntax? PowerShell can only parse "1-(-2)"
 // whereas LibreOffice parses and evaluates supports "1--2"
-test <@ parseExpression "1--2" = [Integer 1; BinMinOp; UnaryMinOp; Integer 2] @>
+test <@ parseExpression "1--2" = 
+            [Integer 1; BinMinOp; UnaryMinOp; Integer 2] @>
 test <@ parseExpression "-1" = [UnaryMinOp; Integer 1] @>
 test <@ parseExpression "+1" = [UnaryPlusOp; Integer 1] @>
-test <@ parseExpression "1+-2" = [Integer 1; BinPlusOp; UnaryMinOp; Integer 2] @>
+test <@ parseExpression "1+-2" = 
+            [Integer 1; BinPlusOp; UnaryMinOp; Integer 2] @>
 test <@ parseExpression "-(1+2*3/4^5)" =
             [UnaryMinOp; LParen; Integer 1; BinPlusOp; Integer 2; BinMulOp; 
              Integer 3; BinDivOp; Integer 4; BinExpOp; Integer 5; RParen] @>
