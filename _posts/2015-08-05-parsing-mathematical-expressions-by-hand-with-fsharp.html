@@ -19,8 +19,8 @@ the entire expression.</p>
 
 <p>Parsing input left to right, returning a list of tokens, suffices
 when no or a simple evaluation step follows parsing. Operator
-precedence and associativity, however, causes evaluation of
-mathematical expressions to become non-triviel, non-left to
+precedence and associativity, however, cause evaluation of
+mathematical expressions to become non-trivial, non-left to
 right. Evaluation is thus the topic of next time.</p>
 
 <h2>Defining types of tokens</h2>
@@ -43,7 +43,7 @@ suffices. Operators and parenthesis, however, affect the evaluation
 order and thus I create separate types of tokens for those.</p>
 
 <p>In principle I could make due with a single token type for
-operators and parenthsis by associating a string (+, -, *, /, (, ), or
+operators and parenthesis by associating a string (+, -, *, /, (, ), or
 ^), a lexeme, with the type of token. But for type safety, I create
 unique cases, ending up with the following types of tokens:</p>
 
@@ -60,7 +60,7 @@ unique cases, ending up with the following types of tokens:</p>
     | RParen
 </pre>
     
-<p>Given this descriminated union of token types, parsing "-12+34*56"
+<p>Given this discriminated union of token types, parsing "-12+34*56"
 should therefore yields the following list of tokens: [UnaryMinOp,
 Integer(12), BinPlusOp, Integer(34), BinMulOp, Integer(56)].</p>
 
@@ -296,6 +296,6 @@ or <a href="https://irony.codeplex.com">Irony</a>. These libraries
 come with more advanced versions of the parsers defined above and
 support for common parsing patterns such as applying a parser multiple
 times until it fails. Never having written a parser by hand, it's hard
-to fully appreciate what parser combinators bring to the table and to
-use it effectively.
+to fully appreciate what a parser combinator library brings to the
+table and to use it effectively.
 </div>
