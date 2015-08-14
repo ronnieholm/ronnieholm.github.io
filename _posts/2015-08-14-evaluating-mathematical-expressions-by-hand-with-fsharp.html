@@ -1,0 +1,276 @@
+---
+layout: post
+title: "Evaluating mathematical expressions by hand with F#"
+date: 2015-08-14 12:00 UTC
+---
+
+<p><a href="/blog/2015/08/05/parsing-mathematical-expressions-by-hand-with-fsharp/">Part 1: Parsing mathematical expressions by hand with
+F#</a></p>
+
+<p>Part 2: Evaluating mathematical expressions by hand with
+F#</p>
+
+<p>The code in this post is available in its entirety from
+<a
+href="https://github.com/ronnieholm/ExpressionParsers/blob/master/ShuntingYardParser.FSharp/SeparateLexerParserStages.fs">here</a>.</p>
+
+<p>In the previous post, focus was on how to construct a parser,
+turning a string such as "-12+45*56" into a list of tokens such as
+UnaryMinOp, Integer(12), BinPlusOp, Integer(34), BinMulOp, and
+Integer(56). Building on the expression parser, in this post we employ
+Dijkstra's Shunting Yard algorithm to reduce the list of tokens to a
+single integer. Shunting Yard elegantly manages the non-trivial,
+non-left to right evaluation of tokens which is a consequence of
+following the rules of operator associativity and precedence.</p>
+
+<h2>Associativity and precedence</h2>
+
+<p>In summary, associativity helps disambiguate the order of
+evaluation with (sub-)expression containing multiple operators at the
+same level of precedence. For instance, the binary exponentiation
+operator is right associative, turning 2^3^4 into the fully
+parenthesized form of (2^(3^4)) and not ((2^3)^4)). Precedence, on the
+other hand, helps disambiguate the order of evaluation with
+(sub-)expressions containing different operators. With multiplication
+having a higher precedence than addition, 2+3*4 should be interpreted
+as (2+(3*4)).</p>
+
+<p>If the rules of associativity and precedence appear somewhat
+arbitrary, it's because they are. It just so happens that we all agree
+following the same arbitrary rules.</p>
+
+<p>Core to Shunting Yard is the custom definition of a table of
+operator associativity and relative precedence. During evaluation,
+whenever the algorithm encounters operators and operators, it consults
+this table and either immediately evaluates a (sub-)expression or
+defers its evaluation.</p>
+
+<p>Here's the table listing the associativity and precedence of the
+operators of our expression defined to conform to common mathematical
+conventions:</p>
+
+<pre class="prettyprint lang-cs">
+type Associativity =
+    | Left
+    | Right
+
+let configuration =
+    [(Token.BinExpOp, 4, Right)
+     (Token.UnaryMinOp, 3, Left)
+     (Token.BinMulOp, 2, Left)
+     (Token.BinDivOp, 2, Left)
+     (Token.BinPlusOp, 1, Left)
+     (Token.BinMinOp, 1, Left)]
+</pre>
+
+<p>Shunting Yard defers evaluation by pushing operators and operands
+onto operator and operand stacks. Now, since in the parser we've
+already defined the types of tokens, including their metadata, the
+simplest approach is keeping relevant data around is storing actual
+tokens on the stacks.</p>
+
+<pre class="prettyprint lang-cs">
+let operators = Stack<Token>()
+let operands = Stack<Token>()
+</pre>
+
+<p>With these initial definitions in mind, let's now look at the
+Shunting Yard algorithm in pseudo code. The pseudo code is interleaved
+with the actual F# code later on:</p>
+    
+<pre>
+while tokens to be read
+  read token
+  if token is operand then push onto operand stack
+  if token is unary prefix operator then push onto operator stack
+  if token is binary operator, o1, then
+    while operator token, o2, at top of operator stack, and
+        either o1 is left-associative and its precedence is <= to that of o2
+        or o1 is right-associative and its precedence < that of o2
+      reduce expression
+    push o1 onto the operator stack
+  if token is left paren then push it onto operator stack
+  if token is right paren
+    until token at top of operator stack is left paren
+      reduce expression
+    if operator stack runs out without finding left paren then mismatched parens
+    pop left paren from stack
+when no more tokens to readand
+  while still tokens on operator stack
+    if operator token on top of stack is paren then mismatched parentheses
+    reduce expression
+  pop result of operand stack
+
+Reduce expression
+  pop operator off operator stack
+  pop operands off operand stack
+  process expression
+  push result onto operand stack
+</pre>
+
+<p>At first glance, Shunting Yard may appear daunting.  Probably the
+easiest way to grasp it is manually running through the algorithm with
+a couple of simple expressions exercising both associativity and
+precedence rules. If it's any conciliation, most likely Dijkstra
+didn't come up with the algorithm linearly, but did multiple passes
+over the algorithm, gradually including more cases.</p>
+
+<p>To execute the algorithm, we first need to define a couple of
+helper functions to answer questions such as whether a token is an
+operand or an operator and whether the operator is unary or binary. As
+an optimization, we could've stored/encoded the information for each
+type of token in the configuration table:</p>
+
+<pre class="prettyprint lang-cs">
+// val lookupOperator : token:Token -> int * Associativity
+let lookupOperator token = 
+    configuration 
+    |> List.find (fun (t, _, _) -> token = t) 
+    |> fun (_, p, a) -> p, a
+
+// val isOperand : _arg1:Token -> bool
+let isOperand = function
+    | Integer _ -> true
+    | _ -> false
+
+// val isUnaryOperator : _arg1:Token -> bool
+let isUnaryOperator = function
+    | UnaryMinOp | UnaryPlusOp -> true
+    | _ -> false
+
+// val isBinaryOperator : _arg1:Token -> bool
+let isBinaryOperator = function
+    // not (isUnaryOperator token) will not work since Integer is neither
+    | BinPlusOp | BinMinOp | BinMulOp | BinDivOp | BinExpOp -> true
+    | _ -> false
+</pre>
+
+<p>Next, we implement the reduction of unary and binary
+(sub)-expressions. In this case, the "process expression" part of the
+pseudo code translates to the actual arithmetic computation, but in
+principle we could store different objects than tokens on the
+stack. For instance, we could push nodes of an abstract syntax tree or
+the prefix or postfix representation of expressions onto the
+stack.</p>
+
+<pre class="prettyprint lang-cs">
+// val reduceExpression : unit -> unit
+let reduceExpression() = 
+    let extractValue t =
+        match t with
+        | Integer i -> i
+        | _ -> failwithf "Unsupported %A" t
+
+    let operator = operators.Pop()
+    if operator = UnaryMinOp then
+        let operand = operands.Pop() |> extractValue
+        operands.Push(Integer -operand)
+    else if operator = UnaryPlusOp then operands.Pop() |> ignore
+    else
+        let left = operands.Pop() |> extractValue
+        let right = operands.Pop() |> extractValue
+        match operator with
+        | BinPlusOp -> operands.Push(Integer (left + right))
+        | BinMinOp -> operands.Push(Integer (left - right))
+        | BinMulOp -> operands.Push(Integer (left * right))
+        | BinDivOp -> operands.Push(Integer (left / right))
+        | BinExpOp -> operands.Push(Integer (Math.Pow(float left, float right) |> int))
+        | _ -> failwithf "Unsupported operator %A" operator
+</pre>
+
+<p>
+And now for the crux of the algorithm. To make it easier to relate to
+the pseudo code, real code and pseudo code have been interleaved.
+</p>
+
+<pre class="prettyprint lang-cs">
+let evaluateExpression tokens =
+    // while tokens to be read
+    let rec eval (tokens: Token list) =
+        match tokens with
+        // read token
+        | hd :: tl ->
+            // if token is operand then push onto operand stack
+            if isOperand hd then operands.Push(hd)
+
+            // if token is unary prefix operator then push onto operator stack
+            else if isUnaryOperator hd then operators.Push(hd)
+
+            // if token is binary operator, o1, then
+            else if isBinaryOperator hd then
+                // while operator token, o2, at top of operator stack, and
+                //     either o1 is left-associative and its precedence is <= to that of o2
+                //         or o1 is right-associative and its precedence is < that of o2
+                //   reduce expression
+                // push o1 onto the operator stack
+                let pO1, aO1 = lookupOperator hd
+                let isReduceRequired operator =
+                    let o2 = if isBinaryOperator(operator) then Some(lookupOperator(operator)) else None
+                    match o2 with
+                    | Some(pO2, aO2) -> (aO1 = Left && pO1 <= pO2) || (aO1 = Right && pO1 < pO2)                        
+                    | None -> false
+
+                while operators.Count > 0 && isReduceRequired(operators.Peek()) do 
+                    reduceExpression()
+                operators.Push(hd)
+
+            // if token is left paren then push it onto operator stack
+            else if hd = LParen then operators.Push(hd)
+
+            // if token is right paren
+            else if hd = RParen then
+                // until token at top of operator stack is left paren
+                while operators.Count > 0 && operators.Peek() <> LParen do 
+                    reduceExpression()
+
+                // if operator stack runs out without finding left paren then mismatched parens
+                if operators.Count = 0 then failwith "Unmatched parenthesis"
+
+                // pop left paren from stack
+                if operators.Peek() = LParen then (operators.Pop() |> ignore)
+
+            eval tl
+        | [] ->
+            // when no more tokens to read and
+            // while still tokens on operator stack
+            while operators.Count > 0 do
+                // if operator token on top of stack is paren then mismatched parentheses
+                if operators.Peek() = LParen || operators.Peek() = RParen then
+                    failwith "Unmatched parenthesis"
+
+                // reduce expression
+                reduceExpression()
+
+            // pop result of operand stack
+            operands.Pop()
+
+    eval tokens
+
+// val eval : (string -> Token)
+let eval = parseExpression >> evaluateExpression 
+
+test <@ "1" |> eval = Integer 1 @>
+test <@ "-1" |> eval = Integer -1 @>
+test <@ "1+2" |> eval = Integer 3 @>
+test <@ "(1+2)" |> eval = Integer 3 @>
+test <@ "1+-2" |> eval = Integer -1 @>
+test <@ "-(1+2)" |> eval = Integer -3 @>
+test <@ "2*3" |> eval = Integer 6 @>
+test <@ "10/2" |> eval = Integer 5 @>
+test <@ "2^3^2" |> eval = Integer 512 @>
+test <@ "1+2*3" |> eval = Integer 7 @>
+test <@ "4^5/1+2*3" |> parseExpression |> evaluateExpression = Integer 1030 @>
+</pre>
+
+<h2>Conclusion</h2>
+
+<p>Conclusion goes here.</p>        
+
+
+
+
+
+
+
+
+     
