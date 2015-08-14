@@ -246,7 +246,8 @@ let evaluateExpression tokens =
                 while operators.Count > 0 && operators.Peek() <> LParen do 
                     reduceExpression()
 
-                // if operator stack runs out without finding left paren then mismatched parens
+                // if operator stack runs out without finding left paren 
+                // then mismatched parens
                 if operators.Count = 0 then failwith "Unmatched parens"
 
                 // pop left paren from stack
@@ -257,7 +258,8 @@ let evaluateExpression tokens =
             // when no more tokens to readand
             // while still tokens on operator stack
             while operators.Count > 0 do
-                // if operator token on top of stack is paren then mismatched parens
+                // if operator token on top of stack is paren 
+                // then mismatched parens
                 if operators.Peek() = LParen || operators.Peek() = RParen then
                     failwith "Unmatched paren"
 
