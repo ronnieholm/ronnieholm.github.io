@@ -6,7 +6,7 @@ date: 2015-08-14 12:00 UTC
 
 <p><a href="/blog/2015/08/05/parsing-mathematical-expressions-by-hand-with-fsharp">Part 1: Parsing mathematical expressions by hand with
 F#</a><br>
-<p>Part 2: Evaluating mathematical expressions by hand with
+Part 2: Evaluating mathematical expressions by hand with
 F#</p>
 
 <p>The code in this post is available in its entirety from
@@ -45,6 +45,8 @@ precedence. Multiplication trumping addition is what makes 2+3*4 and
 associative and if their relative levels of precedence appear somewhat
 arbitrary, it's because they are. Luckily, we all agree on following
 the same rules, arbitrary or not.</p>
+
+<h2>Shunting Yard</h2>
 
 <p>Central to Shunting Yard is setting up a table specifying the
 associativity and precedence for each supported operator. During
