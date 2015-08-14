@@ -197,7 +197,7 @@ let reduceExpression() =
         | _ -> failwithf "Unsupported operator %A" operator
 </pre>
 
-<p>Finally, the core algorithm follows, tying the pieces together and
+<p>And finally, the core algorithm, tying the pieces together and
 including <a href="https://github.com/SwensenSoftware/unquote">Unquote</a>
 test cases:</p>
 
@@ -286,14 +286,14 @@ test <@ "4^5/1+2*3" |> eval = Integer 1030 @>
 
 <h2>Conclusion</h2>
 
-<p>
-
-</p>        
-
-Include expression parser as part of larger parser to generate correct syntax tree from expression.
-Great learning vihicle for a classic computer science problem and algorithm.
-
-
+<p>Writing a parser and evaluator by hand for the simple language of
+mathematical expressions was far from trivial, yet proved a great
+learning experience. I've since taken the ideas to parsing
+SharePoint's internal DSLs for expressing recurrence appointments,
+resulting in
+the <a href="https://github.com/ronnieholm/SPCalendarRecurrenceExpander">SPCalendarRecurrenceExpander</a>. Evaluating
+a program in this language means expanding the recurrence into its
+individual appointments.</p>
 
 
 
