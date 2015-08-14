@@ -21,8 +21,8 @@ Integer(12), BinPlusOp, Integer(34), BinMulOp, and
 Integer(56). Building on the parser, in this post we
 employ <a href="https://en.wikipedia.org/wiki/Edsger_W._Dijkstra">Dijkstra</a>'s
 <a href="https://en.wikipedia.org/wiki/Shunting-yard_algorithm">Shunting
-Yard algorithm</a> (see
-the <a href="http://www.cs.utexas.edu/~EWD/MCReps/MR35.PDF">original</a>
+Yard algorithm</a>
+(<a href="http://www.cs.utexas.edu/~EWD/MCReps/MR35.PDF">original</a>
 '61 paper, page 22) to reduce the list of tokens to a single Integer,
 effectively evaluating the infix expression. What Shunting Yard
 provides is an elegant solution to the problem of non-trivial,
