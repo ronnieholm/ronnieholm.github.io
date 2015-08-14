@@ -192,7 +192,8 @@ let reduceExpression() =
         | BinMinOp -> operands.Push(Integer (left - right))
         | BinMulOp -> operands.Push(Integer (left * right))
         | BinDivOp -> operands.Push(Integer (left / right))
-        | BinExpOp -> operands.Push(Integer (Math.Pow(float left, float right) |> int))
+        | BinExpOp -> 
+            operands.Push(Integer (Math.Pow(float left, float right) |> int))
         | _ -> failwithf "Unsupported operator %A" operator
 </pre>
 
@@ -201,10 +202,11 @@ including <a href="https://github.com/SwensenSoftware/unquote">Unquote</a>
 test cases:</p>
 
 <pre class="prettyprint lang-cs">
+// val evaluateExpression : tokens:Token list -> Token
 let evaluateExpression tokens =
+    // val eval : _arg1:Token list -> Token
     // while tokens to be read
-    let rec eval (tokens: Token list) =
-        match tokens with
+    let rec eval = function
         // read token
         | hd :: tl ->
             // if token is operand then push onto operand stack
@@ -215,9 +217,9 @@ let evaluateExpression tokens =
 
             // if token is binary operator, o1, then
             else if isBinaryOperator hd then
-                // while operator token, o2, at top of operator stack, and
-                //     either o1 is left-associative and its precedence is <= to that of o2
-                //         or o1 is right-associative and its precedence is < that of o2
+                // while operator token, o2, at top of operator stack, and
+                //     either o1 is left associative and its precedence <= o2
+                //     or o1 is right associative and its precedence < o2
                 //   reduce expression
                 // push o1 onto the operator stack
                 let pO1, aO1 = lookupOperator hd
@@ -241,19 +243,19 @@ let evaluateExpression tokens =
                     reduceExpression()
 
                 // if operator stack runs out without finding left paren then mismatched parens
-                if operators.Count = 0 then failwith "Unmatched parenthesis"
+                if operators.Count = 0 then failwith "Unmatched parens"
 
                 // pop left paren from stack
-                if operators.Peek() = LParen then (operators.Pop() |> ignore)
+                if operators.Peek() = LParen then operators.Pop() |> ignore
 
             eval tl
         | [] ->
-            // when no more tokens to read and
+            // when no more tokens to readand
             // while still tokens on operator stack
             while operators.Count > 0 do
                 // if operator token on top of stack is paren then mismatched parens
                 if operators.Peek() = LParen || operators.Peek() = RParen then
-                    failwith "Unmatched parenthesis"
+                    failwith "Unmatched paren"
 
                 // reduce expression
                 reduceExpression()
