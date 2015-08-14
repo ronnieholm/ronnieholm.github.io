@@ -21,16 +21,18 @@ Integer(12), BinPlusOp, Integer(34), BinMulOp, and
 Integer(56). Building on the parser, in this post we
 employ <a href="https://en.wikipedia.org/wiki/Edsger_W._Dijkstra">Dijkstra</a>'s
 <a href="https://en.wikipedia.org/wiki/Shunting-yard_algorithm">Shunting
-Yard algorithm</a> to evaluate infix expression by reducing the list
-of tokens to a single integer. What Shunting Yard provides is an
-elegant solution to the problem of non-trivial, non-left to right
-processing of tokens due to operator associativity and precedence.</p>
+Yard algorithm</a>
+(<a href="http://www.cs.utexas.edu/~EWD/MCReps/MR35.PDF">original
+paper</a>)to evaluate infix expression by reducing the list of tokens
+to a single integer. What Shunting Yard provides is an elegant
+solution to the problem of non-trivial, non-left to right processing
+of tokens due to operator associativity and precedence.</p>
 
 <h2>Associativity and precedence</h2>
 
 <p>Both <a href="https://en.wikipedia.org/wiki/Operator_associativity">operator
 associativity</a>
-and <a href="https://en.wikipedia.org/w/index.php?title=Order_of_operations">operator
+and <a href="https://en.wikipedia.org/wiki/Order_of_operations">operator
 precedence</a> help disambiguate the order of evaluation of
 sub-expressions in a expression with no parenthesis. The rules of
 associativity come into play when an expression contains multiple
@@ -294,10 +296,3 @@ resulting in
 the <a href="https://github.com/ronnieholm/SPCalendarRecurrenceExpander">SPCalendarRecurrenceExpander</a>. Evaluating
 a program in this language means expanding the recurrence into its
 individual appointments.</p>
-
-
-
-
-
-
-     
