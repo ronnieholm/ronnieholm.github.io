@@ -90,7 +90,7 @@ let operands = Stack&lt;Token&gt;()
 <p>With these definitions out of the way, let's turn our attention to
 the Shunting Yard algorithm in pseudo-code form (a modified version of
 the one on Wikipedia). The actual implementation contains an inline
-version of this pseudo-code for tracability:</p>
+version of this pseudo-code for traceability:</p>
     
 <pre>
 while tokens to be read
@@ -130,7 +130,7 @@ algorithm through this process of gradual refinement.</p>
 <p>Implementing the algorithm bottom up, we require a few functions to
 answer questions such as whether a token is an operand or an operator
 and whether the operator is unary or binary. We could've encoded this
-information into the configuration table and aquired it through
+information into the configuration table and acquired it through
 lookup, but the function approach seems more flexible:</p>
 
 <pre class="prettyprint lang-cs">
