@@ -204,8 +204,8 @@ test cases:</p>
 <pre class="prettyprint lang-cs">
 // val evaluateExpression : tokens:Token list -> Token
 let evaluateExpression tokens =
-    // val eval : _arg1:Token list -> Token
     // while tokens to be read
+    // val eval : _arg1:Token list -> Token
     let rec eval = function
         // read token
         | hd :: tl ->
@@ -223,10 +223,14 @@ let evaluateExpression tokens =
                 //   reduce expression
                 // push o1 onto the operator stack
                 let pO1, aO1 = lookupOperator hd
-                let isReduceRequired operator =
-                    let o2 = if isBinaryOperator(operator) then Some(lookupOperator(operator)) else None
+                let isReduceRequired operator =                 
+                    let o2 = 
+                        if isBinaryOperator(operator) 
+                        then Some (lookupOperator(operator)) 
+                        else None
                     match o2 with
-                    | Some(pO2, aO2) -> (aO1 = Left && pO1 <= pO2) || (aO1 = Right && pO1 < pO2)                        
+                    | Some(pO2, aO2) -> 
+                        (aO1 = Left && pO1 <= pO2) || (aO1 = Right && pO1 < pO2)
                     | None -> false
 
                 while operators.Count > 0 && isReduceRequired(operators.Peek()) do 
