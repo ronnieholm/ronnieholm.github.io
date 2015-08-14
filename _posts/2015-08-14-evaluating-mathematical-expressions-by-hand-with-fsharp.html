@@ -4,9 +4,8 @@ title: "Evaluating mathematical expressions by hand with F#"
 date: 2015-08-14 12:00 UTC
 ---
 
-<p><a href="/blog/2015/08/05/parsing-mathematical-expressions-by-hand-with-fsharp/">Part 1: Parsing mathematical expressions by hand with
-F#</a></p>
-
+<p><a href="/blog/2015/08/05/parsing-mathematical-expressions-by-hand-with-fsharp">Part 1: Parsing mathematical expressions by hand with
+F#</a><br>
 <p>Part 2: Evaluating mathematical expressions by hand with
 F#</p>
 
@@ -14,40 +13,49 @@ F#</p>
 <a
 href="https://github.com/ronnieholm/ExpressionParsers/blob/master/ShuntingYardParser.FSharp/SeparateLexerParserStages.fs">here</a>.</p>
 
-<p>In the previous post, focus was on how to construct a parser,
-turning a string such as "-12+45*56" into a list of tokens such as
-UnaryMinOp, Integer(12), BinPlusOp, Integer(34), BinMulOp, and
-Integer(56). Building on the expression parser, in this post we employ
-Dijkstra's Shunting Yard algorithm to reduce the list of tokens to a
-single integer. Shunting Yard elegantly manages the non-trivial,
-non-left to right evaluation of tokens which is a consequence of
-following the rules of operator associativity and precedence.</p>
+<p>In the
+<a href="/blog/2015/08/05/parsing-mathematical-expressions-by-hand-with-fsharp/">previous</a>
+post, focus was on how to construct an expression parser, turning a
+string such as "-12+45*56" into a list of tokens such as UnaryMinOp,
+Integer(12), BinPlusOp, Integer(34), BinMulOp, and
+Integer(56). Building on the parser, in this post we
+employ <a href="https://en.wikipedia.org/wiki/Edsger_W._Dijkstra">Dijkstra</a>'s
+<a href="https://en.wikipedia.org/wiki/Shunting-yard_algorithm">Shunting
+Yard algorithm</a> to evaluate infix expression by reducing the list
+of tokens to a single integer. What Shunting Yard provides is an
+elegant solution to the problem of non-trivial, non-left to right
+processing of tokens due to operator associativity and precedence.</p>
 
 <h2>Associativity and precedence</h2>
 
-<p>In summary, associativity helps disambiguate the order of
-evaluation with (sub-)expression containing multiple operators at the
-same level of precedence. For instance, the binary exponentiation
-operator is right associative, turning 2^3^4 into the fully
-parenthesized form of (2^(3^4)) and not ((2^3)^4)). Precedence, on the
-other hand, helps disambiguate the order of evaluation with
-(sub-)expressions containing different operators. With multiplication
-having a higher precedence than addition, 2+3*4 should be interpreted
-as (2+(3*4)).</p>
+<p>Both <a href="https://en.wikipedia.org/wiki/Operator_associativity">operator
+associativity</a>
+and <a href="https://en.wikipedia.org/w/index.php?title=Order_of_operations">operator
+precedence</a> help disambiguate the order of evaluation of
+sub-expressions in a expression with no parenthesis. The rules of
+associativity come into play when an expression contains multiple
+operators at the same level of precedence. For instance, the binary
+exponentiation operator being right associative, 2^3^4 and (2^(3^4))
+are equivalent. The rules of precedence, on the other hand, become
+relevant when an expression contains operators at different levels of
+precedence. Multiplication trumping addition is what makes 2+3*4 and
+(2+(3*4)) equivalent.</p>
 
-<p>If the rules of associativity and precedence appear somewhat
-arbitrary, it's because they are. It just so happens that we all agree
-following the same arbitrary rules.</p>
+<p>If the exact definition of which operators are left and right
+associative and if their relative levels of precedence appear somewhat
+arbitrary, it's because they are. Luckily, we all agree on following
+the same rules, arbitrary or not.</p>
 
-<p>Core to Shunting Yard is the custom definition of a table of
-operator associativity and relative precedence. During evaluation,
-whenever the algorithm encounters operators and operators, it consults
-this table and either immediately evaluates a (sub-)expression or
-defers its evaluation.</p>
+<p>Central to Shunting Yard is setting up a table specifying the
+associativity and precedence for each supported operator. During
+evaluation, the algorithm consults this table and the previous
+operator to determine if an expression is to be immediately evaluated
+or deferred. Keep in mind that the evaluator naively processes tokens
+left to right and thus doesn't have the foresight of a human jumping
+back and forth, evaluating parts of the expression.</p>
 
-<p>Here's the table listing the associativity and precedence of the
-operators of our expression defined to conform to common mathematical
-conventions:</p>
+<p>Adhering to common mathematical convention, here's the driving
+table listing associativity and precedence for each operator:</p>
 
 <pre class="prettyprint lang-cs">
 type Associativity =
@@ -63,20 +71,25 @@ let configuration =
      (Token.BinMinOp, 1, Left)]
 </pre>
 
-<p>Shunting Yard defers evaluation by pushing operators and operands
-onto operator and operand stacks. Now, since in the parser we've
-already defined the types of tokens, including their metadata, the
-simplest approach is keeping relevant data around is storing actual
-tokens on the stacks.</p>
+<p>Shunting Yard elegantly accomplishes its deferred evaluation by
+pushing operators and operands onto an operator and operand
+stack. Now, during left to right traversal of tokens, when the
+algorithm encounters an operator token, it compares the token's
+properties in the configuration table with that of the top-most token
+on the operator stack and makes its evaluation decision.</p>
+
+<p>Instead of coming up with new data types, essentially mimicking
+what already stored in Token type, it makes more sense to reuse the
+Token types.</p>
 
 <pre class="prettyprint lang-cs">
-let operators = Stack<Token>()
-let operands = Stack<Token>()
+let operators = Stack&lt;Token&gt;()
+let operands = Stack&lt;Token&gt;()
 </pre>
 
-<p>With these initial definitions in mind, let's now look at the
-Shunting Yard algorithm in pseudo code. The pseudo code is interleaved
-with the actual F# code later on:</p>
+<p>With these definitions out of the way, let's turn to the Shunting
+Yard algorithm in pseudo-code form. Later on, we'll inline the
+pseudo-code as F# comments:</p>
     
 <pre>
 while tokens to be read
@@ -95,31 +108,30 @@ while tokens to be read
       reduce expression
     if operator stack runs out without finding left paren then mismatched parens
     pop left paren from stack
-when no more tokens to readand
+when no more tokens to read and
   while still tokens on operator stack
-    if operator token on top of stack is paren then mismatched parentheses
+    if operator token on top of stack is paren then mismatched parens
     reduce expression
   pop result of operand stack
 
-Reduce expression
+reduce expression
   pop operator off operator stack
   pop operands off operand stack
   process expression
   push result onto operand stack
 </pre>
 
-<p>At first glance, Shunting Yard may appear daunting.  Probably the
-easiest way to grasp it is manually running through the algorithm with
-a couple of simple expressions exercising both associativity and
-precedence rules. If it's any conciliation, most likely Dijkstra
-didn't come up with the algorithm linearly, but did multiple passes
-over the algorithm, gradually including more cases.</p>
+<p>At first glance, Shunting Yard may appear daunting. It's probably
+best understood through pen and paper execution of gradually more
+advanced cases, exercising the associativity and precedence
+rules. Most likely, this sort of gradual refinement resembles how
+Dijkstra came up with the algorithm to start with.</p>
 
-<p>To execute the algorithm, we first need to define a couple of
-helper functions to answer questions such as whether a token is an
-operand or an operator and whether the operator is unary or binary. As
-an optimization, we could've stored/encoded the information for each
-type of token in the configuration table:</p>
+<p>To implement the algorithm bottom up with F#, we require a couple
+of helper functions to answer questions such as whether a token is an
+operand or an operator and whether the operator is unary or
+binary. Alternatively, we could've encoded the same information
+straight in the configuration table:</p>
 
 <pre class="prettyprint lang-cs">
 // val lookupOperator : token:Token -> int * Associativity
@@ -145,13 +157,17 @@ let isBinaryOperator = function
     | _ -> false
 </pre>
 
-<p>Next, we implement the reduction of unary and binary
-(sub)-expressions. In this case, the "process expression" part of the
-pseudo code translates to the actual arithmetic computation, but in
-principle we could store different objects than tokens on the
-stack. For instance, we could push nodes of an abstract syntax tree or
-the prefix or postfix representation of expressions onto the
-stack.</p>
+<p>Next, we implement the reduce expression facility with the "process
+expression" part translating to actual integer arithmetic. But
+Shunting Yard may also be used to construct
+an <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">abstract
+syntax tree</a> from the tokens. The algorithm remains the same, but
+reduceExpression no longer pushes and pops Integers off the operand
+stack but types of syntax tree nodes. The node that remains on the
+stack after all tokens have been evaluated is the root of the syntax
+tree as exemplified
+by <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/ShuntingYardParser.CSharp">this</a>
+C# example.</p>
 
 <pre class="prettyprint lang-cs">
 // val reduceExpression : unit -> unit
@@ -178,10 +194,9 @@ let reduceExpression() =
         | _ -> failwithf "Unsupported operator %A" operator
 </pre>
 
-<p>
-And now for the crux of the algorithm. To make it easier to relate to
-the pseudo code, real code and pseudo code have been interleaved.
-</p>
+<p>Finally, the core algorithm follows, tying the pieces together and
+including <a href="https://github.com/SwensenSoftware/unquote">Unquote</a>
+test cases:</p>
 
 <pre class="prettyprint lang-cs">
 let evaluateExpression tokens =
@@ -198,9 +213,9 @@ let evaluateExpression tokens =
 
             // if token is binary operator, o1, then
             else if isBinaryOperator hd then
-                // while operator token, o2, at top of operator stack, and
+                // while operator token, o2, at top of operator stack, and
                 //     either o1 is left-associative and its precedence is <= to that of o2
-                //         or o1 is right-associative and its precedence is < that of o2
+                //         or o1 is right-associative and its precedence is < that of o2
                 //   reduce expression
                 // push o1 onto the operator stack
                 let pO1, aO1 = lookupOperator hd
@@ -234,7 +249,7 @@ let evaluateExpression tokens =
             // when no more tokens to read and
             // while still tokens on operator stack
             while operators.Count > 0 do
-                // if operator token on top of stack is paren then mismatched parentheses
+                // if operator token on top of stack is paren then mismatched parens
                 if operators.Peek() = LParen || operators.Peek() = RParen then
                     failwith "Unmatched parenthesis"
 
@@ -252,19 +267,21 @@ let eval = parseExpression >> evaluateExpression
 test <@ "1" |> eval = Integer 1 @>
 test <@ "-1" |> eval = Integer -1 @>
 test <@ "1+2" |> eval = Integer 3 @>
-test <@ "(1+2)" |> eval = Integer 3 @>
 test <@ "1+-2" |> eval = Integer -1 @>
 test <@ "-(1+2)" |> eval = Integer -3 @>
-test <@ "2*3" |> eval = Integer 6 @>
-test <@ "10/2" |> eval = Integer 5 @>
 test <@ "2^3^2" |> eval = Integer 512 @>
 test <@ "1+2*3" |> eval = Integer 7 @>
-test <@ "4^5/1+2*3" |> parseExpression |> evaluateExpression = Integer 1030 @>
+test <@ "4^5/1+2*3" |> eval = Integer 1030 @>
 </pre>
 
 <h2>Conclusion</h2>
 
-<p>Conclusion goes here.</p>        
+<p>
+
+</p>        
+
+Include expression parser as part of larger parser to generate correct syntax tree from expression.
+Great learning vihicle for a classic computer science problem and algorithm.
 
 
 
