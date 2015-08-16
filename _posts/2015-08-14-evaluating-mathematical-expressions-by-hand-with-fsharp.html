@@ -4,6 +4,8 @@ title: "Evaluating mathematical expressions by hand with F#"
 date: 2015-08-14 12:00 UTC
 ---
 
+<div id="post">
+
 <p><a href="/blog/2015/08/05/parsing-mathematical-expressions-by-hand-with-fsharp">Part 1: Parsing mathematical expressions by hand with
 F#</a><br>
 Part 2: Evaluating mathematical expressions by hand with
@@ -16,9 +18,9 @@ href="https://github.com/ronnieholm/ExpressionParsers/blob/master/ShuntingYardPa
 <p>In the
 <a href="/blog/2015/08/05/parsing-mathematical-expressions-by-hand-with-fsharp/">previous</a>
 post, focus was on how to construct an expression parser, turning a
-string such as "-12+45*56" into a list of tokens: UnaryMinOp,
-Integer(12), BinPlusOp, Integer(34), BinMulOp, and
-Integer(56). Building on the parser, in this post we
+string such as "-12+45*56" into a list of tokens: UnaryMinOp, Integer
+12, BinPlusOp, Integer 34, BinMulOp, and Integer 56. Building on the
+parser, in this post we
 employ <a href="https://en.wikipedia.org/wiki/Edsger_W._Dijkstra">Dijkstra</a>'s
 <a href="https://en.wikipedia.org/wiki/Shunting-yard_algorithm">Shunting
 Yard algorithm</a>
@@ -35,32 +37,33 @@ and precedence.</p>
 associativity</a>
 and <a href="https://en.wikipedia.org/wiki/Order_of_operations">operator
 precedence</a> exist to disambiguate the order of evaluation of
-sub-expressions in a expression with no parenthesis. The rules of
+sub-expressions in a expression with no parentheses. The rules of
 associativity come into play when an expression contains multiple
 operators at the same level of precedence. For instance, with the
 binary exponentiation operator being right associative, 2^3^4 and
-(2^(3^4)) are equivalent. As for operator precedence, it becomes
-relevant when an expression contains multiple operators at different
-levels of precedence. Multiplication trumping addition is what makes
-2+3*4 and (2+(3*4)) equivalent.</p>
+(2^(3^4)) are equivalent. As for precedence, its rules are needed when
+an expression contains operators at different levels of
+precedence. Multiplication trumping addition is what makes 2+3*4 and
+(2+(3*4)) equivalent.</p>
 
-<p>In case the exact definitions of which operators are left and right
-associative and their relative levels of precedence appear somewhat
-arbitrary, it's because they are. Luckily, we all agree on following
-the same arbitrary rules.</p>
+<p>In case the exact definition of which operators are left and right
+associative and their levels of precedence appear somewhat arbitrary,
+it's because it is. Luckily, we all adhere to the same arbitrary rules
+in order to reduce the number of parentheses required.</p>
 
 <h2>The Shunting Yard algorithm</h2>
 
 <p>Central to Shunting Yard is the definition of the table of
-associativity and precedence. During execution, the algorithm
-repeatedly consults this table to compare the current and the
-previously encountered operator to determine if an expression is to be
-immediately evaluated or deferred. Keep in mind that the evaluator is
-naively processing tokens left to right and thus doesn't have the
-foresight of a human knowing what comes next.</p>
+associativity and precedence. During execution, the algorithm consults
+this table to determine if an expression is to be immediately
+evaluated or its evaluation deferred. Keep in mind that the algorithm
+is naively processing tokens left to right and thus doesn't have the
+foresight of a human knowing what comes next. This apparant limitation
+is probably due to its '61 heritage with limited resources.</p>
 
-<p>Following mathematical convention, here's the table listing
-associativity and precedence for the supported operators:</p>
+<p>Following mathematical conventions, here's the table listing
+associativity and precedence for the operators supported by our
+language:</p>
 
 <pre class="prettyprint lang-cs">
 type Associativity =
@@ -76,21 +79,21 @@ let configuration =
      (Token.BinMinOp, 1, Left)]
 </pre>
 
-<p>To defer evaluation and keep track of intermediate result, Shunting
-Yard makes use of two stacks: one for the operators and one for the
-operands. Instead of coming up with new data types, essentially
-mimicking what's already stored in the Token type, we go for reusing
-the existing types:</p>
+<p>In order to defer evaluation and keep track of intermediate result,
+Shunting Yard makes use of two stacks: one for the operators and one
+for the operands. Rather than defining new data types to store on the
+stack, essentially mimicking what's already stored in the Token type,
+we go for the exising Token type:</p>
 
 <pre class="prettyprint lang-cs">
 let operators = Stack&lt;Token&gt;()
 let operands = Stack&lt;Token&gt;()
 </pre>
 
-<p>With these definitions out of the way, let's turn our attention to
-the Shunting Yard algorithm in pseudo-code form (a modified version of
-the one on Wikipedia). The actual implementation contains an inline
-version of this pseudo-code for traceability:</p>
+<p>With these introductory definitions out of the way, let's turn our
+attention to the Shunting Yard algorithm in pseudo-code form (a
+modified version of the one on Wikipedia). The implementation contains
+an inline version of this pseudo-code for traceability:</p>
     
 <pre>
 while tokens to be read
@@ -122,16 +125,16 @@ reduce expression
   push result onto operand stack
 </pre>
 
-<p>At first glance, Shunting Yard appears daunting. It's probably best
-understood through initial pen and paper evaluation of gradually more
-complex expressions. Most likely, Dijkstra himself come up with the
-algorithm through this process of gradual refinement.</p>
+<p>At first glance, Shunting Yard may appear daunting. It's probably
+best understood through initial pen and paper evaluation of gradually
+more complex expressions. Most likely, Dijkstra himself come up with
+the algorithm by this same process of gradual refinement.</p>
 
 <p>Implementing the algorithm bottom up, we require a few functions to
 answer questions such as whether a token is an operand or an operator
 and whether the operator is unary or binary. We could've encoded this
 information into the configuration table and acquired it through
-lookup, but the function approach seems more flexible:</p>
+lookup, but encoding it as functions seemed more flexible:</p>
 
 <pre class="prettyprint lang-cs">
 // val lookupOperator : token:Token -> int * Associativity
@@ -157,17 +160,16 @@ let isBinaryOperator = function
     | _ -> false
 </pre>
 
-<p>Next comes the definition of the process expression step of the
-reduce expression facility. When the main algorithm decides it's time,
-this is where operator and operand tokens get reduced to a simpler
-Integer form. At this stage of execution, Shunting Yard could equally
-well construct an
+<p>Next follows the reduce expression part of the algorithm. When the
+main part decides it's time, reduce expression is where operator and
+operand tokens get reduced to a simpler Integer form. At this point
+Shunting Yard could equally well construct an
 <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">abstract
 syntax tree</a> from the tokens. The algorithm would remain the same,
-but reduceExpression would no longer push and pops Integers off the
-operand stack but types of syntax tree nodes. The node to remain on
-the operand stack after all tokens have been processed would form the
-root of the syntax tree as exemplified
+but reduceExpression would no longer push and pop Integers off the
+operand stack, but types of syntax tree nodes. The node which remains
+on the operand stack after all tokens have been processed would be the
+root node of the syntax tree as exemplified
 by <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/ShuntingYardParser.CSharp">this
 C# example</a>.</p>
 
@@ -200,7 +202,7 @@ let reduceExpression() =
 <p>And finally, the main part of the Shunting Yard algorithm, tying
 together the pieces and
 including <a href="https://github.com/SwensenSoftware/unquote">Unquote</a>
-test cases:</p>
+tests:</p>
 
 <pre class="prettyprint lang-cs">
 // val evaluateExpression : tokens:Token list -> Token
@@ -287,11 +289,15 @@ test <@ "4^5/1+2*3" |> eval = Integer 1030 @>
 
 <h2>Conclusion</h2>
 
-<p>Writing a parser and evaluator by hand, even for the simple
-language of mathematical expressions, is no trivial task. Yet it
-proved a great learning experience and I've since taken these ideas to
-parsing SharePoint's internal domain specific language for expressing
-recurrence appointments, resulting in
-the <a href="https://github.com/ronnieholm/SPCalendarRecurrenceExpander">SPCalendarRecurrenceExpander</a>. Evaluating
-a program in this language of appointment recurrences means expanding
-the recurrence into a series of appointments.</p>
+<p>Writing a parser and evaluator by hand, even for this simple
+language of mathematical expressions, was no trivial task. Yet it
+proved a great learning experience and I've since taken the ideas to
+writing a parser and evaluator for a domain specific language. For
+this <a href="https://github.com/ronnieholm/SPCalendarRecurrenceExpander">SPCalendarRecurrenceExpander</a>,
+which turns each SharePoint calendar recurrence event into a series of
+individual events, taking into account recurrence exceptions, parsing
+entails generating an abstract syntax tree from the
+appointment. Evaluation is then consuming the abstract syntax tree,
+turning the recurrence into individual appointments.</p>
+
+</div>

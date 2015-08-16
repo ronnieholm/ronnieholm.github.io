@@ -43,11 +43,11 @@ heavily on the desired outcome. Evaluating mathematical expressions, I
 could model each digit as a separate type of tokens. But at no point
 during parsing do I need to conditionally branch on the actual value,
 and thus a single token type with an associated integer value
-suffices. Operators and parenthesis, however, affect the evaluation
+suffices. Operators and parentheses, however, affect the evaluation
 order and thus I create separate types of tokens for those.</p>
 
 <p>In principle I could make due with a single token type for
-operators and parenthesis by associating a string (+, -, *, /, (, ), or
+operators and parentheses by associating a string (+, -, *, /, (, ), or
 ^), a lexeme, with the type of token. But for type safety, I create
 unique cases, ending up with the following types of tokens:</p>
 
@@ -148,7 +148,7 @@ test <@ parseInteger ("12" |> toArray) = Some(Integer 12, []) @>
 test <@ parseInteger ("12.3" |> toArray) = Some(Integer 12, ['.'; '3']) @>
 </pre>
 
-<p>Next, I focus on parsing parenthesis. Coming from digits, they're
+<p>Next, I focus on parsing parentheses. Coming from digits, they're
 relatively easy to deal with:</p>
 
 <pre class="prettyprint lang-cs">
@@ -278,7 +278,7 @@ test <@ parseExpression "-(1+2*3/4^5)" =
 
 <p>Focusing on the inner parse' function, say I wish to parse
 "1+2". parse' is a kind of state machine and assumes an expression
-either starts with an integer, a unary operator, or an parenthesis,
+either starts with an integer, a unary operator, or a parenthesis,
 even including ")" as the first character. I could've extended the
 tokenizer with a start left parenthesis state, but it generally isn't
 the tokenizer's job to make the list of tokens make overall sense.</p>
