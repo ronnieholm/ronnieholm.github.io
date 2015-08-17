@@ -58,7 +58,7 @@ associativity and precedence. During execution, the algorithm consults
 this table to determine if an expression is to be immediately
 evaluated or its evaluation deferred. Keep in mind that the algorithm
 is naively processing tokens left to right and thus doesn't have the
-foresight of a human knowing what comes next. This apparant limitation
+foresight of a human knowing what comes next. This apparent limitation
 is probably due to its '61 heritage with limited resources.</p>
 
 <p>Following mathematical conventions, here's the table listing
@@ -83,7 +83,7 @@ let configuration =
 Shunting Yard makes use of two stacks: one for the operators and one
 for the operands. Rather than defining new data types to store on the
 stack, essentially mimicking what's already stored in the Token type,
-we go for the exising Token type:</p>
+we go for the existing Token type:</p>
 
 <pre class="prettyprint lang-cs">
 let operators = Stack&lt;Token&gt;()
@@ -92,8 +92,8 @@ let operands = Stack&lt;Token&gt;()
 
 <p>With these introductory definitions out of the way, let's turn our
 attention to the Shunting Yard algorithm in pseudo-code form (a
-modified version of the one on Wikipedia). The implementation contains
-an inline version of this pseudo-code for traceability:</p>
+modified version of the one on Wikipedia). The later implementation
+contains an inlined version of the pseudo-code for traceability:</p>
     
 <pre>
 while tokens to be read
@@ -132,9 +132,9 @@ the algorithm by this same process of gradual refinement.</p>
 
 <p>Implementing the algorithm bottom up, we require a few functions to
 answer questions such as whether a token is an operand or an operator
-and whether the operator is unary or binary. We could've encoded this
-information into the configuration table and acquired it through
-lookup, but encoding it as functions seemed more flexible:</p>
+and whether the operator is unary or binary. We could've encoded these
+binary decisions in the configuration table, but encoding the mapping
+through functions seemed more natural:</p>
 
 <pre class="prettyprint lang-cs">
 // val lookupOperator : token:Token -> int * Associativity

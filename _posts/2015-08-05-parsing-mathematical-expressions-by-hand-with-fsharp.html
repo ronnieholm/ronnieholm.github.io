@@ -17,15 +17,14 @@ from <a href="https://github.com/ronnieholm/ExpressionParsers/blob/master/Shunti
 mathematical expression, such as "-12+34*56", into a list of tokens,
 such as UnaryMinOp, Integer 12, BinPlusOp, Integer 34, BinMulOp, and
 Integer 56. In order to transform characters into tokens, I define a
-set of smaller parser functions for low-level language elements like
-numbers and operators and combine these into a more complex one for
-the entire expression.</p>
+couple of low-level parser functions for elements like numbers and
+operators and combine these into a larger parser for the entire
+expression.</p>
 
 <p>Parsing input left to right, returning a list of tokens, suffices
-when no or a simple evaluation step follows parsing. Operator
+when no or only a simple evaluation step follows parsing. Operator
 precedence and associativity, however, cause evaluation of
-mathematical expressions to become non-trivial, non-left to
-right. Evaluation is thus the topic of next time.</p>
+mathematical expressions to become non-trivial, non-left to right.</p>
 
 <h2>Defining types of tokens</h2>
 
@@ -35,21 +34,21 @@ dealing with single characters, related characters (by some definition
 of related) are grouped into higher-level data structures called
 tokens. These tokens may then be fed into another parser, which in
 turn may return an even higher-level data structure, such as a list or
-tree or perhaps only a single value. This multi-stage process serves
-to make the overall task more tractable.</p>
+tree or perhaps only a single value. This multi-stage process makes
+the overall task more tractable.</p>
 
 <p>Perhaps unsurprisingly, the exact types of tokens required depend
 heavily on the desired outcome. Evaluating mathematical expressions, I
-could model each digit as a separate type of tokens. But at no point
-during parsing do I need to conditionally branch on the actual value,
-and thus a single token type with an associated integer value
-suffices. Operators and parentheses, however, affect the evaluation
-order and thus I create separate types of tokens for those.</p>
+could model each digit as a separate tokens. But at no point during
+parsing or evaluation do I need to conditionally branch on the actual
+value, and thus a single token with an associated integer value
+suffices. Operators and parentheses, however, affect evaluation order
+and thus I create separate tokens for those.</p>
 
-<p>In principle I could make due with a single token type for
-operators and parentheses by associating a string (+, -, *, /, (, ), or
-^), a lexeme, with the type of token. But for type safety, I create
-unique cases, ending up with the following types of tokens:</p>
+<p>In principle I could make due with a single token for operators and
+parentheses by associating a string (+, -, *, /, (, ), or ^), a
+lexeme, with the token. But for type safety, I create unique cases,
+ending up with the following tokens:</p>
 
 <pre class="prettyprint lang-cs">type Token =
     | Integer of Int32
@@ -65,16 +64,17 @@ unique cases, ending up with the following types of tokens:</p>
 </pre>
     
 <p>Given this discriminated union of token types, parsing "-12+34*56"
-should therefore yields the following list of tokens: [UnaryMinOp,
-Integer(12), BinPlusOp, Integer(34), BinMulOp, Integer(56)].</p>
+would therefore yields the following list of tokens: [UnaryMinOp,
+Integer 12, BinPlusOp, Integer 34, BinMulOp, Integer 56].</p>
 
 <h2>Parsing characters into tokens</h2>
 
-<p>To kick off the tokenization process, I start by defining a helper function
-to deconstruct an input string into a list of characters. In effect, I apply an
-initial, low-level form of parsing to the input. Following this and subsequent 
-functions, I include a couple of <a href="https://github.com/SwensenSoftware/unquote">Unquote</a> 
-test cases to illustrate their behavior.</p>
+<p>To kick off the tokenization process, I start by defining a helper
+function to deconstruct an input string into a list of characters. In
+effect, I apply an initial, low-level form of parsing to the
+input. Following this and subsequent functions, I include a couple
+of <a href="https://github.com/SwensenSoftware/unquote">Unquote</a>
+tests to illustrate their behavior.</p>
 
 <pre class="prettyprint lang-cs">
 // val toArray : s:string -> char list
@@ -87,16 +87,16 @@ test <@ toArray "1+2" = ['1'; '+'; '2'] @>
 
 <p>A common approach to parsing by hand is to create a set of small
 parsers. Each such parser would attempt to consume (group together)
-characters of the input from left to right until enough characters
-have been matched to constitute a token or the parser determines that
-no match is possible. Upon a successful match, both the token and the
-remaining characters of the input are returned. The process is then
-repeated, passing the remaining input into another parse, and
-collecting the tokens returned.<p>
+characters of the input from left to right until either enough
+characters have been matched to constitute a token or the parser
+determines that no match is possible. Upon a successful match, both
+the token and the remaining characters of the input are returned. The
+process is then repeated, passing the remaining input into another
+parser, collecting the tokens returned, until there's no more input to
+consume.<p>
 
-<p>Thus, in terms of small parsers for mathematical expressions, the
-order in which each get invoked defines what makes up valid
-expressions.</p>
+<p>Thus, the order in which each smaller parser gets invoked defines
+what makes up a valid expression.</p>
 
 <p>A small parser capable of parsing only a single digit is shown
 below. I could've implemented a more general regular expression parser
@@ -122,11 +122,11 @@ test <@ parseDigit ("123" |> toArray) = Some(1, ['2'; '3']) @>
 </pre>
 
 <p>Parsing a number of multiple digits means defining another parser
-which calls parseDigit one or more times until it returns None. It
-turns out that repeatedly applying a parser is such a common pattern
-that it could've been implemented more generally by a parser accepting
-another parser as input. But for the sake of simplicity I decided for
-a specific parseInteger parser:</p>
+which calls parseDigit one or more times until it returns None. This
+repeated application of a parser until it fails is such a common
+occurrence that it could've been implemented by a general parser
+accepting another parser as input. For simplicity, however, I created
+a specific one:</p>
 
 <pre class="prettyprint lang-cs">
 // val parseInteger : input:char list -> (Token * char list) option
@@ -169,12 +169,12 @@ test <@ parseParen (")+1" |> toArray) = Some(RParen, ['+'; '1']) @>
 </pre>
 
 <p>Now, because I went with separate tokens for unary minus and unary
-plus, I need to create a parser for those. Problem is that I cannot
-discriminate UnaryOp from BinOp without a priori knowledge of the last
-matched token, if any. No such context is passed to parseUnaryOp and
-given its nature it shouldn't care about binary operators. Instead,
-the disambiguation happens around the call site in a higher-level
-parserExpression.</p>
+plus (over storing the sign as part of the Integer), I need a parser
+for those. Problem is that I cannot discriminate UnaryOp from BinOp
+without a priori knowledge of the last matched token, if any. No such
+context is passed to parseUnaryOp and given its nature it shouldn't
+have to care about binary operators. Instead, disambiguation happens
+at the call site inside the larger parseExpression.</p>
 
 <pre class="prettyprint lang-cs">
 // val parseUnaryOp : input:char list -> (Token * char list) option
@@ -195,7 +195,7 @@ test <@ parseUnaryOp ("+1" |> toArray) = Some(UnaryPlusOp, ['1']) @>
 
 <p>In retrospect it might have been simpler to include parsing the
 sign as part of the integer parser. Nonetheless, separate parsers show
-how sometime additional work is required to determine which parser to
+how sometimes additional work is required to determine which parser to
 call.</p>
 
 <p>Parsing binary operators follow the same familiar model:</p>
@@ -220,7 +220,7 @@ test <@ parseBinOp ("^12" |> toArray) = Some(BinExpOp, ['1'; '2']) @>
 </pre>
 
 <p>Finally, combining calls to the previously defined parsers, it's
-time for the top-level parser:</p>
+time for the top-level expression parser:</p>
 
 <pre class="prettyprint lang-cs">
 // val parseExpression : input:string -> Token list
@@ -277,18 +277,19 @@ test <@ parseExpression "-(1+2*3/4^5)" =
 </pre>
 
 <p>Focusing on the inner parse' function, say I wish to parse
-"1+2". parse' is a kind of state machine and assumes an expression
-either starts with an integer, a unary operator, or a parenthesis,
-even including ")" as the first character. I could've extended the
-tokenizer with a start left parenthesis state, but it generally isn't
-the tokenizer's job to make the list of tokens make overall sense.</p>
+"1+2". parse' is a state machine which assumes an expression either
+starts with an integer, a unary operator, or any parenthesis (even
+though only ')' is legal). I could've extended the tokenizer with a
+start left parenthesis state, but it generally isn't the tokenizer's
+job to make the list of tokens make overall sense.</p>
 
 <p>Having consumed the first integer, parse' calls itself with the
 tokens matched so far and the remaining "+2" input. Question is
-whether "+" means unary or binary addition. I start out by assuming it
-means unary and then attempt to prove that hypothesis. It can only
-hold true if I haven't matches any tokens thus far (as in "-1") or the
-last matches token was a binary operator (as in "1+-2").</p>
+whether "+" means unary or binary addition. I start out assuming it
+means unary and then attempt to prove this hypothesis. It can only
+hold true if the parser hasn't matches any tokens thus far (as in
+"-1") or the last matchd token was a binary operator (as in
+"1+-2").</p>
 
 <h2>Conclusion</h2>
 
@@ -300,8 +301,8 @@ as <a href="http://www.quanttec.com/fparsec/tutorial.html">FParsec</a>,
 or <a href="https://irony.codeplex.com">Irony</a>. These libraries
 come with more advanced versions of the parsers defined above and
 support for common parsing patterns such as applying a parser multiple
-times until it fails. Never having written a parser by hand, it's hard
-to fully appreciate what a parser combinator library brings to the
-table and to use it effectively.</p>
+times until it fails. Never having written a parser by hand, though,
+it's hard to fully understand and appreciate what a parser combinator
+library brings to the table and how to use it effectively.</p>
 
 </div>
