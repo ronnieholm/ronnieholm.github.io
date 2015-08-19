@@ -2,7 +2,6 @@
 layout: post
 title: "Simulating namespaces and object-orientation with JavaScript"
 date: 2015-01-30 12:00 UTC
-tags: [JavaScript]
 ---
 
 <div id="post">
@@ -55,7 +54,7 @@ bdk.helpers = function () {
     var queryString = document.URL.split('?')[1];
       if (queryString) {
         var params = queryString.split('&');
-        for (var i = 0; i < params.length; i++) {
+        for (var i = 0; i &lt params.length; i++) {
           var kvp = params[i].split('=');
           if (param.toLowerCase() === kvp[0].toLowerCase()) {
             return decodeURIComponent(kvp[1]);
@@ -167,7 +166,7 @@ dataAccess functions:</p>
 function onGetSitesSuccess(r) {
   var sites = $('#selectedSite');
   for (var i = 0; i < r.length; i++) {
-    sites.append('&lt;option value="' + r[i] + '"&gt;' + r[i] + '</option>');
+    sites.append('&lt;option value="' + r[i] + '"&gt;' + r[i] + '&lt;/option&gt;');
   }
 }
 
