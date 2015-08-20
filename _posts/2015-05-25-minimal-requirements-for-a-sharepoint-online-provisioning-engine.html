@@ -33,7 +33,7 @@ whereas queries, such as a recursive web visitor, are read-only.
 
 <p>For commands to be truly reliable and reusable, I'd argue they must
 have the properties listed below. Queries being read-only are simpler
-and can get away with being idempotent and composable.</p>
+and can get away with only being idempotent and composable.</p>
 
 <h3>Idempotent</h3>
 
@@ -54,7 +54,7 @@ and content types have a name to identify those by.</p>
 particularly challenging as users are outright encouraged to change
 both structure and content. Contrast this with the work involved in
 updating an SQL database whose structure at least remains constant in
-between upgrades, and add the SharePoint factor.</p>
+between upgrades. Then add the SharePoint factor.</p>
 
 <p>Non-additive updates should be small and localized to avoid
 undesired side effects, and should be delegated to separate run-once
@@ -128,8 +128,9 @@ being closer to the metal and not rely on XML as an external domain
 specific language. I'm developer-centric and prefer expressing the
 template in code and take advantage of Visual Studio's refactoring,
 compiler, and debugging support. Taking the long view on
-maintainability, I'm not convinced that users defining templates is
-such a good idea.</p>
+maintainability, I'm not convinced that users defining templates
+through point and click and an engine exporting those verbatim as XML
+is such a good idea.</p>
 
 <p>Another key difference is that my developer-centric provisioning
 engine focuses on state transitions leading to some end state, whereas
@@ -138,8 +139,8 @@ on loops (and
 <a href="/blog/2011/11/13/a-table-driven-approach-to-creating-sharepoint-sites-with-powershell/">table-driven
 code</a>), helper methods, and other typical programming constructs to
 configure artefacts. In principle nothing precludes having the same
-constructs available in XML. That's partly the philosophy of MSBuild
-and NAnt.</p>
+constructs available in the XML. That's partly the philosophy of
+MSBuild and NAnt.</p>
 
 <h2>Conclusion</h2>
 

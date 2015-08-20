@@ -33,11 +33,10 @@ important change to the behavior of the JavaScript runtime is that
 variables must be declared before use with the var keyword.</p>
 
 <p>The definition of bdk takes advantages or boolean expression
-short-circuiting and either sets bdk to its previous value, if it
-isn't undefined (such as when already defined in another .js file or
-earlier in the current file) or to a default empty object. Keep in
-mind that a variable in JavaScript which hasn't been assigned a type
-of undefined.</p>
+short-circuiting and sets bdk to its previous value if defined (such
+as when already defined in another .js file or earlier in the current
+file) or to a default empty object. Keep in mind that a variable in
+JavaScript which hasn't been assigned a type is undefined.</p>
 
 <p>Now a second-level namespace can be created under bdk to minimize
 namespace collisions without our own code:</p>
@@ -153,13 +152,13 @@ was successful or not -- there's also an "always" function, called in
 either case. The ajax method is asynchronous and thus returns
 immediately before the server has had a change to respond. The
 asynchronous approach is needed because JavaScript within the browser
-execute in a single-threaded environment. Without a non-blocking
+executes in a single-threaded environment. Without a non-blocking
 mechanism in place, waiting for the server would cause the browser to
 become unresponsive.</p>
 
 <p>Finally, given a simple user interface containing dropdowns for
 site and web selection and a text box for title, here's how to use
-jQuery document ready mechanism to kick-off a call to one of the
+jQuery's document ready mechanism to kick-off a call to one of the
 dataAccess functions:</p>
 
 <pre class="prettyprint">
