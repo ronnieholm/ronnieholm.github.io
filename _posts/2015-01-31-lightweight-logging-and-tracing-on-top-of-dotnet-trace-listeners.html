@@ -5,22 +5,30 @@ date: 2015-01-31 12:00 UTC
 tags: [C#]
 
 ---
-<div id="post">
-<p>With a large number of logging libraries to choose from (NLog,
-Log4Net, MS Logging Application Block to name a few), I prefer to not
-use any of the heavyweight libraries. Why take a dependency on one of
-these when I only require a tiny fraction of their functionality when
-usually a thin wrapper on top of the .NET trace listeners suffices? I
-would never venture into writing my own library from scratch. It's a
-deceptively simple task complicated by multi-threading and file
-locking issues already taken care of by .NET trace listeners.</p>
 
-<p>In order to avoid coupling client logging code to any particular
-framework, clients should log through an interface. It's one
-implementation of this interface which uses the .NET trace diagnostic
-logging. The interface itself should be mostly self-explanatory as
-it's used like Console.WriteLine or String.Format with a format string
-and values to substitute in.</p>
+<div id="post">
+
+<p>Even with a large number of logging frameworks to choose from --
+NLog, Log4Net, MS Logging Application Block to name a few -- I prefer
+none of these. They're all decent at what they do, but I dislike
+taking a dependency on one when all I need is a small fraction of the
+functionality offered. Especially since a thin wrapper on top of the
+.NET trace listeners can oftentimes solve my logging needs, even in
+enterprise scenarios.</p>
+
+<p>I would never venture into writing my own library from
+scratch. It's a deceptively simple task, complicated by
+multi-threading and file locking issues already taken care of by .NET
+trace listeners.</p>
+
+<h2>Defining the ILogger interface</h2>
+
+<p>In order to decouple client logging code from any particular
+framework, clients must log through the ILogger interface defined
+below. It should be mostly self-explanatory as it's modelled closely
+on Console.WriteLine and String.Format with a format string and values
+to substitute in. One possible implementation of the interface is then
+using .NET trace listeners.</p>
 
 <pre class="prettyprint lang-cs">
 public interface ILogger {
@@ -30,12 +38,19 @@ public interface ILogger {
 }
 </pre>
 
-<p>Next, let's implement the interface such that it logs uses the out
-of the box .NET trace listeners. How many listeners and how these
-listeners actually accomplish their logging is decoupled from code and
-defined in app.config or web.config:</p>
+<h2>Implementing the ILogger interface</h2>
+
+<p>Now let's implement the ILogger interface in terms of out of the
+box .NET trace listeners. The beauty of these listeners is that
+they're typically configured in app.config or web.config, and hence
+runtime configurable. And we don't have to worry about the bits of
+pieces of their configuration as it's baked into the .NET
+framework.</p>
 
 <pre class="prettyprint lang-cs">
+using System;
+using System.Diagnostics;
+
 public class TraceLogger : ILogger {
     protected enum LogLevel {
         None = 0,
@@ -67,26 +82,31 @@ public class TraceLogger : ILogger {
         var name = method.Name;
         return string.Format(
             "{0} {1} {2}.{3} {4}",
-            DateTime.Now.ToUniversalTime(), l.ToString(), type, name, string.Format(format, args));
+            DateTime.Now.ToUniversalTime(), 
+            l.ToString(), type, name, string.Format(format, args));
     }
 }
 </pre>
 
-<p>The interface implementation defines a format for each entry such
-that only the actual message is provided as argument:</p>
+<p>The above implementation defines a fixed format for each entry such
+that only the actual message to be logged needs to be provided. Here's
+an example of how to log, although nothing will show in the console
+until we configure a trace logger:</p>
 
 <pre class="prettyprint lang-cs">
-var tl = new TraceLogger();
-tl.Verbose("1 + 2 = {0}", 1 + 2);
+ILogger l = new TraceLogger();
+l.Verbose("1 + 2 = {0}", 1 + 2);
 
 // results in:
-// dateAndTimeInUtc level callingMethod message
+// dateAndTimeInUtc | level | callingMethod | message
 // 1/31/2015 12:54:41 PM Verbose Testbed.Console.Program.Main 1 + 2 = 3
 </pre>
 
-<p>Attaching a console and file trace listener in the config file, the
-TraceLogger will pick up and log to both sources (I name the log file
-the same as the assembly):</p>
+<p>To have TraceLogger emit log statements to the console and a file,
+make sure your config file contains the following section. Notice how
+the TextWriterTraceListener interprets the initializeData as the file
+name to log to. I default to name the log file the same as the
+assembly doing the logging:</p>
 
 <pre class="prettyprint lang-xml">
 &lt;configuration&gt;
@@ -102,38 +122,39 @@ the same as the assembly):</p>
 &lt;/configuration&gt;
 </pre>
 
+<h2>Logging with colors</h2>
+
 <p>
 The downside to
 using <a href="https://msdn.microsoft.com/en-us/library/system.diagnostics.consoletracelistener">ConsoleTraceListener</a>
-is that the trace listener doesn't know about log levels. After all,
-log levels are local to ILogger implementations. Nevertheless, during
-debugging it's useful to take advantage of the log level information
-and color code output accordingly. Warnings could become yellow text
-and errors red to make these conditions easier to spot among scrolling
-output.
-</p>
+is that it doesn't know about log levels. After all, log levels are
+local to the TraceLogger implementations. Nevertheless, during
+debugging it's useful to take advantage of log level information and
+color code console output accordingly. Warnings should stand out in
+yellow and errors in red to make them easier to spot.</p>
 
 <p>To stay true to
 the <a href="http://en.wikipedia.org/wiki/Liskov_substitution_principle">Liskov
-Substitution Principle</a>, I must ensure a colored console logger is
-substitutable with the TraceLogger class. It must keep logging to any
-registered listener but the ConsoleTraceListener, if one is
-registered. I want to explicitly trace to the console and with a
-ConsoleTraceLogger already registered every log message would appear
+Substitution Principle</a>, we must ensure a colored console logger
+implementation is substitutable with the TraceLogger one. It must keep
+logging to any registered listener but the ConsoleTraceListener, if
+one is registered. We want to explicitly trace to the console and with
+a ConsoleTraceLogger already registered every log message would appear
 twice.</p>
 
 <p>A custom logger would typically inherit from the
 .NET <a href="https://msdn.microsoft.com/en-us/library/system.diagnostics.tracelistener">TraceLogger</a>
 class and override the Write and WriteLine methods. This would enable
-one to add the custom trace listener class to the list of trace
+us to add the custom trace listener class to the list of trace
 listeners in the config file. But as the TraceLogger class has no
 knowledge of log levels we'd have to add wrapper methods like the
-Verbose, Warning, and Errors ones to it which would call the
-overridden Write and WriteLine methods. The TraceLogger-derived
-classes form our low-level building blocks and polluting those with
-domain details is hardly good design. Instead, my ColoredConsoleLogger
-derives from my TraceLogger class and explicitly deals with any
-registered console logger:</p>
+Verbose, Warning, and Errors which would call the overridden Write and
+WriteLine methods.</p>
+
+<p>The TraceLogger derived classes form our low-level building blocks
+and polluting those with domain details is hardly good
+design. Instead, the ColoredConsoleLogger derives from TraceLogger and
+explicitly deals with any registered console logger:</p>
 
 <pre class="prettyprint lang-cs">
 public class ColoredConsoleLogger : TraceLogger {
@@ -182,11 +203,14 @@ public class ColoredConsoleLogger : TraceLogger {
 }
 </pre>
 
-<p>The interface and the couple of concrete implementation usually
-satisfy my requirements. I don't much differentiate between logging,
-tracing, and instrumentation as one tends to spill over into the
-other. I also don't limit the amount of output in production and
+<h2>Conclusion</h2>
+
+<p>This ILogger interface and the couple of concrete implementations
+usually satisfy my requirements. I don't much differentiate between
+logging, tracing, and instrumentation as one tends to spill over into
+the other. I also don't limit the amount of output in production and
 prefer erring on the side of outputting too much. I can always filter
 the information using grep-like tools and that extra piece of
 information might come in handy.</p>
+
 </div>
