@@ -175,7 +175,7 @@ public class ColoredConsoleLogger : TraceLogger {
         var logLine = Format(s, l, args);
 
         Trace.Listeners
-            .Cast&gt;TraceListener&lt;()
+            .Cast&lt;TraceListener&gt;()
             .Where(tl => tl.GetType() != typeof(ConsoleTraceListener))
             .ToList()
             .ForEach(tl => {
