@@ -100,12 +100,12 @@ construct is an indirection mechanism to decouple site groups from
 role definitions, furthering their reuse.</p>
 
 <p>What's displayed in the browser under Site Settings and Site
-Permissions are the assigned (or bound) role definitions. What the
-user interface calls permission levels, the object model calls role
-definition bindings.</p>
+Permissions are the security groups with their associated (or bound)
+role definitions. What the user interface calls permission levels, the
+object model calls role definition bindings.</p>
 
 <p>Given a securable object such as a web, we can iterate its role
-assignments using the code below:</p>
+assignments and role definition bindings using the code below:</p>
 
 <pre class="prettyprint lang-cs">
 // Excel Services Viewers
