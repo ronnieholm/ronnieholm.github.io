@@ -90,20 +90,22 @@ such as a web, list, or list item for it to attain meaning.</p>
 
 <h2>Role assignments relating site groups with role definitions</h2>
 
-<p>Now, given a securable object such as a web, we can iterate its
-role assignments using the code below. The term role assignment refers
-to an object used to track the many-to-many relationship between site
-groups on one hand and role definitions on the other. One site group
-such as Members, may be associated with any number of role
-definitions, such as Read or Edit or custom ones. Each role definition
-in turn may be used across any number of site groups. In other words,
-the role assignment construct is an indirection mechanism used to
-decouple site groups from role definitions, furthering their
-reuse.</p>
+<p>The term role assignment refers to an object which tracks the
+many-to-many relationship between site groups on one hand and role
+definitions on the other. One site group, such as Members, may be
+associated with any number of role definitions, such as Read or Edit
+or custom ones. Each role definition in turn may be used across any
+number of site groups. In other words, the role assignment construct
+is an indirection mechanism to decouple site groups from role
+definitions, furthering their reuse.</p>
 
-<p>It's this collection of role definitions which the browser displays
-under the Site permissions menu. What the user interface calls
-permission levels, the object model calls role definitions.</p>
+<p>What's displayed in the browser under Site Settings and Site
+Permissions are the assigned (or bound) role definitions. What the
+user interface calls permission levels, the object model calls role
+definition bindings.</p>
+
+<p>Given a securable object such as a web, we can iterate its role
+assignments using the code below.</p>
 
 <pre class="prettyprint lang-cs">
 // Excel Services Viewers
