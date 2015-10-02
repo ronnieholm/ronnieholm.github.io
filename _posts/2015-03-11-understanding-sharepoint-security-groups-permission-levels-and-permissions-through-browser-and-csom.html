@@ -94,10 +94,10 @@ such as a web, list, or list item for it to attain meaning.</p>
 many-to-many relationship between site groups on one hand and role
 definitions on the other. One site group, such as Members, may be
 associated with any number of role definitions, such as Read or Edit
-or custom ones. Each role definition in turn may be used across any
-number of site groups. In other words, the role assignment construct
-is an indirection mechanism to decouple site groups from role
-definitions, furthering their reuse.</p>
+or custom ones. Each role definition in turn may be associated with
+any number of site groups. In other words, the role assignment
+construct is an indirection mechanism to decouple site groups from
+role definitions, furthering their reuse.</p>
 
 <p>What's displayed in the browser under Site Settings and Site
 Permissions are the assigned (or bound) role definitions. What the
@@ -105,7 +105,7 @@ user interface calls permission levels, the object model calls role
 definition bindings.</p>
 
 <p>Given a securable object such as a web, we can iterate its role
-assignments using the code below.</p>
+assignments using the code below:</p>
 
 <pre class="prettyprint lang-cs">
 // Excel Services Viewers
