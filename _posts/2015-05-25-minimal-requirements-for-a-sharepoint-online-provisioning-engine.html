@@ -28,12 +28,13 @@ principle behind the SharePoint Online provisioning engine is the
 grouping of functionality into reusable commands and
 queries. Commands, such as create site collection, create list, and
 add web part to page, are allowed to read and write to SharePoint
-whereas queries, such as a recursive web visitor, are read-only.
+whereas queries, such as a recursive web visitor or get search engine
+result, are read-only.
 </p>
 
-<p>For commands to be truly reliable and reusable, I'd argue they must
-have the properties listed below. Queries being read-only are simpler
-and can get away with only being idempotent and composable.</p>
+<p>For commands to be truly reliable and reusable, they must adhere to
+the properties below. Queries being read-only are simpler and can get
+away with only being idempotent and composable.</p>
 
 <h3>Idempotent</h3>
 
@@ -52,9 +53,9 @@ and content types have a name to identify those by.</p>
 
 <p>Applying non-additive updates to SharePoint artefacts is
 particularly challenging as users are outright encouraged to change
-both structure and content. Contrast this with the work involved in
-updating an SQL database whose structure at least remains constant in
-between upgrades. Then add the SharePoint factor.</p>
+both structure and content. Contrast this with updating an SQL
+database whose structure at least remains constant in between
+upgrades. Then add the SharePoint factor.</p>
 
 <p>Non-additive updates should be small and localized to avoid
 undesired side effects, and should be delegated to separate run-once
@@ -65,7 +66,7 @@ run-once scripts.</p>
 <h3>Composable</h3>
 
 <p>More complex commands or queries are composed from simpler ones ad
-infinitum. In order for each to not interfere with the other, or have
+infinitum. In order for one to not interfere with the other, or have
 an imposed ordering, commands and queries must be as self-contained as
 possible. Performance considerations, however, may require a small
 amount of shared state, such as the client context.</p>
