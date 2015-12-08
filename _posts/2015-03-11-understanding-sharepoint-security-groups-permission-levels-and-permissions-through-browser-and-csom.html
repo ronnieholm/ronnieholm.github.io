@@ -67,8 +67,8 @@ foreach (var group in rootWeb.SiteGroups) {
 
 <p>When SharePoint created this site collection, the fixed set of
 security groups got created with it. Afterwards, we may create
-additional security groups and use those in any web in the site
-collection.</p>
+additional security groups and reference those from any web within the
+site collection.</p>
 
 <p>Note the use of the ambiguous term site in the user interface and
 in the CSOM API. In general, site can refer to either site collection
@@ -84,9 +84,10 @@ site collection level and hence are visible and usable from any web
 within the site collection.</p>
 
 <p>Conversely, creating a security group isn't useful in itself --
-it's nothing but a container for SharePoint users and Active Directory
-groups. The security group must be associated with a securable object,
-such as a web, list, or list item for it to attain meaning.</p>
+it's nothing but a container for SharePoint users (typically Active
+Directory users) and Active Directory groups. The security group must
+be associated with a securable object, such as a web, list, or list
+item for it to be of actual use.</p>
 
 <h2>Role assignments relating site groups with role definitions</h2>
 
@@ -97,7 +98,7 @@ associated with any number of role definitions, such as Read or Edit
 or custom ones. Each role definition in turn may be associated with
 any number of site groups. In other words, the role assignment
 construct is an indirection mechanism to decouple site groups from
-role definitions, furthering their reuse.</p>
+role definitions, furthering the reuse of both.</p>
 
 <p>What's displayed in the browser under Site Settings and Site
 Permissions are the security groups with their associated (or bound)
@@ -136,8 +137,8 @@ during site collection creation. Like with security groups, we can
 create our own role definition and associate those with groups. For
 instance, we may deviate from the out of the box behavior and create a
 role definition for when contributors should only be allowed to add
-items to lists and not delete. Or where visitors should be able to
-create and save personal views on lists, which aren't allowed by
+items to lists and not delete. Or when visitors should be able to
+create and save personal views on lists, which they aren't by
 default.</p>
 
 <p>In any event, never modify an out of the box role
@@ -210,11 +211,11 @@ foreach (var roleDefinition in rootWeb.RoleDefinitions) {
 </pre>
 
 <p>The set of base permissions is hardcoded into SharePoint and thus
-can only be modified by Microsoft. In principle, though, the set of
-base permissions could've been made extensible. We would then have
-been able to create domain specific base permissions and test on those
-in code. But given the already (too) complex security model, the
-SharePoint team seems to have decided against it.</p>
+can only be modified by Microsoft. In principle though, the set of
+base permissions could've been made extensible. Then we would've been
+able to create domain specific base permissions and test on those in
+code. But given the already complex security model, the SharePoint
+team seems to have decided against it.</p>
 
 <h2>Example: modifying web associated owner, visitor, and member groups</h2>
 
