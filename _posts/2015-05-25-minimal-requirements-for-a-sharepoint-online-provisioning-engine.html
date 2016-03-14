@@ -12,14 +12,13 @@ from Github.</p>
 
 <p>This post outlines a minimal set of requirements for a
 developer-centric artefact provisioning engine. In broad terms, such
-engine is any piece of software which creates and applies changes to
+engine is a piece of software which creates and applies changes to
 state over time. Examples include doing database migrations or
-upgrading configuration files with new releases of a piece of
-software. The example I use throughout this post is that of a
-SharePoint Online provisioning engine which I've recently developed
-and put into production. Its task is to create and query site
-collections, webs, document libraries, views, pages, and the like in a
-safe and reliable manner.
+upgrading configuration files with new software releases. The example
+I use throughout this post is that of a SharePoint Online provisioning
+engine which I've recently developed and put into production. Its task
+is to create and query site collections, webs, document libraries,
+views, pages, and the like in a reliable manner.
 </p>
 
 <h2>Guiding principles</h2>
@@ -73,15 +72,15 @@ run-once scripts.</p>
 infinitum. In order for one to not interfere with the other, or have
 an imposed ordering, commands and queries must be as self-contained as
 possible. Performance considerations, however, may require a small
-amount of shared state, such as the client context.</p>
+amount of shared state, such as the client context or logging object,
+to get threaded through the tree.</p>
 
 <p>As an example, suppose I want to provision an instance of the Acme
 Corp project site collection template. Then I'd create a top-level
 CreateAcmeCorpProjectSiteCollection command and compose it from
 smaller commands as illustrated below. These smaller commands come in
-two flavors: the general ones which are independent of any Acme Corp
-provisioning and the specific ones which encapsulate Acme Corp
-business logic.</p>
+two flavors: general ones which are independent of Acme Corp and
+specific ones which encapsulate Acme Corp provisioning logic.</p>
 
 <pre>
 CreateAcmeCorpProjectSiteCollection (specific)
@@ -101,10 +100,12 @@ CreateAcmeCorpProjectSiteCollection (specific)
 class with an Execute method, accepting parameters specific to its
 functioning. The CreateSiteCollection command, for instance, is passed
 the title, URL, template, size, and language and in turn passes it
-along to the CSOM site collection creation API. As for the body of the
-Execute method, in this case and in general, it's
+along to the CSOM API (I could've used the REST API
+or <a href="https://github.com/OfficeDev/PnP-Sites-Core">PnP Core
+Component</a> as well). As for the body of the Execute method, in this
+case and in general, it's
 a <a href="http://martinfowler.com/eaaCatalog/transactionScript.html">transaction
-script</a> calling out to commands and queries.</p>
+script</a> calling out to commands and queries.  </p>
 
 <p>To ensure artefacts get provisioned in the correct dependency
 order, the provisioning engine does a depth-first traversal of the
@@ -116,17 +117,15 @@ above tree. This ordering maps nicely to the call stack metaphor.</p>
 a <a href="http://wp.sjkp.dk/sharepoint-site-provisioning-engine">number
 of provisioning engines exist</a> with
 the <a href="https://github.com/OfficeDev/PnP-Provisioning-Schema">PnP
-engine</a>
-(<a href="https://github.com/OfficeDev/PnP/tree/master/OfficeDevPnP.Core/OfficeDevPnP.Core/Framework/Provisioning">source</a>)
-probably getting the most attention.</p>
+engine</a> probably getting the most attention.</p>
 
 <p>The PnP engine is heavily dependent on XML and a mapping of
 properties from CSOM to XML and back. As the two evolve, maintaining
-feature parity and backward compatibility seems challenging. Being
-XML, the PnP engine has to parse it into an abstract syntax tree and,
-while traversing the tree, call the CSOM API and possible custom
-extensions. That too seems to introduce a considerable amount of
-accidental complexity.</p>
+feature parity and backward compatibility seems challenging. The PnP
+engine has to parse XML into an abstract syntax tree and, while
+traversing the tree, call the CSOM API (directly on indirectly through
+PnP Core component) and possible custom extensions. This indirection
+seems to introduce a considerable amount of accidental complexity.</p>
 
 <p>While I like the idea of a shared provisioning engine, I opt for
 being closer to the metal and not rely on XML as an external domain
