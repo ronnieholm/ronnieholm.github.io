@@ -11,57 +11,60 @@ Information Services (IIS) web application
 using <a href="http://www.roguelynn.com/words/explain-like-im-5-kerberos">Kerberos</a>
 authentication
 with <a href="https://blogs.msdn.microsoft.com/autz_auth_stuff/2011/05/03/kerberos-delegation">delegation</a>. After
-asserting that the prerequisites for Kerberos and IIS are met, a test
-web application is deployed to IIS to verify that end-to-end
-authentication is operational. The test application makes calls to a
-Kerberos-enabled SharePoint instance using the credentials of the user
-browsing it, in effect making the web application act on behalf of the
-user.</p>
+asserting the prerequisites for Kerberos and IIS, a test web
+application (or service) is deployed to IIS to verify that end-to-end
+authentication is possible. The service makes calls to a
+Kerberos-enabled SharePoint instance passing along the credentials of
+the user browsing the test application. In effect, the web application
+acts on behalf of the calling user.</p>
 
-<p>In terms of a overview, the communication path from the user's
-browser to the SharePoint instance looks like so:</p>
+<p>In terms of flow, the communication path from the user's browser to
+the SharePoint instance and back looks like so:</p>
 
 <pre>
-Client browser <-> Test web app <-> SharePoint 2013 on-premise server
+Client browser <-> Test web app/service <-> SharePoint 2013 on-premise server
 </pre
 
 <p>Calling into SharePoint through an intermediary service, and having
-the service do on-demand switching between executing using the calling
-user credentials and privileged credentials, allows for a user with
-limited permissions to, say, request the creation of a site collection
-or a web while otherwise be subject to SharePoint's build-in
-restrictions. Inside the service, no extra work is required to
-re-implement SharePoint's security model.</p>
+the service switch between executing code using the calling user and
+privileged credentials, allows a user with limited permissions to,
+say, request the creation of a site collection while otherwise be
+subject to SharePoint's build-in security restrictions. Inside the
+service, no extra work is required to re-implement SharePoint's
+security model.</p>
 
 <h2>Asserting prerequisites</h2>
 
 <p>Before getting to the IIS part, let's first ensure that Active
-Directory and Kerberos with delegation have been properly setup.</p>
+Directory and Kerberos with delegation have been properly
+configured.</p>
 
 <h4>Service Principal Names</h4>
 
-<p>On Windows, the Kerberos Key Distribution Center consisting of the
+<p>On Windows, the Kerberos Key Distribution Center, consisting of the
 Authentication Server and the Ticket Granting Server, is part of the
-domain controller. The domain controller therefore must have a binding
-registered, relating the app pool account of the web app to its
+domain controller. We therefore register a binding with the domain
+controller, relating the app pool account of the web app to an
 endpoint. Kerberos calls this one-to-many relationship a Service
 Principal Name (SPN).</p>
 
-<p>Lookup up the SPN is what enables a client to request a ticket from
-Kerberos, valid only for this particular service. The client passes
-parts of this ticket to the service which is the only one who can
-decrypt it, thereby indirectly validating the identity of the
-client. Decrypted ticket in hand, the service then responds back to
-the client with a message only it can decrypt, containing part of the
-original data send to the service. This Kerberos handshake is what
-enables the two to validate each others identity by both trusting a
-third-party</p>
+<p>Looking up the SPN by endpoint is what enables a client to request
+a ticket from Kerberos, valid only for a particular service. The
+client passes parts of this ticket to the service which is the only
+party who can decrypt it, thereby indirectly validating the identity
+of the client. Decrypted ticket in hand, the service then responds
+back to the client with a message only the client can decrypt. This
+message contains part of the original data send to the service,
+indirectly validating the identity of the services. By both trusting a
+common third-party, this Kerberos handshake establishes trust between
+the two parties.</p>
 
 <p>The presence of an SPN can be verified with the
 <a href="https://technet.microsoft.com/en-us/library/cc731241.aspx">setspn</a>
-command. Despite its name it's used for both setting and querying
-principals. A domain administrator must have made a prior call to
-setspn to create the principal.</p>
+command. Despite its name it's used for
+both <a href="https://technet.microsoft.com/sv-se/library/cc755413">setting
+and querying principals</a>. A domain administrator must have made a
+prior call to setspn to create the principal.</p>
 
 <pre>
 %&gt; setspn &lt;domain&gt;\&lt;app-pool-account&gt;
@@ -72,45 +75,48 @@ Registered ServicePrincipalNames for CN=&lt;app-pool-account&gt;,OU=AD,OU=Servic
     HTTP/&lt;my-server-2&gt;
 </pre>
 
-<p>We see that four principals pointing to two servers have been
-registered with the app pool account. It's common for a server to have
-two registered principals matching DNS host name and NetBIOS name,
+<p>Four principals, pointing to two servers, have been registered with
+the app pool account. It's common for an endpoint to have two
+registered principals matching DNS host name and NetBIOS name,
 respectively. In other words, our web application may be installed on
 either server.</p>
 
 <h4>Delegation</h4>
 
 <p>Now, let's verify the app pool account's ability to not only
-receive Kerberos tickets, but also to delegate those, i.e., call
-another system, passing along the calling user's credentials to act on
-behalf of the calling user.</p>
+receive Kerberos tickets, but also delegate those, i.e., call another
+system, passing along the calling user's credentials for the service
+to act on behalf of the calling user.</p>
 
-<p>Acting on behalf of the calling user separates the client from the
-final system by a double-hop which, by induction, may be extended to
-more than two hops. Support for passing credentials along two or more
-hops is what distinguishes Kerberos from NTLM. The only requirement is
-that any app pool account and endpoint along the path must be setup
-with SPNs and delegation (the last one doesn't need delegation).</p>
+<p>With an intermediary service acting on behalf of the calling user,
+the client and final service are two hops apart. By induction, it
+follows that they may be any number of hops apart. This ability to
+pass credentials along two or more hops is a distinguishing
+characteristic of Kerberos (compared to, say, NTLM). It works as long
+as any intermediate app pool account and endpoint along the path have
+been setup with an SPN and delegation.</p>
 
-<p>By default, an account isn't allowed to delegate. So to verify that
-delegation is indeed enabled for the app pool account, locate the
-account within Windows Active Directory Users and Groups. Under the
-user's Properties, on the Delegation tab, ensure that "Trust this user
-for delegation to any service (Kerberos only)" is selected. The more
-limited option of constrained delegation may be selected instead. Then
-any service we wish to connect to must be explicitly whitelisted.</p>
+<p>For security reasons, an account isn't allowed to delegate by
+default. Hence, to verify that delegation is indeed enabled for the
+app pool account, locate the account within Windows Active Directory
+Users and Groups. Under the user's Properties, on the Delegation tab,
+ensure that either "Trust this user for delegation to any service
+(Kerberos only)" or "Trust this user for delegation to specified
+services only" is selected. The latter option of constrained
+delegation is more secure in that any service we wish to connect to
+must be explicitly whitelisted.</p>
 
 <h4>Domain names</h4>
 
 <p>The syntactic resemblance between the server part of an SPN and a
 DNS host name is no coincidence. Assuming the machine name is
-different from the host name of our service (which would be good
-practice), a matching DNS entry must exist for Kerberos authentication
-to function. Specifically, the server part of the SPN must match a DNS
-A record, which the Kerberos client library looks up as part of
+different from the host name of our service (which would typically be
+the case), a matching DNS entry must exist for Kerberos to
+function. Specifically, the server part of the SPN must match a DNS A
+record, which the Kerberos client library looks up as part of
 requesting a ticket to the service.</p>
 
-<p>We can verify that DNS has been correctly setup using
+<p>We can verify the existence of an A record using
 the <a href="https://technet.microsoft.com/en-us/library/cc725991.aspx">nslookup</a>
 command.
 
@@ -125,77 +131,116 @@ Name:     &lt;my-server-1&gt;.&lt;domain&gt;.local
 Address:  &lt;some-other-ip&gt;
 </pre>
 
-<p>Here nslookup returned a single result, and assuming the IP address
-does indeed point to our server, all our prerequisites have been
-met. Before continuing with the IIS and test web app setup, a few
-limitations of Windows and Chrome are worth iterating.</p>
+<p>nslookup returned a single result, and assuming the IP address does
+indeed point to our server, all our prerequisites are now
+satisfied. Before continuing with the IIS and test web app setup,
+however, a few limitations of Windows and Chrome are worth
+iterating.</p>
 
 <h4>Limitations with Windows Kerberos and Chrome</h4>
 
-<p>Because the SPN doesn't contain a port number, but only an account
-and a hostname, the Kerberos client library is equally
-<a href="http://www.sbrickey.com/Tech/Blog/Post/IE_and_Net_Framework_Feature_Request_Fix_support_for_Kerberos_for_non-default_ports">limitated</a>
-to only return one ticket per hostname. Therefore, with Kerberos, we
-cannot have applications running on different ports and using
-different app pool accounts.</p>
+<p>SPNs may be registered with an optional port number, but the
+Kerberos client library used by .NET and Internet Explorer form SPNs
+only by way of the hostname. Hence, the client library is
+<a href="http://www.sbrickey.com/Tech/Blog/Post/IE_and_Net_Framework_Feature_Request_Fix_support_for_Kerberos_for_non-default_ports">limited</a>
+to requesting only two ticket per hostname, one for HTTP port and one
+for HTTPS port. We cannot have applications running on different ports
+and using different app pool accounts.</p>
 
 <p>Another <a href="https://technet.microsoft.com/en-us/library/gg502606.aspx">limitation</a>
-is that only DNS A records, and not DNS CNAME aliases, are supported
-when looking up an endpoint. With only a CNAME defined, the client
-library fails to resolve the host and with both a CNAME and an A
-record (possibly pointing to different IP addresses), the A record is
-used. The client library is unable to retrieve a ticket from Kerberos
-and authentication fails.</p>
+of the Kerberos client is that only DNS A records, and not DNS CNAME
+aliases, are searched when forming an SPN. With only a CNAME defined,
+the client library fails to resolve the host and with both a CNAME and
+an A record (possibly pointing to different IP addresses), the A
+record is used. Host lookup failure means that no ticket, or the wrong
+ticket, is requested from Kerberos and hence authentication fails.</p>
 
-<p>The final issue we encountered was Chrome defaulting to not
-delegate user credentials with Kerberos. In principle this is easily
-fixed
+<p>The final issue encountered was Chrome defaulting to not delegate
+user credentials with Kerberos. In principle, this is easily fixed
 by <a href="http://dev.chromium.org/administrators/policy-list-3#AuthNegotiateDelegateWhitelis">whitelisting</a>
-the web app URL. But rolling out an organization-wide registry change
-(with group policies) may take time. Without the change, Chrome yields
-a HTTP 401 error when the user visits an endpoint attempting to
-delegate.</p>
+the web app URL with Chrome. But rolling out an organization-wide
+registry change (with group policies) may take time. Without the
+change, Chrome yields a HTTP 401 error when the user visits an
+endpoint attempting to delegate.</p>
 
 <h2>Setting up Internet Information Services</h2>
 
-<p>Setting up a web app under a web site in IIS Manager, the new
-application inherits settings from its parent. Thus, depending on your
-IIS setup, beware that some settings below may already have the
-designated values:</p>
+<p>Setting up the web app under a web site in IIS Manager, a few
+common issues may arrise. First, the new application inherits settings
+from its parent. Thus, depending on your IIS setup, beware that some
+settings below may already have the designated values. Second, IIS
+reads and writes some IIS setting from and to the application's
+web.config file. Hence, xcopy deploying an application to IIS may
+overwrite some IIS settings and vice versa for web.config
+entries. Thus, make sure do double-check settings if Kerberos isn't
+working after following the steps below:</p>
 
 <ol>
 
-<li>Create a new application and either select an existing app pool
-running under the identity of the aforementioned service account or
-create a new app pool and adjust its identity later.</li>
+<li>Create a new application and choose an existing app pool running
+under the identity of the aforementioned service account or create a
+new app pool and adjust its identity later.</li>
 
 <li>For the new application, under Authentication, make sure Anonymous
-Authentication is disabled and Windows Authentication is enabled.</li>
+Authentication is disabled and Windows Authentication is enabled. As
+per the issues mentioned above, deploying a vanilla MVC/WebAPI
+application with its minimal web.config causes Anonymous
+Authentication to become Enabled again. Then the client isn't required
+to send a ticket causing authentication to fail.</li>
 
 <li>
-<p>Select Windows Authentication, Advanced Settings..., and make
-sure
-that <a href="https://support.microsoft.com/en-us/kb/973917">Extended
-Protection</a> is Off and that
-<a href="https://blogs.msdn.microsoft.com/amol/2010/10/29/understanding-kernel-mode-authentication-in-iis-7">Kernel
-Mode authentication</a> is disabled.</p>
-<p>Extended Protection offers extra protection against man in the
-middle attacks (then why disable it?) and
+<p>Select Windows Authentication, Advanced Settings..., and make sure
+that <a href="https://msdn.microsoft.com/en-us/library/dd767318">Extended
+Protection</a> is Off.<p>
+
+<p>In simplified terms, enabling Extended Protection (setting the
+option to Accept or Required) protects against man in the middle
+attacks by providing a kind of two-factor authentication when
+communicating over a TLS-secured line, such as when using HTTPS. As
+part of establishing an SSL connection between two parties, the SSL
+session key is included in the Kerberos ticket sent over the
+line. When enabled, IIS will check whether the actual SSL session key
+equals the one in the encrypted Kerberos ticket (in addition to
+ensuring the Kerberos ticket key matches). If the SSL session keys
+don't match, a man in the middle is taking place.</p>
+
+<p>Going back to our initial flow diagram, imagine we introduce a load
+balancer between the Client browser and Test web app and that the
+connection between client and load balancer and between load balancer
+and web service takes place over SSL. Then we'll have two SSL
+connections, with two SSL session keys, causing IIS of the Test web
+app to infer that it's a victim of a man in the middle attack. And it
+is, albeit and friendly one, thereby failing authentication.</p>
+
+<li><p>Select Windows Authentication, Advanced Settings..., and make
+sure that
 <a href="https://technet.microsoft.com/en-us/library/gg502606.aspx">Kernel
-mode</a> improves authentication performance by having the kernel, and
-not the user-mode IIS process, authenticate the Kerberos ticket.</p>
-<p>The downside to both is that they aren't supported with load
-balanced web servers. Kernel mode authentication causes tickets to be
-decrypted at the load balancer using a special computer identity
-rather than the app pool identity of the web server, causing ticket
-decryption, and hence authentication, to fail.</p></li>
+Mode authentication</a> is disabled.</p>
+
+<p>By default, kernel mode authentication implies that
+the <a href="http://www.iis.net/learn/get-started/introduction-to-iis/introduction-to-iis-architecture#Hypertext">http.sys</a>
+kernel mode driver is responsible for decrypting the Kerberos tickets
+(and caching the decrypted ticket). This'll only succeed if host name
+and DNS for the service are identical, such as when a DNS entry isn't
+used. It works because Windows servers joining a domain will
+automatically register an SPN with machine account and host
+name. http.sys runs under the machine account and is therefore able to
+decrypt the ticket (decryption usually takes place using a hash of the
+accounts password, but the machine account has an auto-generated
+password). By either disabling Kernel mode authentication,
+or <a href="https://technet.microsoft.com/library/dd573004">configure
+Kernel mode authentication to use app pool credentials</a>, kernel
+mode authentication can also be used with load-balancing. For
+low-traffic web applications, disabling the option yields a simpler
+configuration.</p>
+</li>
 
 <li>Under Providers, make sure the order is Negotiate/NTLM. It
 <a href="https://msdn.microsoft.com/en-us/library/ms789031(v=vs.110).aspx">means</a>
-authentication assumes Kerberos first and if that fails then falls
-back to NTLM. Strictly speaking, NTLM is now in the Providers list
-twice, but that doesn't matter. NTLM by the way, is still perfectly
-usable in single-hop scenario.</li>
+authentication selects between Kerberos and NTLM (in that order),
+depending on what's available. Strictly speaking, NTLM is now in the
+Providers list twice, but that doesn't matter much. NTLM by the way,
+is still perfectly usable in single-hop scenarios.</li>
 
 </ol>
 
@@ -220,4 +265,3 @@ IIS configuration, where the application would run fine in the test
 environment, but not in production due to load balancing.</p>
 
 </div>
-
