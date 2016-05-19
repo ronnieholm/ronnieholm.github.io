@@ -42,9 +42,9 @@ configured.</p>
 
 <h4>Service Principal Names</h4>
 
-<p>On Windows, the Kerberos Key Distribution Center, consisting of the
-Authentication Server and the Ticket Granting Server, is part of the
-domain controller. We therefore have to register a binding with the
+<p>On Windows, the Kerberos Key Distribution Center, 
+Authentication Server, and Ticket Granting Server are part of the
+domain controller software. We therefore have to register a binding with the
 domain controller, relating an app pool account of a web app to an
 endpoint. Kerberos calls this one-to-many relationship a Service
 Principal Name (SPN).</p>
@@ -268,8 +268,8 @@ accessing SharePoint.</p>
 with getting Kerberos authentication with delegation up and
 running. These issues likely cover most cases of working
 with Kerberos. When Kerberos fails to work, however, besides testing
-with DelegConfig, make sure to always clear cached Kerberos tickets
-using
+with DelegConfig, make sure to always clear the Kerberos tickets
+cache using
 the <a href="https://technet.microsoft.com/en-us/library/hh134826">klist</a>
 command. <a href="https://www.telerik.com/download/fiddler">Fiddler</a>
 also comes in handy to inspect the authentication header that is part of client's
