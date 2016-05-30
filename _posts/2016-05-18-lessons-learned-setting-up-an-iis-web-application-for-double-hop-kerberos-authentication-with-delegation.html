@@ -42,7 +42,8 @@ configured.</p>
 
 <h4>Service Principal Names</h4>
 
-<p>On Windows, the Kerberos Key Distribution Center, Authentication
+<p>With <a href="https://technet.microsoft.com/en-us/library/cc772815">Windows
+Kerberos</a>, the Kerberos Key Distribution Center, Authentication
 Service (AS), and Ticket Granting Service (TGS) are integral parts of
 the domain controller. We therefore must register a one-to-many
 binding with the domain controller, relating the app pool account of a
@@ -312,8 +313,8 @@ come in handy to inspect the request/response headers and HTTP status
 codes and making sure any port used by Kerberos and the service are
 open. Lastly, for lower-level debugging of Kerberos,
 <a href="https://technet.microsoft.com/en-us/library/cc738673">registry
-tweaks to increase the Kerberos log level</a> are possible, perhaps in combination
-with using <a href="https://www.wireshark.org/">Wireshark</a> to
+tweaks to increase the Kerberos log level</a> are possible, perhaps in
+combination with <a href="https://www.wireshark.org/">Wireshark</a> to
 inspect actual messages.</p>
 
 </div>
