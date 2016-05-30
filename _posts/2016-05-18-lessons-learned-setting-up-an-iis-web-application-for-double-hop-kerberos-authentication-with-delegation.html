@@ -44,7 +44,7 @@ configured.</p>
 
 <p>With <a href="https://technet.microsoft.com/en-us/library/cc772815">Windows
 Kerberos</a>, the Kerberos Key Distribution Center, Authentication
-Service (AS), and Ticket Granting Service (TGS) are integral parts of
+Server (AS), and Ticket Granting Server (TGS) are integral parts of
 the domain controller. We therefore must register a one-to-many
 binding with the domain controller, relating the app pool account of a
 web app to an endpoint where the service is running. In Kerberos
@@ -311,10 +311,11 @@ command. <a href="https://www.telerik.com/download/fiddler">Fiddler</a>
 and <a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>
 come in handy to inspect the request/response headers and HTTP status
 codes and making sure any port used by Kerberos and the service are
-open. Lastly, for lower-level debugging of Kerberos,
-<a href="https://technet.microsoft.com/en-us/library/cc738673">registry
-tweaks to increase the Kerberos log level</a> are possible, perhaps in
-combination with <a href="https://www.wireshark.org/">Wireshark</a> to
-inspect actual messages.</p>
+open. For lower-level debugging of Kerberos, start Event Viewer on the
+server and look under Windows Logs, Security, possibly in combination
+with <a href="https://technet.microsoft.com/en-us/library/cc738673">registry
+tweaks to increase the Kerberos log level</a> and
+running <a href="https://www.wireshark.org/">Wireshark</a> to capture
+traffic on the wire.</p>
 
 </div>
