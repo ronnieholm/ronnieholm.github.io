@@ -10,74 +10,78 @@ date: 2016-05-18 12:00 UTC
 Information Services (IIS) web application
 using <a href="http://www.roguelynn.com
 /words/explain-like-im-5-kerberos">Kerberos</a> authentication
-with <a href="https://blogs.msdn.microsoft.com/autz_auth_stuff/2011/05/03/kerberos-delegation">delegation</a>. After
-verifying that the prerequisites for Kerberos and IIS are satisfied, a
-test web application (or service) is deployed to verify end-to-end
-authentication. The service makes calls to a Kerberos-enabled
-SharePoint instance, called the end-service, acting on behalf of the
-calling user.</p>
+with <a href="https://blogs.msdn.microsoft.com/autz_auth_stuff/2011/05/03/kerberos-delegation">delegation</a>.
+Following the verification of prerequisites for Kerberos and IIS, a
+test web service (a web application) is installed. Its task is to
+verify end to end authentication by accepting requests from clients
+and making requests to a Kerberos-enabled SharePoint instance on
+behalf of those clients.</p>
 
-<p>In terms of flow, communication from the client's browser to the
-SharePoint instance and back looks like below, optionally including a
-load balancer in between the client's browser and the web
-app/service:</p>
+<p>In terms of flow, communication from the client, such as from a
+browser, to SharePoint and back is illustrated below. Included in the
+diagram are optional load balancers sitting between the client and web
+service and between the web service and SharePoint. For testing
+purposes, SharePoint 2013 on-premise was used:</p>
 
 <pre>
-Client browser <-> Web app/service <-> SharePoint 2013 on-premise server
+Client <-> (Load balancer) <-> Web service <-> (Load balancer) <-> SharePoint
 </pre
 
-<p>In addition to calling SharePoint directly, this flow enables a
-user to call into SharePoint through a service and have it switch
-between executing as the calling user or a more privileged account. A
-user with limited permissions could request the creation of a site
-collection while otherwise be subject to SharePoint's build-in
-authorization logic. Inside the service, only while executing with
-privileged credentials are custom authorization checks required.</p>
+<p>In addition to a client calling into SharePoint directly using the
+client's own credentials, this flow enables a client to make indirect
+calls through the service and have the service switch between
+executing using the client's credentials or those of a more privileged
+account. The service can then carry out privileged operations, such as
+creating a site collection, while otherwise execute using the client's
+credentials and be subject to SharePoint's build-in authorization
+checks. Only while executing using privileged credentials should
+possible custom authorization check be included.</p>
 
 <h2>Verifying prerequisites</h2>
 
 <p>Before getting to the IIS part, let's first verify that Active
-Directory and Kerberos with delegation have been properly
-configured.</p>
+Directory and Kerberos with delegation have been properly configured
+by a domain administrator.</p>
 
 <h4>Service Principal Names</h4>
 
 <p>With <a href="https://technet.microsoft.com/en-us/library/cc772815">Windows
-Kerberos</a>, the Kerberos Key Distribution Center, Authentication
-Server (AS), and Ticket Granting Server (TGS) are integral parts of
-the domain controller. We therefore must register a one-to-many
-binding with the domain controller, relating the app pool account of a
-web app to an endpoint where the service is running. In Kerberos
-terms, we register a Service Principal Name (SPN) for an
-account. Think of a principal as the general term for a user,
-computer, or service. An SPN is then a unique identifier for a service
-running on a server, used by clients to locate a service.</p>
+Kerberos</a>, the Key Distribution Center (KDC), Authentication Server
+(AS), and Ticket Granting Server (TGS) are integral parts of the
+domain controller. We therefore register a one-to-many binding with
+the domain controller, relating the web service's app pool account to
+its endpoint. In Kerberos terms, we register a Service Principal Name
+(SPN) for an account. Think of a principal as the general term for a
+user, computer, or service. An SPN is then a unique identifier for a
+service running on a server, and is used by a client to locate a
+service.</p>
 
-<p>Looking up, or forming, a service principal by name (endpoint) is
-what enables a client to request credentials from the TGS, valid for a
-particular service only. As part of these credentials is a ticket
-encrypted by TGS which the client passes to the service. Only the
-service is able to decrypt this ticket, thereby validating the
-identity of the client by way of the ticket's content. With the
-decrypted ticket in hand, and using an encryption key from inside the
-ticket, the service then sends back an encrypted message to the client
-that only the client will be able to decrypt.</p>
+<p>Looking up, or forming, a service principal by name (for an
+endpoint) is what enables a client to request credentials from the
+TGS, valid for the particular service only. As part of the credentials
+received is a ticket encrypted by TGS for the client to pass to the
+service. Only the service is capable of decrypting this ticket,
+thereby validating the identity of the client from what the ticket
+contains. With the decrypted ticket in hand, and using an encryption
+key from inside the ticket, the service then sends back an encrypted
+message to the client that only the client is capable of decrypting,
+thereby validating the server's identity.</p>
 
-<p>By both trusting a common third-party, this Kerberos handshake
-establishes mutual trust between the client and service -- between two
-principals over an unsecured network. From then on, the parties can
+<p>By both client and server trusting a common third-party (KDC, AS,
+TGS), this Kerberos handshake establishes mutual trust between two
+principals over an unsecured network. From then on, the parties may
 continue to exchange encrypted messages using Kerberos encryption keys
 or, more likely, the connection is already protected by Transport
-Layer Security such as SSL.</p>
+Layer Security.</p>
 
-<p>The existence of a SPN for an app pool account can be easily
-verified with the
+<p>The existence of a SPN for an app pool account is easily verified
+with the
 <a href="https://technet.microsoft.com/en-us/library/cc731241.aspx">setspn</a>
 command which, despite its name, is used for
 both <a href="https://technet.microsoft.com/sv-se/library/cc755413">setting
 and querying principals</a>. While a domain administrator must have
 made a prior call to setspn to create the principal, any computer
-within the domain can query:</p>
+within the domain can query principals:</p>
 
 <pre>
 %&gt; setspn &lt;domain&gt;\&lt;app-pool-account&gt;
@@ -88,53 +92,55 @@ Registered ServicePrincipalNames for CN=&lt;app-pool-account&gt;,OU=AD,OU=Servic
     HTTP/&lt;my-server-2&gt;
 </pre>
 
-<p>The output reveals that four service principal names have been
-associated with the app pool account. It's common for an endpoint to
-have two registered principals matching DNS host name and NetBIOS
-name, respectively. In other words, our service could be deployed to
-either or both servers listed above.</p>
+<p>The output reveals that four SPNs are associated with the app pool
+account. It's common for an endpoint to have two registered principals
+matching DNS host name and NetBIOS name, respectively. In other words,
+our service could be deployed to either or both servers listed
+above.</p>
 
 <h4>Delegation</h4>
 
-<p>Now, let's verify the app pool account's ability to not only
-receive and process, but also delegate Kerberos tickets, i.e., call
-another service on the calling user's behalf.</p>
+<p>Let's move on and verify the app pool account's ability to not only
+receive and process, but also delegate, Kerberos tickets, i.e., call
+another service on the client's behalf.</p>
 
-<p>The intermediary service acting on behalf of a calling user makes
-client browser and SharePoint two hops apart. And by induction, they
-may be any number of hops apart. This double-hop ability to pass along
-a ticket representing the user is a distinguishing characteristic of
-Kerberos (over NTLM), and requires only that any intermediary has an
-SPN registered and its account enabled for delegation.</p>
+<p>With an intermediary service acting on behalf of a client, the
+client and SharePoint are now two hops apart (and by induction, any
+number of hops apart). Passing along the ticket, and having it remain
+valid for any intermediary to use for impersonation against the next
+service, is a distinguishing characteristic of Kerberos over NTLM. It
+requires only that any intermediary has an SPN registered and its
+account enabled for delegation.</p>
 
-<p>For obvious security reasons, an account isn't allowed to delegate
-by default. To verify that delegation is indeed enabled for our
-service app pool account, locate the account (user) within Windows
-Active Directory Users and Groups. Under the user's Properties, on the
-Delegation tab, ensure that either "Trust this user for delegation to
-any service (Kerberos only)" or "Trust this user for delegation to
-specified services only" is selected. The latter option, named
-constrained delegation, is more secure in that any endpoint the
-account wishes to delegate to must be explicitly listed.</p>
+<p>For obvious security reasons, by default an account isn't allowed
+to transparantly delegate client credentials. To verify that
+delegation is indeed enabled for our service's app pool account,
+locate the account (user) within Windows Active Directory Users and
+Groups. Under the user's Properties, on the Delegation tab, ensure
+that either "Trust this user for delegation to any service (Kerberos
+only)" or "Trust this user for delegation to specified services only"
+is selected. The latter option, named constrained delegation, is more
+secure in that any endpoint the account wishes to delegate to must be
+explicitly stated.</p>
 
 <h4>Domain names</h4>
 
-<p>The syntactic resemblance between SPN and DNS host name is no
+<p>The syntactic resemblance between an SPN and a DNS host name is no
 coincidence. Assuming that machine name and host name are different,
-which in the real world they would typically be, Window Kerberos
-requires the host name to be DNS resolvable. Not only that, but
+which in the real world they typically are, Window Kerberos requires
 an <a href="https://technet.microsoft.com/en-us/library/gg502606.asp">SPN
-must match a DNS A record</a>. Using DNS as a locator mechanism makes
-sense given that on Windows, DNS is typically an integral part of the
-domain controller, and the domain controller dynamically adds or
-removes DNS records to govern the operation of Kerberos.</p>
+to be matched by a DNS A record</a> (and not a CNAME). Using DNS as a
+locator mechanism makes sense given that DNS service is typically an
+integral part of a domain controller, and given that the domain
+controller dynamically adds or removes DNS records to govern the
+operation of Kerberos.</p>
 
 <p>The A record requirement is by design of the Windows Kerberos
 client library. Attempting to form an SPN with only a CNAME defined,
 the client library fails to resolve the host name and with both a
 CNAME and an A record (possibly pointing to different IP addresses),
-the client uses the A record. Unable to form an SPN, the client cannot
-query the TGT and authentication fails.</p>
+the client uses the A record. Unable to form an SPN, the client isn't
+able to query the TGS and authentication fails.</p>
 
 <p>We can verify the existence of an A record using
 the <a href="https://technet.microsoft.com/en-us/library/cc725991.aspx">nslookup</a>
@@ -152,10 +158,10 @@ Address:  &lt;some-other-ip&gt;
 </pre>
 
 <p>Here nslookup returned a single host, and assuming the IP address
-does indeed point to our host, all our prerequisites are now
-satisfied. Before continuing with the IIS and service setup, however,
-a few additional limitations of Windows Kerberos client library and
-Chrome are worth mentioning.</p>
+does indeed point to our host, our prerequisites are now
+satisfied. Before continuing with the IIS and test service setup,
+however, a few additional limitations of the Windows Kerberos client
+library and Chrome are worth mentioning.</p>
 
 <h4>Limitations of the Windows Kerberos client and Chrome</h4>
 
@@ -165,59 +171,59 @@ host names only. The client library is
 <a href="http://www.sbrickey.com/Tech/Blog/Post/IE_and_Net_Framework_Feature_Request_Fix_support_for_Kerberos_for_non-default_ports">limited</a>
 to requesting only two tickets per host name: one for the default HTTP
 port and one for the default HTTPS port. Running services on any other
-port, and with a different app pool account, isn't possible.</p>
+port, and with a different app pool account, isn't supported.</p>
 
 <p>Another limitation encountered is Chrome defaulting to not allow
-delegation. Presumably, Chrome forms an SPN and then queries Active
-Directory to learn whether the account associated with the SPN has
-delegation enabled. Otherwise how would Chrome infer that the service
-it calls may transparently decide to delegate? With delegation
-enabled, Chrome throws an HTTP 401 Unauthorized on calling the
-service. Once aware of the issue, it's easily resolved
-by <a href="http://dev.chromium.org/administrators/policy-list-3#AuthNegotiateDelegateWhitelis">explicitly
-whitelisting</a> the service URL with Chrome and possibly rolling out
-a registry change through Group Policy Objects.</p>
+calling a service that may delegate credentials. Such service URL must
+be <a href="http://dev.chromium.org/administrators/policy-list-3#AuthNegotiateDelegateWhitelis">explicitly
+whitelisted</a>, possibly by rolling out a registry update through
+Group Policy Objects, or an HTTP 401 Unauthorized is displayed on
+calling the service. The whitelisting affects how Chrome sets up its
+Windows security context which is responsible for sending the ticket
+including security flags to the service. Similarly, the service
+creates a security context for reading the ticket including security
+flags, and if a flag, such as the one for delegation, isn't set, the
+service cannot delegate credentials.</p>
 
 <h2>Setting up Internet Information Services</h2>
 
-<p>Setting up a web app under a web site in IIS, a few common issues
-may arise. First, because a new application inherits settings from its
-parent, some web app settings below may already have their designated
-values. Second, IIS reads and writes some IIS setting from and to an
-application's web.config file. xcopy deploying an application to IIS,
-and modifying the web app through the IIS Manager, may reset these
-settings on either end. Thus, do double-check IIS and web.config
-settings if Kerberos isn't working after following these steps:</p>
+<p>Setting up a new web application under a web site in IIS, a few
+common issues may arise. First, because a new application inherits
+settings from its parent web site, some of the settings below may
+already have their designated values. Second, because IIS reads and
+writes some setting from and to a web.config file, beware that xcopy
+deploying an application to IIS, and modifying settings through the
+IIS Manager, may reset settings on either end. Thus, if Kerberos isn't
+working after following these steps, then check IIS and web.config
+settings:</p>
 
 <ol>
-
-<li><p>Create a new application and choose an existing app pool
+<li><p>Create a new web application and choose an existing app pool
 running under the identity of the aforementioned
-account. Alternatively, create a new app pool and adjust its identity
-later.</p></li>
+account. Alternatively, create a new app pool and adjust its
+identity.</p></li>
 
-<li><p>For the new application, under Authentication, ensure that
+<li><p>For the new web application, under Authentication, ensure that
 Anonymous Authentication is disabled and that Windows Authentication
 is enabled. As per the second IIS issue mentioned above, beware that
 deploying a vanilla MVC/WebAPI app (with its minimal web.config)
-causes Anonymous Authentication to become re-enabled (and
-authentication to fail).</p>
+causes Anonymous Authentication to become re-enabled and future
+authentication to fail.</p>
 
 <p>With Anonymous Authentication disabled, the client receives a 401
 Unauthorized response from the service, indicating that authentication
-is required. The response includes WWW-Authenticate headers to tell
-the clients of the supported authentication protocols. It's up to the
-client to resend the request, including adhering to one of the
-supported protocols.</p>
+is required. The response includes WWW-Authenticate headers to inform
+the client of the supported authentication protocols. It's up to the
+client to resend the request and adhere to one of the authentication
+protocols.</p>
 
 <p>If the request is generated using the .NET
 framework <a href="https://msdn.microsoft.com/en-us/library/system.net.webclient">WebClient</a>/<a href="https://msdn.microsoft.com/en-us/library/system.net.webrequest">WebRequest</a>
-classes, this exchange is hidden from the application because the
-framework responds to the 401 Unauthorized on its own by choosing a
-compatible authentication protocol and resubmitting the original
-request with an extra Authorization header. The request does incur an
-extra roundtrip, but that too can be avoided on subsequent requests if
-the
+classes, this exchange is hidden from the application. The framework
+responds to the 401 Unauthorized on its own by choosing a compatible
+authentication protocol and resubmitting the original request with an
+extra Authorization header. The request does incur an extra roundtrip,
+but that too can be avoided on subsequent requests if the
 <a href="https://msdn.microsoft.com/en-us/library/system.net.webrequest.preauthenticate">PreAuthenticate</a>
 property of the WebRequest class is set to true.</p>
 
@@ -227,54 +233,55 @@ that <a href="https://msdn.microsoft.com/en-us/library/dd767318">Extended
 Protection</a> is Off.<p>
 
 <p>Somewhat simplified, when enabling Extended Protection for
-authentication, i.e., setting the option to Accept or Required, it
-enables a kind of two-factor authentication against man-in-the-middle
-attacks, but only when the communication happens over a TLS channel,
-such as HTTPS.</p>
+authentication, i.e., setting the option to Accept or Required, a kind
+of two-factor authentication against man-in-the-middle attacks is
+enabled. But only when the communication happens over a TLS channel,
+such as over HTTPS.</p>
 
 <p>As part of
 the <a href="http://chimera.labs.oreilly.com/books/1230000000545/ch04.html#TLS_HANDSHAKE">TLS
-handshake</a> between two endpoints, a TLS session is generated. This
-key is included as part of the encrypted Kerberos ticket if client and
-server supports it, regardless of whether Extended Protection is
-enabled. By enabling Extended Protection, IIS ensures that the actual
-TLS session key is equal to the TLS session key in the Kerberos ticket
-(in addition to ensuring that the regular Kerberos ticket session keys
-match). If the TLS session keys don't match, an additional host must
-exist between client and server.</p>
+handshake</a> between two endpoints, a TLS session key is
+generated. This key is included as part of the encrypted Kerberos
+ticket if client and server supports it, regardless of whether
+Extended Protection is enabled. By enabling Extended Protection, IIS
+ensures that the actual TLS session key is equal to the TLS session
+key in the Kerberos ticket. If the TLS session keys don't match, an
+additional host must exist between client and server.</p>
 
 <p>Introducing a load balancer between client and service effectively
-makes the load balancer the man-in-the-middle (albeit a friendly
+makes the load balancer a man-in-the-middle (albeit a friendly
 one). One TLS connection exists between client and load balancer and
-another between load balancer and service, each with a different TLS
-session key, causing authentication to fail. In other words, Extended
-Protection is for use only when no load balancer is involved.</p>
+another between load balancer and service. Each connection has a
+different TLS session key, causing authentication to fail if Extended
+Protection is enabled. In other words, Extended Protection is for use
+only when no load balancer is involved.</p>
 
 <li><p>Select Windows Authentication, Advanced Settings..., and ensure
 that
 <a href="https://technet.microsoft.com/en-us/library/gg502606.aspx">Kernel
 Mode authentication</a> is disabled.</p>
 
-<p>Kernel mode authentication makes
+<p>Kernel Mode Authentication makes
 the <a href="http://www.iis.net/learn/get-started/introduction-to-iis/introduction-to-iis-architecture#Hypertext">http.sys</a>
-kernel mode driver responsible for decrypting Kerberos tickets and
-caching the decrypted tickets. By default, decryption can only succeed
-when the host name and DNS A record for the service are the same or no
-DNS entry is present.</p>
+kernel mode driver responsible for decrypting and caching Kerberos
+tickets. With Kernel mode authentication, by default decryption can
+only succeed when the host name and DNS A record for the service are
+the same or no DNS entry is present.</p>
 
 <p>In that case, decryption works because a Windows server joining a
 Active Directory domain will automatically register an SPN with a
 special machine account and machine name. Given that http.sys runs
-under the machine credentials, it can decrypt the ticket only for that
-machine name and credentials. With regular accounts, decryption
-typically happens using a hash of an app pool account's password, but
-for machine accounts the password is auto-generated.</p>
+under the machine credentials, it can decrypt the ticket for that
+machine name using the machine credentials. In comparison, with
+regular accounts, decryption typically happens using a hash of the app
+pool account's password.</p>
 
 <p>By either disabling Kernel Mode Authentication,
 or <a href="https://technet.microsoft.com/library/dd573004">configuring
 Kernel Mode Authentication to use app pool credentials</a>,
 authentication works when a load balancer is involved. For low-traffic
-web apps, disabling Kernel Mode Authentication is probably best.</p></li>
+web apps, disabling Kernel Mode Authentication is probably the
+simplest and will have negligable performance impact.</p></li>
 
 <li><p>Under <a href="https://en.wikipedia.org/wiki/Security_Support_Provider_Interface">Providers</a>, ensure the order is Negotiate followed by
 NTLM. That way authentication
@@ -283,39 +290,45 @@ between Kerberos and NTLM</a> and in that order, depending on what's
 available with the client. Strictly speaking, NTLM is now included
 twice, but as part of different providers. NTLM, by the way, is still
 both valid and usable in single-hop scenarios.</p></li>
-
 </ol>
 
-<p>Installing <a href="http://www.iis.net/downloads/community/2009/06/delegconfig-v2-beta-delegation-kerberos-configuration-tool">DelegConfig</a>,
-our test web app/service, into our newly created web app allows for
-end-to-end validation of Kerberos authentication with delegation. What
-DelegConfig can do is issue an HTTP GET request to a URL of our
-choosing while passing along a Kerberos ticket. The response is
-displayed inside the app. With DelegConfig's Test.aspx page, we can
-issue a request to SharePoint, asking for details on the currently
-logged in user (via
-https://server/path-to-web/_api/Web/CurrentUser). If all goes well,
-the page should display information about the user accessing
-DelegConfig accessing SharePoint.</p>
+<p>By installing into our newly created web application
+the <a href="http://www.iis.net/downloads/community/2009/06/delegconfig-v2-beta-delegation-kerberos-configuration-tool">DelegConfig</a>
+test service, end to end validation of Kerberos authentication with
+delegation is now possible. What DelegConfig offers is a way to issue
+HTTP GET requests to a URL of our choosing while passing along the
+client's Kerberos ticket and displaying the response. On the Test.aspx
+page, we can issue a request to SharePoint asking for details on the
+currently logged in user (via
+https://server/path-to-web/_api/Web/CurrentUser). If Kerberos with
+delegation is correctly configured, the page should display
+information about the user accessing DelegConfig accessing
+SharePoint.</p>
 
 <h4>Conclusion</h4>
 
 <p>In this post, we detailed the typical issues that one encounter
 with getting Kerberos authentication with delegation up and
-running. These issues likely cover most cases of working with
-Kerberos. When Kerberos fails to work, however, besides testing with
+running. If Kerberos fails to work, however, besides testing with
 DelegConfig, make sure to always clear the Kerberos tickets cache
 using
 the <a href="https://technet.microsoft.com/en-us/library/hh134826">klist</a>
-command. <a href="https://www.telerik.com/download/fiddler">Fiddler</a>
+command. In addition,
+ <a href="https://www.telerik.com/download/fiddler">Fiddler</a>
 and <a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>
-come in handy to inspect the request/response headers and HTTP status
-codes and making sure any port used by Kerberos and the service are
-open. For lower-level debugging of Kerberos, start Event Viewer on the
-server and look under Windows Logs, Security, possibly in combination
+come in handy to view the request/response headers and HTTP status
+codes and for making sure unrestricted access to any host and port
+required by Kerberos and the service is possible. For lower-level
+debugging of Kerberos, browsing the server's Event Viewer, under
+Windows Logs, Security, possibly in combination
 with <a href="https://technet.microsoft.com/en-us/library/cc738673">registry
 tweaks to increase the Kerberos log level</a> and
 running <a href="https://www.wireshark.org/">Wireshark</a> to capture
-traffic on the wire.</p>
+traffic on the wire is invaluable. Another handy resource for
+debugging
+is <a href="https://www.microsoft.com/en-us/download/details.aspx?id=23176">configuring
+Kerberos authentication for SharePoint 2010 products</a>. Many of the
+considerations listed in the document are equally applicable outside
+SharePoint.</p>
 
 </div>
