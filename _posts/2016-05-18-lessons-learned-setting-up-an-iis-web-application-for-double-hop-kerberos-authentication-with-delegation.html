@@ -113,7 +113,7 @@ requires only that any intermediary has an SPN registered and its
 account enabled for delegation.</p>
 
 <p>For obvious security reasons, by default an account isn't allowed
-to transparantly delegate client credentials. To verify that
+to transparently delegate client credentials. To verify that
 delegation is indeed enabled for our service's app pool account,
 locate the account (user) within Windows Active Directory Users and
 Groups. Under the user's Properties, on the Delegation tab, ensure
@@ -235,7 +235,7 @@ Protection</a> is Off.<p>
 <p>Somewhat simplified, when enabling Extended Protection for
 authentication, i.e., setting the option to Accept or Required, a kind
 of two-factor authentication against man-in-the-middle attacks is
-enabled. But only when the communication happens over a TLS channel,
+enabled, but only when the communication happens over a TLS channel,
 such as over HTTPS.</p>
 
 <p>As part of
@@ -281,7 +281,7 @@ or <a href="https://technet.microsoft.com/library/dd573004">configuring
 Kernel Mode Authentication to use app pool credentials</a>,
 authentication works when a load balancer is involved. For low-traffic
 web apps, disabling Kernel Mode Authentication is probably the
-simplest and will have negligable performance impact.</p></li>
+simplest and will have negligible performance impact.</p></li>
 
 <li><p>Under <a href="https://en.wikipedia.org/wiki/Security_Support_Provider_Interface">Providers</a>, ensure the order is Negotiate followed by
 NTLM. That way authentication
@@ -317,10 +317,10 @@ command. In addition,
  <a href="https://www.telerik.com/download/fiddler">Fiddler</a>
 and <a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>
 come in handy to view the request/response headers and HTTP status
-codes and for making sure unrestricted access to any host and port
-required by Kerberos and the service is possible. For lower-level
-debugging of Kerberos, browsing the server's Event Viewer, under
-Windows Logs, Security, possibly in combination
+codes and for ensuring unrestricted access to any host and port
+required by Kerberos and the service. For lower-level debugging of
+Kerberos, browsing the server's Event Viewer, under Windows Logs,
+Security, possibly in combination
 with <a href="https://technet.microsoft.com/en-us/library/cc738673">registry
 tweaks to increase the Kerberos log level</a> and
 running <a href="https://www.wireshark.org/">Wireshark</a> to capture
