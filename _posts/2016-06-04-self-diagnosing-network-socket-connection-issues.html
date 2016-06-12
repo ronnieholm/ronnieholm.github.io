@@ -113,55 +113,62 @@ bracket indicates a Wireshark interpretation):</p>
 <img src="/content/successful-tcp-handshakes.png"/>
 </p>
 
-<p>From an unused port on host A, a TCP fragment -- an IP datagram
-with additional TCP headers -- is sent to port 80 on host B. We may be
-tempted think of A and B as client and server, but those are
-application layer concepts. As far as TCP is concerned, A and B are
-equals about to establish a full-duplex communication channel.</p>
+<ul>
+<li>
+<p>[#245] From an unused port on host A, a TCP fragment -- an IP
+datagram with additional TCP headers -- is sent to port 80 on host
+B. We may be tempted to think of A and B as client and server, but
+those are application layer concepts. As far as TCP is concerned, A
+and B are peers about to establish a full-duplex communication
+channel.</p>
 
-<p>The initial fragment from A has it's SYNchronize control bit set
-and includes a random initial sequence number that A will use in its
-future communications with B. The layout of fields within the fragment
-itself is constant. Only the parts of the layout used to indicate
-whether a certain control bit is set and what the sequence number are
-modified.</p>
+<p>We see that the initial fragment from A to B has it's SYNchronize
+control bit set which means that it includes a random initial sequence
+number that A will use in its future communications with B.</p>
+</li>
 
-<p>In principle, B could respond with a separate fragment with the
-ACKnowledge control bit set, indicating that it positively
+<li>
+<p>[#255] In principle, B could respond to A with a separate fragment
+with the ACKnowledge control bit set, indicating that B positively
 acknowledges receiving A's initial sequence number. B could then send
-to A another fragment with the SYN control bit set and B's random
-initial sequence number. But in order to minimize round-trips, B
-usually responds with a fragment with both ACK and SYN bits set and
-including the initial sequence number. A then responds with a fragment
-with the ACK bit set to acknowledge having received B initial sequence
-number. This completed the three-way connect handshake and a
-full-duplex connection is established and application protocol
-specific data may start to flow.</p>
+to A another fragment with the SYN control bit set and include B's
+random initial sequence number. But in order to minimize round-trips,
+B will usually responds with a single fragment with both ACK and SYN
+control bits set and including B's initial sequence number.</p>
+</li>
 
-<p>As a side note, sequence numbers are used by TCP to indicate the
-number of bytes sent per direction. When an agreed and adjustable
-Maximum Window Size number of bytes has been exchanged, the other side
-must ACK that it received up to, but not including, this number of
-bytes. It does so by setting the ACK bit and including the next
-expected sequence number in the fragment. Then, by periodically
-adjusting the window size in either direction, transfer speed is
+<li>
+<p>[#256] A then responds with a fragment with the ACK control bit set
+to acknowledge having received B's initial sequence number. This
+completed the three-way connect handshake, and with a full-duplex
+connection established, application protocol specific data may start
+to flow.</p>
+</li>
+</ul>
+
+<p>Sequence numbers are used by TCP to indicate the number of bytes
+sent per direction. When an agreed and adjustable Maximum Window Size
+number of bytes has been exchanged, the other side must ACK (by
+setting the next expected sequence number) that it received up to, but
+not including, this number of bytes. Then, by periodically adjusting
+the Maximum Window Size in either direction, transfer speed is
 controlled, preventing a fast sender from overwhelming a slow
 receiver, leading to unnecessary packet loss and retransmissions.</p>
 
 <p>It's obvious from looking at the code that we don't transmit any
 application data. Instead, the socket is immediately closed and
-disposed of. Closing the socket from causes is what causes A to send a
-fragment to B with the FINish control bit set and an ACK of bytes
-received up until this point. B responds with a similar FIN and
-ACK. Finally, A sends an ACK receipt of receiving B's FIN and the
-four-way disconnect handshake is complete and the TCP connection is
-closed.</p>
+disposed of. Closing the socket causes A to send a fragment to B with
+the FINish and ACK control bits set and a the next expected sequence
+number. B responds with a similar FIN and ACK. Finally, A sends an ACK
+for receiving B's FIN and the four-way disconnect handshake is
+complete. From then on no futher data can go over the TCP
+connection.</p>
 
 <p>While the three-way handshake needs to happens as outlined, the
-four-way disconnect isn't always, and doesn't have to be, as clean. As
-an example, imagine that a process responsible for one end of the
-socket connection crashes in which case there's no one left to send or
-receive fragments.</p>
+four-way disconnect isn't always, and doesn't have to be, as
+clean. For insance, imagine that a process responsible for one end of
+the socket crashes or the two hosts get physically disconnection. In
+that case there's no one left to send or receive fragments.</p>
 
 <p>To illustrate what connecting to a port with no service listening
 looks like, here's another Wireshark trace:</p>
