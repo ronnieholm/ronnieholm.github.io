@@ -173,17 +173,25 @@ to requesting only two tickets per host name: one for the default HTTP
 port and one for the default HTTPS port. Running services on any other
 port, and with a different app pool account, isn't supported.</p>
 
-<p>Another limitation encountered is Chrome defaulting to not allow
-calling a service that may delegate credentials. Such service URL must
-be <a href="http://dev.chromium.org/administrators/policy-list-3#AuthNegotiateDelegateWhitelis">explicitly
-whitelisted</a>, possibly by rolling out a registry update through
-Group Policy Objects, or an HTTP 401 Unauthorized is displayed on
-calling the service. The whitelisting affects how Chrome sets up its
-Windows security context which is responsible for sending the ticket
-including security flags to the service. Similarly, the service
-creates a security context for reading the ticket including security
-flags, and if a flag, such as the one for delegation, isn't set, the
-service cannot delegate credentials.</p>
+<p>Chrome on the other hand comes with its own Kerberos client library
+with support for SPNs registered with any port. Also, Chrome supports
+both CNAME and A record DNS entries matching SPNs.</p>.
+
+<p>Another limitation is that Chrome by default doesn't allow calling
+a service which may delegate credentials. The service's URL must be
+<a href="http://dev.chromium.org/administrators/policy-list-3#AuthNegotiateDelegateWhitelis">explicitly
+whitelisted</a> by modifying the registry (or via an update to Group
+Policy Objects) or an HTTP 401 Unauthorized results when calling the
+service. Behind the scenes, the whitelist affects how Chrome sets up
+its Windows security context. This context is responsible for actually
+passing the Kerberos ticket, including other security related
+parameters, to the service. Even if the Kerberos ticket has its
+delegation flag set, the context has its own delegation flag which
+takes precedence. It's the setting of this flag that's controlled by
+the whitelist. Similarly, a service creates a security context to read
+the Kerberos ticket and related security parameters. A mismatch
+between the delegate security parameter is what causes the HTTP
+401.</p>
 
 <h2>Setting up Internet Information Services</h2>
 
