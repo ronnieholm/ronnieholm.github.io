@@ -60,9 +60,9 @@ layer protocols use UDP or TCP as their transport. The use of UDP or
 TCP sockets for the actual transfer is what enables data to go in at
 one end of the socket and surface at the other. Details about
 splitting the stream into IP datagrams and reassembling those at the
-other end -- and providing connection orientation with reliability and
-flow control in case of TCP -- are abstracted away behind the socket
-concept.</p>
+other end -- and providing connection (sometimes called session)
+orientation with reliability and flow control in case of TCP -- are
+abstracted away behind the socket concept.</p>
 
 <p>To communicate in a meaningful manner over a UDP or TCP socket
 generally requires protocol operational knowledge. Requesting data
@@ -105,70 +105,72 @@ thrown.</p>
 <p>To get a feel for what goes over the network when the code
 executes, let's use Wireshark to record traffic as we connect to port
 80 on a remote host. The dump shows a successful three-way connect and
-four-way disconnect handshake (observe the overhead in time related to
-setting up and tearing down the connection and how text in square
-bracket indicates a Wireshark interpretation):</p>
+four-way disconnect handshake. Also included in the dump is the
+relative time it took to set up and tear down the connection. Any text
+in square bracket indicates a Wireshark interpretation of actual
+packet data. Lastly, what looks like a left square bracket running
+along all packets in the No. columns indicates the packets are part of
+a single TCP stream, meaning the entire conversation between two
+endpoints for the duration of the TCP connection:</p>
 
 <p>
 <img src="/content/successful-tcp-handshakes.png"/>
 </p>
 
-<ul>
-<li>
-<p>[#245] From an unused port on host A, a TCP fragment -- an IP
+<p>From an unused port on host A, a TCP segment (#245) -- an IP
 datagram with additional TCP headers -- is sent to port 80 on host
 B. We may be tempted to think of A and B as client and server, but
 those are application layer concepts. As far as TCP is concerned, A
 and B are peers about to establish a full-duplex communication
 channel.</p>
 
-<p>We see that the initial fragment from A to B has it's SYNchronize
+<p>We see that the initial segment from A to B has it's SYNchronize
 control bit set which means that it includes a random initial sequence
 number that A will use in its future communications with B.</p>
-</li>
 
-<li>
-<p>[#255] In principle, B could respond to A with a separate fragment
+<p>In principle, B could respond (#255) to A with a separate segment
 with the ACKnowledge control bit set, indicating that B positively
 acknowledges receiving A's initial sequence number. B could then send
-to A another fragment with the SYN control bit set and include B's
+to A another segment with the SYN control bit set and include B's
 random initial sequence number. But in order to minimize round-trips,
-B will usually responds with a single fragment with both ACK and SYN
+B will usually responds with a single segment with both ACK and SYN
 control bits set and including B's initial sequence number.</p>
-</li>
 
-<li>
-<p>[#256] A then responds with a fragment with the ACK control bit set
+<p>A then responds with a segment (#256) with the ACK control bit set
 to acknowledge having received B's initial sequence number. This
 completed the three-way connect handshake, and with a full-duplex
 connection established, application protocol specific data may start
 to flow.</p>
-</li>
-</ul>
 
-<p>Sequence numbers are used by TCP to indicate the number of bytes
-sent per direction. When an agreed and adjustable Maximum Window Size
-number of bytes has been exchanged, the other side must ACK (by
-setting the next expected sequence number) that it received up to, but
-not including, this number of bytes. Then, by periodically adjusting
-the Maximum Window Size in either direction, transfer speed is
-controlled, preventing a fast sender from overwhelming a slow
-receiver, leading to unnecessary packet loss and retransmissions.</p>
-
-<p>It's obvious from looking at the code that we don't transmit any
+<p>From looking at the code, it's obvious that we don't transmit any
 application data. Instead, the socket is immediately closed and
-disposed of. Closing the socket causes A to send a fragment to B with
-the FINish and ACK control bits set and a the next expected sequence
-number. B responds with a similar FIN and ACK. Finally, A sends an ACK
-for receiving B's FIN and the four-way disconnect handshake is
-complete. From then on no futher data can go over the TCP
+disposed of. Closing the socket causes A to send a segment(#257) to B
+with the FINish and ACK control bits set and a the next expected
+sequence number. B responds with a similar FIN and ACK
+(#269). Finally, A sends an ACK (#270) for receiving B's FIN and the
+(possible) four-way disconnect handshake is complete. Ideally it would
+be FIN/ACK, ACK, FIN/ACK, ACK, but even though we're missing one of
+the ACKs, the exchange was sufficient for both ends to close the TCP
 connection.</p>
 
 <p>While the three-way handshake needs to happens as outlined, the
-four-way disconnect isn't always, and doesn't have to be, as
-clean. For insance, imagine that a process responsible for one end of
-the socket crashes or the two hosts get physically disconnection. In
-that case there's no one left to send or receive fragments.</p>
+four-way disconnect isn't always perfect and doesn't have to be. For
+insance, imagine that a process responsible for one end of the socket
+crashes or the two hosts get physically disconnected. In that case
+there's no one left to send or receive any further segments.</p>
+
+<p>A sequence number per direction, essentially a byte counter that
+increments based on bytes in the payload fields of the TCP header, is
+used by TCP to identify segments sent. Similarly, an acknowledgement
+number per direction is used to identity segments received. That's how
+TCP achieves reliability. When at most Window Size number of bytes has
+been send from A to B, B must acknowledge it received the bytes before
+A can sent any further data. B does so by sending A an ACK with the
+next sequence number B's ready to receive. By periodically adjusting
+the Window Size, based on how full the send/receive buffers are on
+either side, transfer speed is controlled, thereby preventing a fast
+sender from overwhelming a slow receiver, leading to packet loss and
+retransmissions.</p>
 
 <p>To illustrate what connecting to a port with no service listening
 looks like, here's another Wireshark trace:</p>
