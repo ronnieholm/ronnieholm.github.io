@@ -1,166 +1,167 @@
 ---
 layout: post
 title: "Application self-diagnostics with network sockets and Wireshark"
-date: 2016-06-02 12:00 UTC
+date: 2016-06-12 12:00 UTC
 ---
 
 <div id="post">
 
-<p>Network connectivity issues may cause an application to behave
-differently across environments such as development, testing, and
-production. The application may be directly making calls to request a
-REST resource or the framework may indirectly make calls to DNS,
-Kerberos, or the like. In any event, connectivity issues tend to
-become harder to diagnose the closer to production we are. It's rarely
-an option to run a combination
-of <a href="https://technet.microsoft.com/en-us/sysinternals/bb795533">psping</a>,
-<a href="http://www.tcpdump.org">tcpdump</a>,
-or <a href="https://www.wireshark.org">Wireshark</a> on a server and
-on demand. Thus, we should retroactively build into the application
-diagnostic features to aid in troubleshooting common connectivity
-issues.</p>
+<p>Diagnosing issues related to network connectivity tend to be
+relatively hard in downstream environments. At a technical level, with
+no access to a debugger and not being able to run diagnostic tools
+such
+as <a href="https://technet.microsoft.com/en-us/sysinternals/bb795533">psping</a>,
+<a href="https://www.telerik.com/download/fiddler">Fiddler</a>,
+or <a href="https://www.wireshark.org">Wireshark</a>, collecting
+reliable information is hard. Now add to it the organizational aspect
+where downstream environments may fall under the jurisdiction of one
+or more infrastructure teams. In the worst case, any interaction
+between development and the infrastructure teams must happen in
+writing and access to the environment is by proxy. Inevitably,
+miscommunication happens and troubleshooting may take a frustrating
+long while.</p>
 
-<p>This post includes a few snippets of code to include in an
-application -- typically a service or web application -- to add TCP
-and UDP ping capabilities to it. By having the application attempt to
-setup a connection to an endpoint, defined by an IP address and a port
-number, assumptions about network can be quickly verified. Such ping
-capability may even be used by an automated monitoring solution.</p>
+<p>Thinking ahead and adding to the application the ability to
+self-diagnose, development becomes less reliant on other teams. This
+post is a step in that direction and includes code to add TCP and UDP
+ping capabilities to an application. By having the application setup a
+connection to an IP address and a port number, assumptions about the
+network can be quickly verified. Such ping capability may even be used
+as part of an automated monitoring solution.</p>
+
+<p>In addition to the ping implementations, this post includes an
+analysis of why and how they work by inspecting the network traffic
+they generate.</p>
 
 <h2>Communicating over network sockets</h2>
 
 <p>Setting up a full-duplex transport layer connection between two
-endpoints over
+endpoints (IP addresses and port numbers) through
 a <a href="https://en.wikipedia.org/wiki/Network_socket">network
-socket</a> provides a simple way to root out firewall or router issues
-or issues relating to the user having insufficient permissions to
-setup the connection. It's much more precise and reliable than
-regular <a href="https://tools.ietf.org/html/rfc792">ICMP</a>-based
-ping which operates in
+socket</a> provides for a simple way to root out firewall or router
+issues. It's more reliable than ping based
+on <a href="https://tools.ietf.org/html/rfc792">ICMP</a> because ICMP
+packets may be blocked, dropped, or not prioritized by network
+devices. Also, ICMP operates in
 the <a href="https://tools.ietf.org/html/rfc791">internet (IP)</a>
-layer and without support for port numbers. Port numbers are a
-transport layer construct introduced to allow many processes within a
-host to communicate independently. In addition, ICMP packets may be
-blocked, dropped, or not prioritized by network devices along the path
-to destination and back.</p>
+(meaning inter-network of which the Internet is one instance) layer
+and thus is host to host without port numbers. Port numbers are a
+transport layer construct added so processes can communicate
+independently.</p>
 
-<p>To communicate in a meaningful manner over a UDP or TCP socket will
-generally require protocol operational knowledge. Requesting data from
-an HTTP endpoint, for instance, we must know how to form HTTP requests
-and process HTTP. While perhaps doable for text-based protocols,
-binary protocols, such as DNS or Kerberos, pose a significant
-challenge. In most cases, however, simply being able to establish a
-connection, regardless of the application layer protocol, is
-sufficient for our purposes.</p>
+<p>With the Internet protocol suite in mind, think of the socket as
+the bridge between the transport and internet layer:</p>
 
-<p>With .NET, APIs are available for creating UDP or TCP sockets as
-well as communication using application layer protocols:</p>
+<p><img src="http://infoacrs.com/nm/protocolStack.png" height="40%"
+width="40%" /></p>
 
-<p>
-<img src="https://i-msdn.sec.s-msft.com/dynimg/IC400923.png" width="60%" height="60%"/>
-</p>
+<p>Key to note about the Internet protocol suite is that application
+layer protocols use UDP or TCP as their transport. The use of UDP or
+TCP sockets for the actual transfer is what enables data to go in at
+one end of the socket and surface at the other. Details about
+splitting the stream into IP datagrams and reassembling those at the
+other end -- and providing connection orientation with reliability and
+flow control in case of TCP -- are abstracted away behind the socket
+concept.</p>
 
-<p>Key to note about the diagram is that the application layer
-protocols use UDP or TCP sockets as their transport. These sockets
-provide for data to go in at one end and surface at the other. Details
-about splitting the stream into IP datagrams and reassembling those at
-the other end -- and providing connection orientation with reliability
-and flow control in case of TCP -- are abstracted away.</p>
+<p>To communicate in a meaningful manner over a UDP or TCP socket
+generally requires protocol operational knowledge. Requesting data
+from an HTTP endpoint, for instance, we must know how to form HTTP
+requests and process HTTP responses. While it's perhaps possible for
+text-based protocols, binary protocols such as DNS or Kerberos would
+pose a significant challenge. In most cases, however, simply being
+able to establish a connection regardless of the application layer
+protocol suffices for self-diagnosis.</p>
 
 <h2>Pinging a Transport Control Protocol endpoint</h2>
 
 <p>To verify <a href="https://tools.ietf.org/html/rfc793">TCP</a>
-connectivity, we attempt to setup a socket connection between a local
-and a remote endpoint. With TCP being a connection oriented protocol,
-we can take advantage of the fact that it must setup a connection
-before any application protocol specific data can be transmitted. If
-and when the connection is established, we can assume success and
-don't bother transmitting any application protocol specific data.</p>
+connectivity, we attempt to establish a socket connection between a
+local and a remote endpoint. With TCP being a connection oriented
+protocol, it must first establish a connection before any application
+protocol specific data may be exchanged. If and when the connection is
+established, we assume success and don't transmit any application
+protocol specific data over the socket.</p>
 
-<p>All that's required to setup a TCP socket from .NET is the
-following few lines of code. Rather than hardcoding the IP address and
-port number, we make those configurable. In a ASP.NET MVC application,
-a user could provide a controller action with the IP address and port
-number via query string parameters:</p>
-
-<!--
-TODO: Pay special attention to AddressFamily = InterNetwork. This doesn't mean
-Internet, although Internet is one instance of an internet network. Instead
-it refers to the more general notion of communication between networks
-possibly separated by many routers and over long distances. But the hosts
-might as well be next to each other network.
-
-Make a note of how long setup and teardown took. Around 85ms
-Make note that [] in Info means a Wireshark interpretation.
--->
+<p>All that's required to establish a TCP socket connection from C# is
+the following few lines of code. Rather than hardcoding the IP address
+and port number, those are made configurable. In an ASP.NET MVC
+application, a user would provide those to a controller action via
+query string parameters:</p>
 
 <pre class="prettyprint lang-cs">
 public bool TcpPing(string host, int port) {
-    using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)) {
-        socket.Connect(host, port);
-        return socket.Connected;
+    using (var s = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp)) {
+        s.Connect(host, port);
+        return s.Connected;
     }
 }
 </pre>
 
 <p>On success, when the socket is connected, the method returns
 true. Otherwise either false is returned or a SocketException is
-raised.</p>
+thrown.</p>
 
-<p>To be able to identify similar cases arising with any application,
-and to get a feel for what's going on under the hood, let's use
-Wireshark to record the traffic going over the wire as we run the code
-to connect to port 80 on remote host. The dump shows a successful
-three-way connect and four-way disconnect handshake:</p>
+<p>To get a feel for what goes over the network when the code
+executes, let's use Wireshark to record traffic as we connect to port
+80 on a remote host. The dump shows a successful three-way connect and
+four-way disconnect handshake (observe the overhead in time related to
+setting up and tearing down the connection and how text in square
+bracket indicates a Wireshark interpretation):</p>
 
 <p>
 <img src="/content/successful-tcp-handshakes.png"/>
 </p>
 
-<p>From an unused port on host A, a TCP segment -- IP datagram with
-additional TCP headers -- is routed by the network stack to port 80 on
-host B. We may think of A and B as client and server, but this is an
-application level concept. As far as TCP is concerned, A and B are
-equals and are about to setup a bidirectional full duplex
-communication channel.</p>
+<p>From an unused port on host A, a TCP fragment -- an IP datagram
+with additional TCP headers -- is sent to port 80 on host B. We may be
+tempted think of A and B as client and server, but those are
+application layer concepts. As far as TCP is concerned, A and B are
+equals about to establish a full-duplex communication channel.</p>
 
 <p>The initial fragment from A has it's SYNchronize control bit set
 and includes a random initial sequence number that A will use in its
-future communications with B. Keep in mind that the layout of fields
-within the fragment remains constant. Only bits at certain positions
-within the frame that indicate whether a certain control bit is set
-and what the sequence number is changes.</p>
+future communications with B. The layout of fields within the fragment
+itself is constant. Only the parts of the layout used to indicate
+whether a certain control bit is set and what the sequence number are
+modified.</p>
 
-<p>In principle, B could respond with a separate fragment with the ACK
-control bit set, indicating that it positively acknowledges receiving
-the sequence number. B could then sent to A a fragment with the SYN
-control bit set and containing its random initial sequence number. But
-in order to minimize round-trips, B usually combines the ACK and SYN
-into a single fragment. A then responds with ACK for receiving the B
-initial sequence number. From then on, a full duplex connection is
-established and application specific data may start to flow.</p>
+<p>In principle, B could respond with a separate fragment with the
+ACKnowledge control bit set, indicating that it positively
+acknowledges receiving A's initial sequence number. B could then send
+to A another fragment with the SYN control bit set and B's random
+initial sequence number. But in order to minimize round-trips, B
+usually responds with a fragment with both ACK and SYN bits set and
+including the initial sequence number. A then responds with a fragment
+with the ACK bit set to acknowledge having received B initial sequence
+number. This completed the three-way connect handshake and a
+full-duplex connection is established and application protocol
+specific data may start to flow.</p>
 
-<p>Sequence numbers are used by TCP to indicate the number of bytes
-sent per direction. When an agreed and adjustable Maximum Window Size
-number of bytes has been the, the other party must ACK that it
-received up to, but not including, this number of bytes. It does so by
-sending a fragment ACK control bit set and next expected sequence
-number included. By periodically adjusting the window size in either
-direction, transfer speed is controlled. Otherwise a fast sender would
-overwhelm a slow receiver, leading to unnecessary packet loss and
-retransmissions.</p>
+<p>As a side note, sequence numbers are used by TCP to indicate the
+number of bytes sent per direction. When an agreed and adjustable
+Maximum Window Size number of bytes has been exchanged, the other side
+must ACK that it received up to, but not including, this number of
+bytes. It does so by setting the ACK bit and including the next
+expected sequence number in the fragment. Then, by periodically
+adjusting the window size in either direction, transfer speed is
+controlled, preventing a fast sender from overwhelming a slow
+receiver, leading to unnecessary packet loss and retransmissions.</p>
 
-<p>From the C# code, it's obvious that we don't transmit any
-application layer data. Instead, the socket is immediately closed and
-disposed. Closing the socket from C# causes A to sent a fragment to B
-with the FINish bit set and an ACK of any fragments received. B
-responds with its FIN and ACK. Finally, A ACK receipt of B's FIN and
-the TCP connection is closed.</p>
+<p>It's obvious from looking at the code that we don't transmit any
+application data. Instead, the socket is immediately closed and
+disposed of. Closing the socket from causes is what causes A to send a
+fragment to B with the FINish control bit set and an ACK of bytes
+received up until this point. B responds with a similar FIN and
+ACK. Finally, A sends an ACK receipt of receiving B's FIN and the
+four-way disconnect handshake is complete and the TCP connection is
+closed.</p>
 
 <p>While the three-way handshake needs to happens as outlined, the
-four-way disconnect isn't always as clean. Imagine a process that
-crashes, in which case it cannot receive or sent any further
-messages.</p>
+four-way disconnect isn't always, and doesn't have to be, as clean. As
+an example, imagine that a process responsible for one end of the
+socket connection crashes in which case there's no one left to send or
+receive fragments.</p>
 
 <p>To illustrate what connecting to a port with no service listening
 looks like, here's another Wireshark trace:</p>
@@ -169,37 +170,38 @@ looks like, here's another Wireshark trace:</p>
 <img src="/content/unsuccessful-tcp-handshakes.png"/>
 </p>
 
-<p>The initial SYN is as before, but A doesn't receive a reply from B
-before a retransmission timeout occurs within A's network stack. A
-assumes the SYN was lost and retransmits it. Again a retransmission
-timeout occurs and a final attempt is made to deliver the SYN. The
-next time A's retransmission timeout occurs, A gives up, resulting in
-.NET raising a SocketException (notice how with each attempt, the
-network stack increases its retransmission timeout interval).</p>
+<p>The initial SYN from A to B is as before, but because A doesn't
+receive an ACK from B before a retransmission timer within A's network
+stack fires, A assumes the SYN is lost and retransmits it. Again no
+ACK is received before another timer fires, and a final attempt is
+made. With the next timeout, A gives up, resulting in .NET throwing a
+SocketException (notice how with each attempt, the network stack
+increases the retransmission timeout period).</p>
 
 <h2>Pinging a Universal Datagram Protocol endpoint</h2>
 
-<p>As can be seen from the very RFC
+<p>As revealed by the very short RFC
 describing <a href="https://tools.ietf.org/html/rfc768">UDP</a>, it's
 essentially IP with port numbers added. Being a connectionless
-protocol, we cannot rely on connection setup as an indicator of a
-successful ping (although an application layer protocol is free to
-define its own connection orientation on top of UDP). All we can do is
-attempt to transmit data over the socket and wait for a response. Even
-if an endpoint receives our data, because we aren't transmitting
-correct application layer data, the process listening may decide to
-ignore us. With no acknowlegment, we can't tell the difference
-between the message being ignored and no service listening:</p>
+protocol, we can't rely on connection setup to indicate success
+(although an application layer protocol is free to define its own
+connection orientation on top of UDP). All we can do is attempt to
+transmit data over the socket and wait for a response. Even if an
+endpoint receives our data, because we may not be transmitting correct
+application layer data, the process listening may decide to ignore
+us. Without an acknowlegment, we can't tell the difference between the
+message being ignored and no service listening, and the ping
+fails:</p>
 
 <pre class="prettyprint lang-cs">
 public int UdpPing(string host, int port) {
-    var probeBytes = Encoding.ASCII.GetBytes("Probe");
-    using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)) {
-        socket.ReceiveTimeout = 10000;
-        socket.Connect(host, port);
-        socket.Send(probeBytes, probeBytes.Length, SocketFlags.None);
+    var probe = Encoding.ASCII.GetBytes("Probe");
+    using (var s = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)) {
+        s.ReceiveTimeout = 10000;
+        s.Connect(host, port);
+        s.Send(probe, probe.Length, SocketFlags.None);
         var receiveBuffer = new byte[1024];
-        var i = socket.Receive(receiveBuffer, receiveBuffer.Length, SocketFlags.None);
+        var i = s.Receive(receiveBuffer, receiveBuffer.Length, SocketFlags.None);
         return i;
     }
 }
@@ -212,32 +214,33 @@ well-known port 53, the Wireshark trace looks as follows:</p>
 <img src="/content/unsuccessful-udp-against-port-53.png"/>
 </p>
 
-<p>We know the other party is clearly there, but are being
-ignored. The info about a malformed packet is Wireshark interpreting
-what it assumes to be DNS traffic. Clearly the serialized form of
-"Probe" isn't a valid DNS request.</p>
+<p>In this case, we know the Google DNS service is listening and that
+we're being ignored. The message about a malformed packet is Wireshark
+interpreting what it assumes to be DNS traffic. Clearly the serialized
+form of "Probe" isn't a valid DNS request.</p>
 
-<p>Switching to UDP, port 54, Wireshark no longer attempts to parse
-what we transmit, but we still have no indication of whether or not a
-process at the other received our probe. In this case we know no
-process is actually listening:</p>
+<p>Switching to UDP, port 54, we see that Wireshark no longer attempts
+to parse what we transmit, but we still have no indication of whether
+or not the probe arrived at the other end of the socket. In this case
+we know no process is actually listening:</p>
 
 <p>
 <img src="/content/unsuccessful-udp-against-port-54.png"/>
 </p>
 
-<p>Some application layer protocols using UDP may actually respond to
+<p>Some UDP based application layer protocols may actually respond to
 a malformed request. But generally not being able to distinguish
-between a lost or blocked transmission, UDP pinging isn't particularly
-useful.</p>
+between a lost or blocked transmission, UDP ping turns out to not be
+particularly useful.</p>
 
 <h2>Conclusion</h2>
 
-<p>While the code to implement TCP and UDP pinging is simple,
-understanding how and why is works is more involved, and requires
-general understanding of the TCP/IP protocol stack. Knowing what
+<p>While the code to implement TCP and UDP ping is simple,
+understanding how and why is works is more involved and requires
+general understanding of the Internet protocol stack. Knowing what
 success and failure looks like with Wireshark is useful in diagnosing
-any network issue, not explicit socket setup. It allows us to treat
-networking as less of a black box.</p>
+other network issue, not explicit related to our socket setup, and
+allows us to treat what goes over the network as less of a black
+box.</p>
 
 </div>
