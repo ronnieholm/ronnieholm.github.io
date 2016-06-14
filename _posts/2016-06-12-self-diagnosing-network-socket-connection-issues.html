@@ -6,24 +6,23 @@ date: 2016-06-12 12:00 UTC
 
 <div id="post">
 
-<p>Diagnosing permanent or intermittend network issues with services
+<p>Diagnosing permanent or intermittent network issues with services
 that our application relies upon often poses a challenge. Firstly,
 reliable information is hard to come by without on-demand access to a
-debugger and diagnostics tools, all requirering terminal
-access. Secondly, the production environment may fall under the
-jurisdiction of other teams, and access to services may only be
-possible from whitelisted server IPs. In the worst case, the
-application team will only have access to the server by proxy of the
-other teams, prolonging the troubleshooting.</p>
+debugger and diagnostics tools. Secondly, the production environment
+may fall under the jurisdiction of other teams, and access to services
+may only be possible from whitelisted server IPs. In the worst case,
+the application team will only have access to the server by proxy of
+the other teams, prolonging the troubleshooting.</p>
 
 <p>Thus, thinking a bit ahead and adding to the application the
-ability to self-diagnose, the application teams becomes less reliant
-on other teams. This post is a step in that direction by adding TCP
-and UDP ping capabilities to an application to verify network
-connectivity on demand or continously as part of an automated
-monitoring solution.</p>
+ability to self-diagnose, the application team becomes less reliant on
+other teams. This post is a step in that direction by adding TCP and
+UDP ping capabilities to an application to verify network connectivity
+on demand or continuously as part of an automated monitoring
+solution.</p>
 
-<p>In addition to marely providing the ping implementations, this post
+<p>In addition to merely providing the ping implementations, this post
 includes an analysis of why and how they work by inspecting the
 network traffic they generate. Knowing how to read Wireshark traces
 cuts away layers of application level abstractions, and may quickly
@@ -54,13 +53,13 @@ bridging the gap between the Transport and Internet layers:</p>
 width="40%" />
 </p>
 
-<p>Most application layer protocols in the Internet protocol suite use
-UDP or TCP as their transport and work by first establishing a socket
-connection between two endpoints. Details about splitting the stream
-into IP packets of data, called datagrams, and reassembling those at
-the other end -- and in the case of TCP provide connection (sometimes
-called session) orientation with reliability and flow control -- are
-abstracted away behind the socket concept.</p>
+<p>Most application layer protocols use UDP or TCP as their transport,
+and work by first establishing a socket connection between two
+endpoints. Details about splitting the stream into IP packets of data,
+called datagrams, and reassembling those at the other end -- and in
+the case of TCP provide connection (sometimes called session)
+orientation with reliability and flow control -- are abstracted away
+behind the socket concept.</p>
 
 <p>Communicating over a UDP or TCP socket generally requires protocol
 operational knowledge. Requesting data from an HTTP endpoint, for
@@ -123,9 +122,9 @@ endpoints for the duration of the connection:</p>
 an <a href="https://en.wikipedia.org/wiki/Ephemeral_port">ephemeral
 port</a> on host A, a TCP segment (#245) -- an IP datagram with
 additional TCP headers -- is sent to port 80 on host B. We may be
-tempted to think of A and B as client and server, but these are
-application layer concepts. As far as TCP is concerned, A and B are
-peers about to establish a full-duplex communication channel.</p>
+tempted to think of A and B as client and server, but are application
+layer concepts. As far as TCP is concerned, A and B are peers about to
+establish a full-duplex communication channel.</p>
 
 <p>The initial segment sent from A to B has its SYNchronize control
 bit set which means it includes a random initial sequence number that
@@ -175,12 +174,12 @@ acknowledgement, segments most eventually be retransmitted.</p>
 
 <p>When at most Window Size number of bytes have been send from A to
 B, B must acknowledge that it received those before A is allowed to
-sent more. B does so through an ACK and includes the next sequence
-number B's ready to receive. Now, by periodically adjusting Window
-Size based on how full the send/receive buffers are on either side,
-flow control is implemented to control the transfer speed. Otherwise a
-fast sender could swamp a slow receiver, leading to packet loss and
-retransmissions.</p>
+send more segment. B does so through an ACK and includes the next
+sequence number B's ready to receive. Now, by periodically adjusting
+Window Size based on how full the send/receive buffers are on either
+side, flow control is implemented to control the transfer
+speed. Otherwise a fast sender could swamp a slow receiver, leading to
+packet loss and retransmissions.</p>
 
 <p>To illustrate what connecting to a port with no service listening
 looks like, here's another Wireshark trace:</p>
@@ -239,7 +238,7 @@ packet being malformed is because Wireshark interprets what it assumes
 to be DNS traffic. Clearly, the serialized form of "Probe" isn't a
 valid DNS request.</p>
 
-<p>Switching to port 54 with no process listenening, we see that
+<p>Switching to port 54 with no process listening, we see that
 Wireshark no longer attempts to parse the packet as anything but
 UDP. And still there's no indication of whether or not the probe
 arrived at the destination:</p>
