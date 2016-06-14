@@ -1,26 +1,30 @@
 ---
 layout: post
-title: "Application self-diagnostics with network sockets and Wireshark"
-date: 2016-06-12 12:00 UTC
+title: "Application self-diagnostics with TCP/UDP ping and Wireshark protocol analysis"
+date: 2016-06-14 12:00 UTC
 ---
 
 <div id="post">
 
 <p>Diagnosing permanent or intermittent network issues with services
-that our application relies upon often poses a challenge. Firstly,
+that an application relies upon often poses a challenge. Firstly,
 reliable information is hard to come by without on-demand access to a
-debugger and diagnostics tools. Secondly, the production environment
-may fall under the jurisdiction of other teams, and access to services
-may only be possible from whitelisted server IPs. In the worst case,
-the application team will only have access to the server by proxy of
-the other teams, prolonging the troubleshooting.</p>
+debugger and proper diagnostics tools
+(<a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>,
+<a href="http://www.telerik.com/fiddler">Fiddler</a>,
+<a href="https://www.wireshark.org">Wireshark</a>). Secondly, the
+production environment may fall under the jurisdiction of other teams,
+and access to dependent services may be possible from whitelisted
+server IPs only. In the worst case, the application team will have
+access to the server by proxy of the other teams, prolonging the
+troubleshooting.</p>
 
 <p>Thus, thinking a bit ahead and adding to the application the
-ability to self-diagnose, the application team becomes less reliant on
-other teams. This post is a step in that direction by adding TCP and
-UDP ping capabilities to an application to verify network connectivity
-on demand or continuously as part of an automated monitoring
-solution.</p>
+ability to self-diagnose, the application team becomes less dependent
+on other teams. This post is a step in that direction by adding TCP
+and UDP ping capabilities to an application to verify network
+connectivity on demand or continuously as part of an automated
+monitoring solution.</p>
 
 <p>In addition to merely providing the ping implementations, this post
 includes an analysis of why and how they work by inspecting the
@@ -165,12 +169,12 @@ when actual data is transmitted). A sequence number exists per
 direction and it's used by TCP to identify segments sent. It's
 essentially a byte counter that increments based on bytes in the
 payload field of the TCP header (with a few exceptions of segments not
-part of the sequence space as the
+being part of the sequence space as the
 <a href="https://tools.ietf.org/html/rfc793">RFC</a> puts
 it). Similarly, an acknowledgement number exists per direction to
 identity segments received. TCP achieves reliability by having the
 other party positively acknowledge received segments. Without
-acknowledgement, segments most eventually be retransmitted.</p>
+acknowledgement, segments are eventually retransmitted.</p>
 
 <p>When at most Window Size number of bytes have been send from A to
 B, B must acknowledge that it received those before A is allowed to
