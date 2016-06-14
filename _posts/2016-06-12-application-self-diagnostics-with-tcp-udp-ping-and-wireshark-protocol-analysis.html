@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Application self-diagnostics with TCP/UDP ping and Wireshark protocol analysis"
+title: "Application self-diagnostics with build-in TCP/UDP ping and Wireshark protocol analysis"
 date: 2016-06-14 12:00 UTC
 ---
 
@@ -163,27 +163,31 @@ ACK, FIN/ACK, ACK, but in the trace we're missing one of the ACKs. The
 exchange nonetheless is sufficient for both ends to agree to close the
 connection.</p>
 
-<p>Lets briefly touch on sequence and acknowledgement numbers visible
-in the trace (although knowing how to interpret those are most useful
-when actual data is transmitted). A sequence number exists per
-direction and it's used by TCP to identify segments sent. It's
-essentially a byte counter that increments based on bytes in the
-payload field of the TCP header (with a few exceptions of segments not
-being part of the sequence space as the
-<a href="https://tools.ietf.org/html/rfc793">RFC</a> puts
-it). Similarly, an acknowledgement number exists per direction to
-identity segments received. TCP achieves reliability by having the
-other party positively acknowledge received segments. Without
-acknowledgement, segments are eventually retransmitted.</p>
+<p>While not strickly required for understanding the setup and
+teardown of a connection, for completeness sake, and for understanding
+larger Wireshark traces, let's briefly touch on the role of Sequence
+Number (Seq), Acknowledgement Number (Ack), and Window Size (Win) as
+shown in the trace output.</p>
 
-<p>When at most Window Size number of bytes have been send from A to
-B, B must acknowledge that it received those before A is allowed to
-send more segment. B does so through an ACK and includes the next
-sequence number B's ready to receive. Now, by periodically adjusting
+<p>A Sequence Number exists per direction and is used by TCP to
+identify segments sent. It's essentially a byte counter that
+increments based on bytes in the payload field of the TCP header (with
+a few exceptions stated in
+the <a href="https://tools.ietf.org/html/rfc793">RFC</a>). Similarly,
+an Acknowledgement Number exists per direction to identify segments
+received. By having the other party positively acknowledge received
+segments TCP achieves reliability. Without acknowledgement, segments
+will eventually get retransmitted.</p>
+
+<p>Window Size exists per direction as well and indicates the maximum
+number of bytes that A may sent to B before B must acknowledge having
+received those. While waiting for B's acknowledgement in the form of
+an ACK that includes the next sequence number B's ready to receive, A
+isn't allowed to send more segment. Now, by periodically adjusting
 Window Size based on how full the send/receive buffers are on either
-side, flow control is implemented to control the transfer
-speed. Otherwise a fast sender could swamp a slow receiver, leading to
-packet loss and retransmissions.</p>
+end, TCP implements flow control and the ability to control the
+transfer speed in either direction. Otherwise a fast sender could
+swamp a slow receiver, leading to packet loss and retransmissions.</p>
 
 <p>To illustrate what connecting to a port with no service listening
 looks like, here's another Wireshark trace:</p>
