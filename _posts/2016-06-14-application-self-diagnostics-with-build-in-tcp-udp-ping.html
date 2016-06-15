@@ -12,19 +12,22 @@ reliable information is hard to come by without on-demand access to a
 debugger and proper diagnostics tools
 (<a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>,
 <a href="http://www.telerik.com/fiddler">Fiddler</a>,
-<a href="https://www.wireshark.org">Wireshark</a>). Secondly, the
-production environment may fall under the jurisdiction of other teams,
-and access to dependent services may be possible from whitelisted
-server IPs only. In the worst case, the application team will have
-access to the server by proxy of the other teams, prolonging the
-troubleshooting.</p>
+<a href="https://www.wireshark.org">Wireshark</a>). Secondly, our
+production environment and that of dependent services may fall under
+the jurisdiction of other teams. Thirdly, access to dependent services
+may only be possible from whitelisted server IPs only. In the worst
+case, the application team can access production only by proxy of
+other teams.</p>
 
-<p>Thus, thinking a bit ahead and adding to the application the
-ability to self-diagnose, the application team becomes less dependent
-on other teams. This post is a step in that direction and adds TCP and
-UDP ping capabilities to an application (most useful for web
-applications or services) to verify network connectivity on demand or
-continuously as part of an automated monitoring solution.</p>
+<p>Thinking a bit ahead and adding to the application the ability to
+self-diagnose, application team(s) can become less dependent on other
+teams. This post is a step in that direction and adds TCP and UDP ping
+capabilities to an application (most useful for web applications or
+services) to verify network connectivity on demand or continuously as
+part of an automated monitoring solution. Dependent teams might find
+this feature useful too, as with the ping capability they're able to
+trigger a connection from our application to their service while
+interception traffic at their end.</p>
 
 <p>In addition to merely providing the ping implementations, this post
 includes an analysis of why and how they work by inspecting the
@@ -259,6 +262,47 @@ arrived at the destination:</p>
 a malformed request. But generally not being able to distinguish
 between a lost or blocked transmission, UDP ping isn't particularly
 useful.</p>
+
+<h2>Putting it all together</h2>
+
+<p>In order to ping multiple servers on multiple ports and generate a
+report, the following PowerShell might come in useful. It may be run
+by anyone with access to acme.net web application:</p>
+
+<pre>
+$hosts = (
+  "8.8.8.8",    <# Google DNS #>
+  "google.com"  <# Other Google server #>)
+
+$tcpPorts = (
+  53,  <# DNS #>
+  88   <# HTTP #>)
+
+$wc = New-Object System.Net.WebClient
+$wc.UseDefaultCredentials = $true
+
+foreach ($h in $hosts) {
+  Write-Output "$($h): "
+  foreach ($p in $tcpPorts) {
+    $c = ""
+    try {
+      $u = "https://acme.net/service/home/tcpping?host=$($h)&port=$($p)"
+      $s = $wc.DownloadString($u)
+      if ($s -eq "True")  { $c = "green" } else { $c = "yellow" }
+    } catch {
+      $c = "red"
+    }   
+    Write-Host -NoNewLine -ForegroundColor "${c}" "${t} "
+  }
+  Write-Output ""
+}
+</pre>
+
+<p>Running the script generates a report akin to this one:</p>
+
+<pre>
+To come
+</pre>
 
 <h2>Conclusion</h2>
 
