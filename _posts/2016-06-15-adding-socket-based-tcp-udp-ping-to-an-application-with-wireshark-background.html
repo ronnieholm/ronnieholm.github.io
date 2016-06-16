@@ -7,33 +7,33 @@ date: 2016-06-15 12:00 UTC
 <div id="post">
 
 <p>Diagnosing permanent or intermittent network issues with services
-that an application relies upon often poses a challenge. Firstly,
-reliable information is hard to come by without on-demand access to a
-debugger and proper diagnostics tools
+that an application depends on may pose a challenge for a number of
+reasons: (1) reliable information is hard to come by without on-demand
+access to a debugger and proper diagnostics tools
 (<a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>,
 <a href="http://www.telerik.com/fiddler">Fiddler</a>,
-<a href="https://www.wireshark.org">Wireshark</a>). Secondly, our
-production environment and that of dependent services may fall under
-the jurisdiction of other teams. Thirdly, access to dependent services
-may only be possible from whitelisted server IPs only. In the worst
-case, the application team can access production only by proxy of
-other teams.</p>
+<a href="https://www.wireshark.org">Wireshark</a>), (2) the
+application's production environment and that of dependent services
+may fall under the jurisdiction of other teams, (3) access to
+dependent services may be possible from whitelisted server IPs
+only. In the worst case, the application team can access production
+only by proxy of other teams.</p>
 
-<p>Thinking a bit ahead and adding to the application the ability to
-self-diagnose, application team(s) can become less dependent on other
-teams. This post is a step in that direction and adds TCP and UDP ping
-capabilities to an application (most useful for web applications or
-services) to verify network connectivity on demand or continuously as
-part of an automated monitoring solution. Dependent teams might find
-this feature useful too, as with the ping capability they're able to
-trigger a connection from our application to their service while
-interception traffic at their end.</p>
+<p>To address these issues it pays to think ahead and make the
+application team less dependent on other teams. This post is a step in
+that direction and proposes adding TCP and UDP ping capabilities to an
+application (most useful for web applications or services). Ping can
+then happen on demand or continuously as part of a monitoring solution
+to verify network connectivity from the actual application. Dependent
+teams might even find this feature useful as well as they can trigger
+a connection from our application to their service while inspecting
+traffic at their end.</p>
 
 <p>In addition to merely providing the ping implementations, this post
-includes an analysis of why and how they work by inspecting the
-network traffic they generate. Knowing how to read Wireshark traces
-cuts away layers of application level abstractions, and may quickly
-provide valuable hints as to the cause of an issue.</p>
+includes an Wireshark analysis of why and how they work by inspecting
+the traffic they generate. Knowing how to read Wireshark traces cuts
+through layers of application level abstractions, and may quickly
+provide valuable hints as to the cause of many network issues.</p>
 
 <h2>Communicating over network sockets</h2>
 
@@ -266,8 +266,9 @@ useful.</p>
 <h2>Pinging multiple servers on multiple ports</h2>
 
 <p>In order to ping multiple servers on multiple ports and generate a
-matrix with the report, the following PowerShell comes in handy. It
-may be run by anyone with access to the acme.net web application:</p>
+table with the results, the following PowerShell script comes in
+handy. It triggers server-side pings from any machine with access to
+the acme.net diagnostics endpoint:</p>
 
 <pre class="prettyprint">
 $hosts = (
