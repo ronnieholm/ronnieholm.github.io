@@ -263,12 +263,14 @@ a malformed request. But generally not being able to distinguish
 between a lost or blocked transmission, UDP ping isn't particularly
 useful.</p>
 
-<h2>Pinging multiple servers on multiple ports</h2>
+<h2>Pinging multiple hosts on multiple ports</h2>
 
-<p>In order to ping multiple servers on multiple ports and generate a
+<p>In order to ping multiple hosts on multiple ports and generate a
 table with the results, the following PowerShell script comes in
 handy. It triggers server-side pings from any machine with access to
-the acme.net diagnostics endpoint:</p>
+the acme.net diagnostics endpoint. In one real-world example, the list
+of hosts were domain controllers in a organization and the list of
+ports the ones required for Kerberos to operate:</p>
 
 <pre class="prettyprint">
 $hosts = (
