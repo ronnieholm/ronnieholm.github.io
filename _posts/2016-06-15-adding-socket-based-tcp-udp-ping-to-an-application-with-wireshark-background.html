@@ -1,81 +1,84 @@
 ---
 layout: post
-title: "Adding socket based TCP/UDP ping to an application with Wireshark background"
+title: "Diagnosing network issues by building TCP/UDP ping into an application
+and Wireshark walkthrough"
 date: 2016-06-15 12:00 UTC
 ---
 
 <div id="post">
 
-<p>Diagnosing permanent or intermittent network issues with services
-that an application depends on may pose a challenge for a number of
-reasons: (1) reliable information is hard to come by without on-demand
-access to a debugger and proper diagnostics tools
-(<a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>,
-<a href="http://www.telerik.com/fiddler">Fiddler</a>,
-<a href="https://www.wireshark.org">Wireshark</a>), (2) the
-application's production environment and that of dependent services
-may fall under the jurisdiction of other teams, (3) access to
-dependent services may be possible from whitelisted server IPs
-only. In the worst case, the application team can access production
-only by proxy of other teams.</p>
+<p>An application team may face many challenges while diagnosing
+permanent or intermittent network issues with services that an
+application depends on: (1) reliable information may be hard to come
+by without on-demand access to proper diagnostics tools
+like <a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>,
+<a href="http://www.telerik.com/fiddler">Fiddler</a>, or
+<a href="https://www.wireshark.org">Wireshark</a>, (2) the
+application's environment and those of dependent services may fall
+under the jurisdiction of other teams, (3) access to dependent
+services is possible from whitelisted server IPs only, (4) the
+application team can only access production by proxy of other
+teams.</p>
 
-<p>To address these issues it pays to think ahead and make the
-application team less dependent on other teams. This post is a step in
-that direction and proposes adding TCP and UDP ping capabilities to an
-application (most useful for web applications or services). Ping can
-then happen on demand or continuously as part of a monitoring solution
-to verify network connectivity from the actual application. Dependent
-teams might even find this feature useful as well as they can trigger
-a connection from our application to their service while inspecting
-traffic at their end.</p>
+<p>As an application team, we can address some of these challenges by
+becoming less dependent on other teams. For instance, network issues
+become simpler to diagnose if we build into an application the ability
+to on-demand TCP or UDP ping any endpoint (address and port
+number). Dependent teams may even find this feature useful as well as
+they can trigger a connection attempt from an application to their
+service while troubleshooting at their end. This was how we
+got <a href="http://bugfree.dk/blog/2016/05/18/lessons-learned-setting-up-an-iis-web-application-for-double-hop-kerberos-authentication-with-delegation">Kerberos
+authentication with delegation</a> working.</p>
 
-<p>In addition to merely providing the ping implementations, this post
-includes an Wireshark analysis of why and how they work by inspecting
-the traffic they generate. Knowing how to read Wireshark traces cuts
-through layers of application level abstractions, and may quickly
-provide valuable hints as to the cause of many network issues.</p>
+<p>Besides the ping implementations, Wireshark analysis shows why and
+how they operate at the network level. Understanding how to read
+Wireshark traces and the basics of TCP and UDP is invaluable in
+diagnosing a range of issues otherwise hidden by layers of
+abstraction.</p>
 
 <h2>Communicating over network sockets</h2>
 
-<p>Attempting to establish a full-duplex transport
+<p>A simple way to diagnose network issues is by attempting to
+establish a full-duplex transport
 layer <a href="https://en.wikipedia.org/wiki/Network_socket">socket</a>
-connection between two endpoints (IP address/port number tuples)
-provides a simple way to detect network issues. The other end may be
-incapable of receiving traffic or may be blocked by a router along the
-path. In those cases, ping over TCP is more reliable than ping
+connection between two endpoints. It reveals if the other end is
+incapable of receiving traffic because no services is listening or if
+a router along the path is blocking the traffic.</p>
+
+<p>Pinging over socket is more reliable than pinging
 over <a href="https://tools.ietf.org/html/rfc792">ICMP</a> because
-ICMP packets may be blocked, dropped, or not prioritized by network
-devices. In addition, ICMP resides in
+network devices may block, drop, or not prioritize ICMP over regular
+traffic. Also, ICMP resides in
 the <a href="https://tools.ietf.org/html/rfc791">Internet layer</a>
-(here Internet means inter-network, or network of networks, of which
-the Internet is but one example) and is host to host without port
-numbers. Port numbers are a Transport layer construct added to allow a
-process to communicate a virtual circuit.</p>
+which is host to host without port numbers. Like sockets, port numbers
+are a Transport layer construct added to allow processes on separate
+hosts to communicate over a virtual circuit. As we want to assert the
+availability of services running on well-known ports, and not of the
+host as a whole, we need port numbers.</p>
 
 <p>With the Internet protocol suite in mind, think of a socket as
-bridging the gap between the Transport and Internet layers:</p>
+bridging the gap between the Transport and Internet layers. The socket
+abstracts away splitting the stream of data into IP datagrams and
+reassembling those at the other end are, and for TCP it provides
+connection orientation with reliability and flow control.</p>
 
 <p>
 <img src="/content/internet-protocol-stack.png" height="40%"
 width="40%" />
 </p>
 
-<p>Most application layer protocols use UDP or TCP as their transport,
-and work by first establishing a socket connection between two
-endpoints. Details about splitting the stream into IP packets of data,
-called datagrams, and reassembling those at the other end -- and in
-the case of TCP provide connection (sometimes called session)
-orientation with reliability and flow control -- are abstracted away
-behind the socket concept.</p>
+<p>Most application layer protocols use UDP or TCP as their
+transport. It means that before sending any application layer protocol
+specific data, they first establish a socket connection between two
+endpoints.</p>
 
 <p>Communicating over a UDP or TCP socket generally requires protocol
 operational knowledge. Requesting data from an HTTP endpoint, for
 instance, we must know how to form HTTP requests and process HTTP
-responses. While this is perhaps possible for text-based protocols,
-binary protocols such as DNS or Kerberos would pose a significant
-challenge. In most cases, however, simply being able to establish a
-connection, regardless of the application layer protocol involved,
-suffices for self-diagnosis.</p>
+responses. While perhaps possible for text-based protocols, binary
+protocols such as DNS or Kerberos pose a significant challenge. Yet,
+in most cases, being able to establish a connection regardless of the
+application layer protocol involved is enough.</p>
 
 <h2>Pinging a Transport Control Protocol endpoint</h2>
 
@@ -104,6 +107,9 @@ public bool /* ActionResult */ TcpPing(string host, int port) {
     }
 }
 </pre>
+
+<!-- (meaning inter-network, or network of networks, of which the Internet
+is one example) -->
 
 <p>When the socket is successfully connected, the method returns
 true. Otherwise either false is returned or a SocketException is
