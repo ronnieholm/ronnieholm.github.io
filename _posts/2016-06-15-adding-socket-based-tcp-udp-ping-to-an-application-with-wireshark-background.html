@@ -83,20 +83,17 @@ application layer protocol involved is enough.</p>
 <h2>Pinging a Transport Control Protocol endpoint</h2>
 
 <p>To verify <a href="https://tools.ietf.org/html/rfc793">TCP</a>
-connectivity, we attempt to establish a socket connection between a
-local and a remote endpoint. With TCP being a connection oriented
-protocol, it must establish a connection before any application
-protocol specific data can be exchanged. If and when the connection is
-established, we assume success and don't transmit any application
-protocol specific data over the socket.</p>
+connectivity, we attempt to establish a socket connection between two
+endpoint. With TCP being a connection oriented protocol, establishing
+a connection indicates success.</p>
 
-<p>All that's required to establish a TCP socket connection is the
-following few lines of code. Rather than hardcoding the IP
-address/host name and port number, those are made configurable. Adding
-similar functionality to an ASP.NET MVC application, we'd add a
-controller action and let the user provide values for the parameters
-via the query string (ASP.NET MVC controller action provided in
-comments):</p>
+<p>Establishing a TCP socket connection requires only the following
+few lines of code with configurable IP address/host name and port
+number. In comments, we provide an ASP.NET MVC implementation of a
+controller action with which the user would provide query string
+values for the arguments. With the socket connected, the method
+returns true. Otherwise it returns either false or throws a
+SocketException:</p>
 
 <pre class="prettyprint lang-cs">
 public bool /* ActionResult */ TcpPing(string host, int port) {
@@ -107,13 +104,6 @@ public bool /* ActionResult */ TcpPing(string host, int port) {
     }
 }
 </pre>
-
-<!-- (meaning inter-network, or network of networks, of which the Internet
-is one example) -->
-
-<p>When the socket is successfully connected, the method returns
-true. Otherwise either false is returned or a SocketException is
-thrown.</p>
 
 <p>To understand the meaning of a ping, we'll need to use Wireshark to
 dig into the network traffic generated as we connect to a remote
@@ -139,6 +129,8 @@ think of A and B as client and server, but those are application layer
 concepts. As far as TCP is concerned, A and B are peers about to
 establish a full-duplex communication channel.</p>
 
+<h3>Three-way connect handshake</h3>
+
 <p>The initial segment sent from A to B has its SYNchronize control
 bit set which means it includes a random initial sequence number that
 A will use in its future communications with B.</p>
@@ -157,6 +149,8 @@ number. This completed the three-way connect handshake and with a
 full-duplex connection established, application protocol specific data
 may start to flow.</p>
 
+<h3>Four-way disconnect handshake</h3>
+
 <p>It's obvious from looking at the code that we don't transmit any
 application protocol specific data. Instead the socket is immediately
 closed and disposed of, causing A to send a segment (#257) to B with
@@ -171,6 +165,8 @@ have to be. Ideally, it would've consisted of the exchange FIN/ACK,
 ACK, FIN/ACK, ACK, but in the trace we're missing one of the ACKs. The
 exchange nonetheless is sufficient for both ends to agree to close the
 connection.</p>
+
+<h3>Reliability and flow control</h3>
 
 <p>While not strickly required for understanding the setup and
 teardown of a connection, for completeness sake, and for understanding
