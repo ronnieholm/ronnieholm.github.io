@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Diagnosing network issues by building TCP/UDP ping into an application and Wireshark protocol walkthrough"
+title: "Diagnosing network issues by building TCP/UDP ping into an application with Wireshark protocol walkthrough"
 date: 2016-06-15 12:00 UTC
 ---
 
@@ -105,7 +105,7 @@ public bool /* ActionResult */ TcpPing(string host, int port) {
 <p>With the socket connected, the method returns true. Otherwise it
 returns either false or throws a SocketException.</p>
 
-<h3>Wireshark analysis</h3>
+<h3>Wireshark protocol analysis</h3>
 
 <p>To see how setting up a socket connection qualifies as a ping, and
 to understand TCP in general, we'll analyze the Wireshark trace
