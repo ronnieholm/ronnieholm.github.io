@@ -84,7 +84,7 @@ application layer protocol involved is enough.</p>
 
 <p>To verify <a href="https://tools.ietf.org/html/rfc793">TCP</a>
 connectivity, we attempt to establish a socket connection between two
-endpoint. With TCP being a connection oriented protocol, establishing
+endpoints. With TCP being a connection oriented protocol, establishing
 a connection indicates success.</p>
 
 <p>Establishing a TCP socket connection requires only the following
@@ -149,8 +149,8 @@ set and including B's initial sequence number.</p>
 positively acknowledge having received B's initial sequence
 number. This completed the three-way connect handshake, and with a
 full-duplex connection established, application protocol specific data
-may now flow in either directions. In other words, our ping is
-succesfull.</p>
+may now flow in either directions. In other words, the ping is
+successfull.</p>
 
 <h3>Four-way disconnect handshake</h3>
 
@@ -181,7 +181,7 @@ segments sent. It's essentially a byte counter that increments based
 on bytes in the payload field of the TCP header with a few exceptions
 stated in
 the <a href="https://tools.ietf.org/html/rfc793">RFC</a>. That's why
-after a successfull connect handshake Seq is always 1.</p>
+after a successful connect handshake Seq is always 1.</p>
 
 <p>TCP maintains one Acknowledgment Number per direction to identify
 the next segments it expects to receive. Having the other party
@@ -190,16 +190,15 @@ reliable. If one party doesn't receive an acknowledgment, it'll
 retransmit the segments since the last acknowledgment (in practice a
 few optimizations apply).</p>
 
-<p>TCP maintains one Window Size per direction to indicates the
-largest number of bytes that A may sent to B before B must acknowledge
-having received those. B's acknowledgment comes in the form of an ACK
-that includes the next sequence number B's ready to receive. While
-waiting for the ACK, A isn't allowed to send more segment. TCP
-implements flow control, i.e., the ability to control the transfer
-speed in either direction, by adjusting the value of Win based on how
-full the send/receive buffers are on either end. Otherwise a fast
-sender could swamp a slow receiver, leading to packet loss and
-retransmissions.</p>
+<p>TCP maintains one Window Size per direction to indicate the largest
+number of bytes that A may sent to B before B must acknowledge having
+received those. B's acknowledgment comes in the form of an ACK that
+includes the next sequence number B's ready to receive. While waiting
+for the ACK, A isn't allowed to send more segments. TCP implements
+flow control, i.e., the ability to control the transfer speed in
+either direction, by adjusting the value of Win based on how full the
+send/receive buffers are on either end. Otherwise a fast sender could
+swamp a slow receiver, leading to packet loss and retransmissions.</p>
 
 <h3>Example of failed TCP ping</h3>
 
@@ -278,7 +277,7 @@ particularly useful.</p>
 
 <h2>Scripted ping of many hosts on many ports</h2>
 
-<p>The following PowerShell script automates pinging many hosts on
+<p>The following PowerShell script automates ping of many hosts on
 many ports and generates a table with the results. It can trigger
 server generated pings from any machine with access to the acme.net
 diagnostics controller. In one real-world example of troubleshooting
@@ -293,7 +292,6 @@ $hosts = (
 $tcpPorts = (
     53, <# DNS #>
     80  <# HTTP #>)
-
         
 # UseDefaultCredentials required when the endpoint disallows anonymous access
 $wc = New-Object System.Net.WebClient -Property @{ "UseDefaultCredentials" = "true" }
@@ -316,7 +314,7 @@ foreach ($h in $hosts) {
 </pre>
 
 <p>Running the script, it generates a hosts by ports matrix with each
-elementing being the connection status:</p>
+element being the connection status:</p>
 
 <pre style="background-color: #012456; width: 300px">
 <span style="color: #EEEDF0;">%> .\test.ps1</span>
