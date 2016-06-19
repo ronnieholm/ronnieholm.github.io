@@ -1,13 +1,13 @@
 ---
 layout: post
-title: "Diagnosing network issues by building TCP/UDP ping into an application with Wireshark protocol walkthrough"
+title: "Diagnosing network issues by building TCP/UDP ping into an application"
 date: 2016-06-15 12:00 UTC
 ---
 
 <div id="post">
 
 <p>An application team may face many challenges while diagnosing
-permanent or intermittent network issues with services that an
+permanent or transient network issues with services that an
 application depends on: (1) reliable information may be hard to come
 by without on-demand access to proper diagnostics tools
 like <a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>,
@@ -195,9 +195,10 @@ received those. B's acknowledgment comes in the form of an ACK that
 includes the next sequence number B's ready to receive. While waiting
 for the ACK, A isn't allowed to send more segments. TCP implements
 flow control, i.e., the ability to control the transfer speed in
-either direction, by adjusting the value of Win based on how full the
-send/receive buffers are on either end. Otherwise a fast sender could
-swamp a slow receiver, leading to packet loss and retransmissions.</p>
+either direction, by dynamically negotiating the value of Win based on
+how full the send/receive buffers are on either end. Otherwise a fast
+sender could swamp a slow receiver, leading to packet loss,
+retransmission, and degraded performance.</p>
 
 <h3>Example of failed TCP ping</h3>
 
@@ -323,12 +324,12 @@ element being the connection status:</p>
 
 <h2>Conclusion</h2>
 
-<p>While the code to implement TCP and UDP ping is simple,
-understanding how and why it works requires general understanding of
-the Internet protocol stack. Knowing what success and failure looks
-like from Wireshark's point of view is useful in diagnosing a
-multitude of network issue, not explicit related to socket setup. It
-allows us to treat what goes on at the lower network layers as less of
-a black box.</p>
+<p>While implementing TCP and UDP ping is simple, understanding how
+and why it works requires general understanding of the Internet
+protocol stack. Knowing what success and failure looks like from
+Wireshark's point of view is useful in diagnosing a multitude of
+network issue, not explicit related to socket setup. It allows us to
+treat what goes on at the lower network layers as less of a black
+box.</p>
 
 </div>
