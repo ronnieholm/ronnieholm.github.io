@@ -151,7 +151,6 @@ public class ClientRuntimeContext : IDisposable {
 <a href="https://msdn.microsoft.com/en-us/library/system.net.credentialcache.defaultcredentials">CredentialCache.DefaultCredentials</a>
 serves the following purpose:</p>
 
-<p>
 <quote>
 DefaultCredentials represents the system credentials for the current
 security context in which the application is running. For a
@@ -161,7 +160,6 @@ application. For ASP.NET applications, the default credentials are the
 user credentials of the logged-in user [the application pool account],
 or the user being impersonated [as set by our code above].
 </quote>
-</p>
 
 <p>Looking back at AuthenticationTest, we started execution using app
 pool credentials and had to transition to using the calling user's
