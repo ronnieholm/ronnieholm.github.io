@@ -8,70 +8,80 @@ date: 2016-06-20 12:00 UTC
 
 <p>In an earlier post
 on <a href="http://bugfree.dk/blog/2016/05/18/lessons-learned-setting-up-an-iis-web-application-for-double-hop-kerberos-authentication-with-delegation">troubleshooting
-Kerberos authentication with delegation</a>, we used
+Kerberos authentication with delegation</a>, we setup
 <a href="http://www.iis.net/downloads/community/2009/06/delegconfig-v2-beta-delegation-kerberos-configuration-tool">DelegConfig</a>
-to verify end to end authentication flow. In the real world, our
+to verify the end to end authentication flow. In the real world, our
 ASP.NET MVC/WebAPI application would replace DelegConfig in making
 calls to a Kerberos enabled end-system.</p>
 
 <h2>Problem</h2>
 
-<p>This post develops the code needed for our service to call an
-end-system on behalf of the calling user, i.e., ensure that inbound
-and outbound credentials are the same. For cases such as privilege
+<p>This post develops the code needed for a service to call into an
+end-system on behalf of the calling user, i.e., ensures that inbound
+and outbound credentials for a service are the same. For privilege
 escalation, where we need inbound and outbound credentials to differ,
-we include code to escape Kerberos delegation. To show the switching
-of outbound credentials in action, we rely on a who-am-I API, which
-makes SharePoint return the identity of the calling user. But the code
-responsible for switching credentials works with any Kerberos enabled
+we need a way to escape Kerberos delegation and provide custom
+credentials.</p>
+
+<p>To show the switching of outbound credentials in action, we rely on
+a who-am-I API in the end-system. Using SharePoint as the end-system,
+we make SharePoint return the identity of the calling user to the
+service which displays it to the user. The code responsible for
+switching credentials, however, works with any Kerberos enabled
 end-system.</p>
 
 <h2>Solution</h2>
 
-<p>Let's use API experiments to work our way toward a solution. Our
-initial attempt is to wrap the creation of ClientContexts, which
-encapsulates operations performed against SharePoint, in a
-factory. The factory is ideal for encapsulating the creation of
-independent ClientContexts with different authentication
-settings:</p>
+<p>Let's see if we can experiment our way toward a solution. As a
+first attempt, we wrap the creation of ClientContexts in a factory
+(which later turns out not be such a good idea). The factory
+encapsulates context creation and collects the different
+authentication setups in a single place. The ClientContext itself
+encapsulates operations performed against SharePoint. Other
+end-systems would likely expose similar APIs, or
+use <a href="https://msdn.microsoft.com/en-us/library/system.net.webclient">WebClient</a>,
+<a href="https://msdn.microsoft.com/en-us/library/system.net.httpwebrequest">HttpWebRequest</a>,
+and friend directly, passing along credentials:</p>
 
 <pre class="prettyprint lang-cs">
 public class ClientContextFactory {
     public WindowsImpersonationContext ImpersonationContext { get; private set; }
 
-    // Doesn't always return a context using app pool credentials as per the reverse engineered 
-    // code shown below. This is effectively a special case of passing in the app pool account's
-    // username, password, and domain to WithSpecificUser.
+    // Doesn't always return a context using app pool credentials as per
+    // the reverse engineered code shown below. This is effectively a
+    // special case of passing in the app pool account's username, password,
+    // and domain to WithSpecificUser.
     public ClientContext WithDefaultUser(string url) => new ClientContext(url);
 
-    // Will always create a context with credentials created from the the passed username, password,
-    // and domain.
+    // Will always create a context with credentials created from the the
+    //passed username, password, and domain.
     public ClientContext WithSpecificUser(string url, string username, string password, string domain) {
         return new ClientContext(url) {
             Credentials = new NetworkCredential(username, password, domain)
         };
     }
 
-    // Impersonation relies on the side effecting behavior by changing the app/thead global 
-    // DefaultCredentials.
+    // Impersonation relies on the side effecting behavior by changing the
+    // application/thead local DefaultCredentials.
     public ClientContext WithKerberosDelegation(string url) {
         var httpContext = System.Web.HttpContext.Current;
         var identity = httpContext.User.Identity as WindowsIdentity;
         ImpersonationContext = WindowsIdentity.Impersonate(identity.Token);
 
-        // ClientContext constructor call appears identical to the one in WithApplicationPool.
-        // But because the previous impersonation logic has the side effect of resetting the
-        // app/thread credentials used by ClientContext, the outcome is different.
+        // ClientContext constructor call appears identical to the one in
+        // WithApplicationPool. But because the previous impersonation logic
+        // has the side effect of resetting the application/thread local
+        // credentials used by ClientContext, the outcome is different.
         return new ClientContext(url);
     }
 }
 </pre>
 
-<p>Next, by making who-am-I requests using the factory created
-ClientContexts, we observe the effect that each authentication setting
-has on the outbound credentials. For reasons which will become
-apparent in a moment, we introduce an application wide
-AcmeBaseController with shared authentication logic:</p>
+<p>Next, making who-am-I requests using the factory created
+ClientContexts, we can observe the effect of each authentication
+setting on the outbound credentials. For reasons which will become
+apparent in a moment, we introduce an AcmeBaseController base
+controller to host shared logic:</p>
 
 <pre class="prettyprint lang-cs">
 public class AcmeBaseController : Controller {
@@ -116,19 +126,21 @@ public class HomeController : AcmeBaseController {
 }
 </pre>
 
-<p>Using the WithKerberosDelegation created ClientContext does indeed
-pass along the calling credentials to the end-system. But we must
-remember to call Undo to revert back to the previous default
-credentials. Instances created by the factory aren't independent. In
-fact, impersonation happens as a side effect of calling
-WindowsIdentity.Impersonate.</p>
+<p>The ClientContext created by WithKerberosDelegation created does
+indeed pass along the calling credentials to the end-system. But we
+must remember to call Undo to revert back to the original
+credentials. Inside the factory, impersonation happens as a side
+effect of calling WindowsIdentity.Impersonate which means that
+instances created by the factory aren't independent which turns the
+use of a factory into a bad idea.</p>
 
-<p>Taking a peak inside Microsoft.SharePoint.Client.Runtime.dll, the
-ClientRuntimeContext's SetupRequestCredential method is what
-determines the credentials passed when making calls using
-_vti_bin/client.svc/ProcessQuery (most CSOM operations happens through
-this endpoint). With AuthenticationMode set to Default, and not
-setting the ClientContext Credentials property, it default to
+<p>Inside Microsoft.SharePoint.Client.Runtime.dll, it's the
+ClientRuntimeContext's SetupRequestCredential method which determines
+the credentials it passes along when calling its internal
+_vti_bin/client.svc/ProcessQuery endpoint (most CSOM operations
+happens against this endpoint). With AuthenticationMode set to
+Default, not setting the ClientContext's Credentials property during
+construction, we see that it defaults to
 CredentialCache.DefaultCredentials:</p>
 
 <pre class="prettyprint lang-cs">
@@ -151,33 +163,30 @@ public class ClientRuntimeContext : IDisposable {
 <a href="https://msdn.microsoft.com/en-us/library/system.net.credentialcache.defaultcredentials">CredentialCache.DefaultCredentials</a>
 serves the following purpose:</p>
 
-<quote>
-DefaultCredentials represents the system credentials for the current
-security context in which the application is running. For a
+<p><i> DefaultCredentials represents the system credentials for the
+current security context in which the application is running. For a
 client-side application, these are usually the Windows credentials
 (user name, password, and domain) of the user running the
 application. For ASP.NET applications, the default credentials are the
 user credentials of the logged-in user [the application pool account],
 or the user being impersonated [as set by our code above].
-</quote>
+</i></p>
 
 <p>Looking back at AuthenticationTest, we started execution using app
 pool credentials and had to transition to using the calling user's
 credentials. In a web application, the reverse would be more
-secure. Code should start to execute under the calling user's
-credentials and switch to using elevated credentials only as the need
-arises, and without interfering with the original credentials. We
-don't want to risk forgetting to reset credentials as with Undo
-above.</p>
+useful. Code should start to execute under the calling user's
+credentials and only switch to elevated credentials when needed -- and
+without interfering with the previous credentials.</p>
 
-<p>Adding a constructor to the application's base controller, we can
-ensure that MVC/WebAPI controller actions start executing using the
-credentials of the calling user. We can also get rid of the
-ClientCredentialsFactory as with its reliance on side effects, it
-isn't worth the complexity it adds:</p>
+<p>Adding a constructor to the base controller, we can ensure that
+MVC/WebAPI controller actions start executing using the calling user's
+credentials:</p>
 
 <pre class="prettyprint lang-cs">
 public class AcmeBaseController : Controller {
+    // GetCurrentUserLoginName the same as before
+  
     public AcmeBaseController() {
         var httpContext = System.Web.HttpContext.Current;
         var identity = httpContext.User.Identity as WindowsIdentity;
@@ -211,10 +220,10 @@ public class HomeController : AcmeBaseController {
 
 <h2>Conclusion</h2>
 
-<p>Calling the modified AuthenticationTest action, we see that by
-default we're running under the calling user's credentials, yet have
-the ability to switch to a specific service user and no have to keep
-track of the fact that we did so.</p>
+<p>Calling the modified AuthenticationTest action, we now default to
+running under the calling user's credentials, yet have the ability to
+switch to a specific user and no have to keep track of the fact that
+we did so.</p>
 
 </div>
 
