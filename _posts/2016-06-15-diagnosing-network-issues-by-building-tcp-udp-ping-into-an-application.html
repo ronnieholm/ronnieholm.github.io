@@ -14,32 +14,34 @@ Part 2: Diagnosing network issues by building TCP/UDP ping into an application<b
 Part 3: Making outbound requests from an ASP.NET MVC/WebAPI application using Kerberos delegated credentials</a>
 </p>
 
-<p>An application team may face many challenges while diagnosing
-permanent or transient network issues with services that an
-application depends on: (1) reliable information may be hard to come
-by without on-demand access to proper diagnostics tools
-like <a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>,
+<p>As a development team, we may face many challenges while diagnosing
+permanent or transient network issues with services that our
+application depends on. Some of these challenges include that (1)
+reliable information may be hard to come by without on-demand access
+to diagnostics tools such
+as <a href="https://technet.microsoft.com/en-us/sysinternals/psping.aspx">psping</a>,
 <a href="http://www.telerik.com/fiddler">Fiddler</a>, or
 <a href="https://www.wireshark.org">Wireshark</a>, (2) the
 application's environment and those of dependent services may fall
 under the jurisdiction of other teams, (3) access to dependent
-services is possible from whitelisted server IPs only, (4) the
+services is only allowed from whitelisted server IPs, (4) the
 application team can only access production by proxy of other
 teams.</p>
 
-<p>As an application team, we can address some of these challenges by
+<p>As a development team, we can address some of these challenges by
 becoming less dependent on other teams. For instance, network issues
-become simpler to diagnose if we build into an application the ability
-to on-demand TCP or UDP ping any endpoint (address and port
-number). Dependent teams may even find this feature useful as well as
-they can trigger a connection attempt from an application to their
-service while troubleshooting at their end. This was how we
-got <a href="http://bugfree.dk/blog/2016/05/18/lessons-learned-setting-up-an-iis-web-application-for-double-hop-kerberos-authentication-with-delegation">Kerberos
+become simpler to diagnose if we build into our application the
+ability to on-demand TCP or UDP ping any endpoint (address and port
+number). Dependent teams may even find this feature useful as they can
+trigger a connection attempt from an application to their service
+while troubleshooting at their end. Incidentally, this was how we
+got <a href="/blog/2016/05/18/lessons-learned-setting-up-an-iis-web-application-for-double-hop-kerberos-authentication-with-delegation">Kerberos
 authentication with delegation</a> working.</p>
 
-<p>Besides the ping implementations, Wireshark analysis shows why and
-how they operate at the network level. Understanding how to read
-Wireshark traces and the basics of TCP and UDP is invaluable in
+<p>Besides the implementation of TCP and UCP ping in our application,
+this post contains Wireshark analysis which shows why and how the
+pings work at the network level. Knowledge of how to read Wireshark
+traces and the basics of the TCP and UDP protocols is invaluable in
 diagnosing a range of issues otherwise hidden by layers of
 abstraction.</p>
 
@@ -48,9 +50,10 @@ abstraction.</p>
 <p>A simple way to diagnose network issues is by attempting to
 establish a full-duplex transport
 layer <a href="https://en.wikipedia.org/wiki/Network_socket">socket</a>
-connection between two endpoints. It reveals if the other end is
-incapable of receiving traffic because no services is listening or if
-a router along the path is blocking the traffic.</p>
+connection between two endpoints. As a negative test, this quickly
+reveals whether the other end is incapable of receiving traffic
+because no services is listening or if a router along the path is
+blocking the traffic.</p>
 
 <p>Pinging over socket is more reliable than pinging
 over <a href="https://tools.ietf.org/html/rfc792">ICMP</a> because
@@ -59,14 +62,14 @@ traffic. Also, ICMP resides in
 the <a href="https://tools.ietf.org/html/rfc791">Internet layer</a>
 which is host to host without port numbers. Like sockets, port numbers
 are a Transport layer construct added to allow processes on separate
-hosts to communicate over a virtual circuit. As we want to assert the
-availability of services running on well-known ports, and not of the
-host as a whole, we need port numbers.</p>
+hosts to communicate over a virtual circuit. As we'd prefer to assert
+the availability of services running on well-known ports, and not the
+host itself, we must be able to ping specific ports.</p>
 
 <p>With the Internet protocol suite in mind, think of a socket as
 bridging the gap between the Transport and Internet layers. The socket
 abstracts away splitting the stream of data into IP datagrams and
-reassembling those at the other end are, and for TCP it provides
+reassembling those at the other end, and for TCP it provides
 connection orientation with reliability and flow control.</p>
 
 <p>
@@ -75,17 +78,18 @@ width="40%" />
 </p>
 
 <p>Most application layer protocols use UDP or TCP as their
-transport. It means that before sending any application layer protocol
-specific data, they first establish a socket connection between two
-endpoints.</p>
+transport. For TCP, this implies that before sending application layer
+protocol specific data, it must first establish a socket connection
+between two endpoints.</p>
 
 <p>Communicating over a UDP or TCP socket generally requires protocol
 operational knowledge. Requesting data from an HTTP endpoint, for
 instance, we must know how to form HTTP requests and process HTTP
 responses. While perhaps possible for text-based protocols, binary
-protocols such as DNS or Kerberos pose a significant challenge. Yet,
-in most cases, being able to establish a connection regardless of the
-application layer protocol involved is enough.</p>
+protocols such as DNS or Kerberos pose a challenge. However, in most
+cases, being able to establish a connection regardless of the
+application layer protocol is sufficient for asserting
+connectivity.</p>
 
 <h2>Pinging a Transport Control Protocol endpoint</h2>
 
@@ -96,9 +100,9 @@ a connection indicates success.</p>
 
 <p>Establishing a TCP socket connection requires only the following
 few lines of code with configurable IP address/host name and port
-number. In comments, we provide an ASP.NET MVC implementation of a
-controller action with which the user would provide query string
-values for the arguments:</p>
+number. In comments, we provide the ASP.NET MVC implementation of a
+controller action for which arguments are provided by query string
+parameters:</p>
 
 <pre class="prettyprint lang-cs">
 public bool /* ActionResult */ TcpPing(string host, int port) {
@@ -110,19 +114,19 @@ public bool /* ActionResult */ TcpPing(string host, int port) {
 }
 </pre>
 
-<p>With the socket connected, the method returns true. Otherwise it
+<p>When the socket is connected, the method returns true. Otherwise it
 returns either false or throws a SocketException.</p>
 
 <h3>Wireshark protocol analysis</h3>
 
 <p>To see how setting up a socket connection qualifies as a ping, and
-to understand TCP in general, we'll analyze the Wireshark trace
-generated by connecting to a host. In doing so, observe how Wireshark
+to gain knowledge of TCP in general, we'll analyze the Wireshark trace
+captured when connecting to a host. In doing so, observe how Wireshark
 provides visual cues to what's captured. Any text in square bracket
 indicates a Wireshark interpretation and the left square bracket along
-the No. columns indicates that the packets are part of a single TCP
-stream, i.e., the conversation between two endpoints for the duration
-of the connection:</p>
+the No. rows indicates that the packets are part of a single TCP
+stream, i.e., a conversation between two endpoints for the duration of
+the connection:</p>
 
 <p>
 <img src="/content/successful-tcp-handshake.png"/>
@@ -133,15 +137,15 @@ datagram -- from one of
 its <a href="https://en.wikipedia.org/wiki/Ephemeral_port">ephemeral
 ports</a> to port 80 on host B. We may think of A and B as client and
 server, but those are application layer concepts. As far as TCP is
-concerned, A and B are peers about to establish a full-duplex
-communication channel.</p>
+concerned, A and B are peers in the process of establishing a
+full-duplex communication channel.</p>
 
 <h3>Three-way connect handshake</h3>
 
 <p>The initial segment sent from A to B has its SYNchronize control
 bit set, which means it includes a random initial sequence number that
 A will use in its future communications with B (more on the use of
-sequence numbers later).</p>
+sequence numbers in a moment).</p>
 
 <p>In principle, B could respond to A with a segment with the
 ACKnowledge control bit set, indicating that B positively acknowledges
@@ -152,66 +156,66 @@ A. But to minimize the number of round-trips, B usually responds
 (#255) with a single segment with both the ACK and SYN control bits
 set and including B's initial sequence number.</p>
 
-<p>A then responds with a segment (#256) with ACK control bit set to
-positively acknowledge having received B's initial sequence
+<p>A then responds with a segment (#256) with the ACK control bit set
+to positively acknowledge having received B's initial sequence
 number. This completed the three-way connect handshake, and with a
 full-duplex connection established, application protocol specific data
-may now flow in either directions. In other words, the ping is
+can now flow in either directions. In other words, the ping is
 successful.</p>
 
 <h3>Four-way disconnect handshake</h3>
 
-<p>From looking at the code, it's clear that we don't send any
-application protocol specific data. The socket is immediately closed
-and disposed of, causing A to send a segment (#257) to B with FINish
-and ACK (of previous segments). B in turn responds (#269) with its FIN
-and ACK (of previous segments). Finally, A sends a segment with an ACK
-(#270) for receiving B's FIN and the four-way disconnect handshake is
-complete.</p>
+<p>Looking at the code, it's clear that we don't send any application
+protocol specific data. The socket is immediately closed and disposed
+of, causing A to send a segment (#257) to B with FINish and ACK (of
+previous segments) control bits set. B in turn responds (#269) with
+its FIN and ACK (of previous segments). Finally, A sends a segment
+with an ACK (#270) for receiving B's FIN and the four-way disconnect
+handshake is complete.</p>
 
 <p>While the three-way connect handshake needs to happen as outlined,
 the four-way disconnect handshake isn't always perfect and doesn't
 have to be. In the ideal case, it should've consisted of the exchange
-FIN/ACK, ACK, FIN/ACK, ACK, but in our trace we're missing one of the
+FIN/ACK, ACK, FIN/ACK, ACK, but in the trace we're missing one of the
 ACKs. The exchange nonetheless is good enough for both ends to agree
-to close the connection.</p>
+on closing the connection.</p>
 
 <h3>Reliability and flow control</h3>
 
-<p>Let's briefly touch on the role of Sequence Number (Seq),
-Acknowledgment Number (Ack), and Window Size (Win) as shown in the
-trace output. These are particularly useful to understand in the
-context of a larger trace.</p>
+<p>Let's briefly touch on the role of Sequence number (Seq),
+Acknowledgment number (Ack), and Window size (Win) as shown in the
+trace. These are particularly useful to understand in the context of a
+larger trace.</p>
 
-<p>TCP maintains one Seq per direction and uses it to identify
+<p>TCP maintains one Sequence number per direction to identify
 segments sent. It's essentially a byte counter that increments based
-on bytes in the payload field of the TCP header with a few exceptions
-stated in
+on bytes in the payload field of the TCP header, with a few exceptions
+as stated in
 the <a href="https://tools.ietf.org/html/rfc793">RFC</a>. That's why
-after a successful connect handshake Seq is always 1.</p>
+after a successful connect handshake Sequence number is always 1.</p>
 
-<p>TCP maintains one Acknowledgment Number per direction to identify
+<p>TCP maintains one Acknowledgement number per direction to identify
 the next segments it expects to receive. Having the other party
 positively acknowledge received segments is what makes TCP
 reliable. If one party doesn't receive an acknowledgment, it'll
-retransmit the segments since the last acknowledgment (in practice a
+retransmit the segments sent since last acknowledgment (in practice a
 few optimizations apply).</p>
 
-<p>TCP maintains one Window Size per direction to indicate the largest
-number of bytes that A may sent to B before B must acknowledge having
+<p>TCP maintains one Window size per direction to indicate the largest
+number of bytes that A may send to B before B must acknowledge having
 received those. B's acknowledgment comes in the form of an ACK that
-includes the next sequence number B's ready to receive. While waiting
-for the ACK, A isn't allowed to send more segments. TCP implements
-flow control, i.e., the ability to control the transfer speed in
-either direction, by dynamically negotiating the value of Win based on
-how full the send/receive buffers are on either end. Otherwise a fast
-sender could swamp a slow receiver, leading to packet loss,
-retransmission, and degraded performance.</p>
+includes the next sequence number which B is ready to receive. While
+waiting for the ACK, A isn't allowed to send more segments. TCP
+implements flow control, i.e., the ability to control the transfer
+speed in either direction, by dynamically negotiating the value of
+Window size based on how full the send/receive buffers are on either
+end. Otherwise a fast sender could swamp a slow receiver, leading to
+packet loss, retransmission, and degraded performance.</p>
 
 <h3>Example of failed TCP ping</h3>
 
-<p>To illustrate what it looks like to connect to a port with no
-service listening, here's another Wireshark trace:</p>
+<p>To illustrate what connecting to a port with no service listening
+looks like, here's another Wireshark trace:</p>
 
 <p>
 <img src="/content/unsuccessful-tcp-handshake.png"/>
@@ -219,22 +223,22 @@ service listening, here's another Wireshark trace:</p>
 
 <p>The initial SYN from A to B is as before, but because A doesn't
 receive an ACK from B, a retransmission timer within A's network stack
-expires, causing A to resend the SYN. Again a retransmission timer
-expires, and A makes a final SYN attempt after which A gives up,
-resulting in .NET throwing a SocketException. Notice how with each
-retry attempt, the network stack increases the retransmission timeout
-period. This explains why it takes so long for the SocketException to
-appear.</p>
+eventually expires, causing A to resend the SYN. Again a
+retransmission timer expires, and A makes a final SYN attempt after
+which A gives up, resulting in .NET throwing a SocketException. Notice
+how with each retry attempt, the network stack increases the
+retransmission timeout period. This explains why it takes so long for
+the SocketException to appear.</p>
 
 <h2>Pinging a Universal Datagram Protocol endpoint</h2>
 
 <p>As indicated by the length of
-the <a href="https://tools.ietf.org/html/rfc768">UDP RFC</a>, it's IP
-with port numbers added. Being a connectionless protocol, we can't
-rely on setup as a proxy for success (although an application layer
-protocol is free to define its own connection orientation on top of
-UDP). All we can do is sent data over the socket and hope for a
-response:</p>
+the <a href="https://tools.ietf.org/html/rfc768">UDP RFC</a>, UDP is
+essentially IP with port numbers added. Being a connectionless
+protocol, we can't rely on connection setup as a proxy for success
+(although an application layer protocol is free to define its own
+connection orientation on top of UDP). All we can do is sent data over
+the socket and hope for a response:</p>
 
 <pre class="prettyprint lang-cs">
 public int /* ActionResult */ UdpPing(string host, int port) {
@@ -252,13 +256,14 @@ public int /* ActionResult */ UdpPing(string host, int port) {
 </pre>
 
 <p>If an endpoint receives our probe, because we may not be sending
-correct application layer protocol data, the process listening may
-ignore us. Without a build-in acknowledgment, UDP can't tell if data
-is lost along the path, if the other end is ignoring us, or if no
-service is listening. In either case the ping fails.</p>
+correct application layer protocol data, the process listening at the
+other end may choose to ignore us. Without build-in acknowledgment,
+UDP can't tell if data is lost along the path, if the other end is
+ignoring us, or if no service is listening. In either case the ping
+fails.</p>
 
-<p>Pinging Google's DNS server, which listens on well-known port 53,
-the Wireshark trace looks as follows:</p>
+<p>Pinging Google's DNS server on well-known port 53, the Wireshark
+trace looks as follows:</p>
 
 <p>
 <img src="/content/unsuccessful-udp-against-port-53.png"/>
@@ -266,12 +271,12 @@ the Wireshark trace looks as follows:</p>
 
 <p>In this case we know the Google DNS service is listening and that
 it's ignoring us. The message displayed about the malformed packet is
-Wireshark interpreting what it assumes is a valid DNS request. And the
+Wireshark interpreting what it assumes is a valid DNS request. But the
 serialized form of "Probe" isn't a valid DNS request.</p>
 
 <p>Switching to port 54, where no process is listening, we see that
 Wireshark no longer attempts to interpret the packet as anything but
-UDP. And still there's no sign of whether the probe arrived at the
+raw UDP. Sill, there's no sign of whether the probe arrived at the
 destination:</p>
 
 <p>
@@ -280,17 +285,18 @@ destination:</p>
 
 <p>Some UDP based application layer protocols may actually respond to
 a malformed request. But generally not being able to distinguish
-between lost, ignored, or no service listening, UDP ping isn't
-particularly useful.</p>
+between lost, ignored, or no service, UDP ping isn't particularly
+useful.</p>
 
 <h2>Scripted ping of many hosts on many ports</h2>
 
-<p>The following PowerShell script automates ping of many hosts on
-many ports and generates a table with the results. It can trigger
-server generated pings from any machine with access to the acme.net
-diagnostics controller. In one real-world example of troubleshooting
-Kerberos with delegation, the list of hosts were domain controllers
-and the list of ports the ones required for Kerberos to operate:</p>
+<p>The following PowerShell script automates calling our ping endpoint
+while pinging many hosts on many ports, and generating a table with
+the results. The script triggers server generated pings from any
+machine with access to the acme.net diagnostics controller. In one
+real-world example of troubleshooting Kerberos with delegation, the
+list of hosts were domain controllers and the list of ports the ones
+required for Kerberos to operate:</p>
 
 <pre class="prettyprint">
 $hosts = (
@@ -322,7 +328,7 @@ foreach ($h in $hosts) {
 </pre>
 
 <p>Running the script, it generates a hosts by ports matrix with each
-element being the connection status:</p>
+element indicating the connection status:</p>
 
 <pre style="background-color: #012456; width: 300px">
 <span style="color: #EEEDF0;">%> .\test.ps1</span>
@@ -333,11 +339,10 @@ element being the connection status:</p>
 <h2>Conclusion</h2>
 
 <p>While implementing TCP and UDP ping is simple, understanding how
-and why it works requires general understanding of the Internet
-protocol stack. Knowing what success and failure looks like from
-Wireshark's point of view is useful in diagnosing a multitude of
-network issue, not explicit related to socket setup. It allows us to
-treat what goes on at the lower network layers as less of a black
-box.</p>
+and why it works requires knowledge of the Internet protocol
+stack. Knowing what success and failure looks like from Wireshark's
+point of view is useful in diagnosing a multitude of network issue,
+not explicit related to socket setup. It allows us to treat what goes
+on at the lower network layers as less of a black box.</p>
 
 </div>
