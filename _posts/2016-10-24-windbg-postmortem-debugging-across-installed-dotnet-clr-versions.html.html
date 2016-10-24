@@ -1,0 +1,249 @@
+---
+layout: post
+title: "WinDbg postmortem debugging across installed .NET CLR versions"
+date: 2016-10-24 12:00 UTC
+---
+
+<div id="post">
+
+<p>This post outlines the steps involved from generating a memory dump
+of a process, running some version of .NET on one machine, to loading
+the dump into WinDbg running on another machine. Inside WinDbg, I want
+the SOS debugger extension to be available so the .NET part of dump
+can be interrogated. Specifically, I want SOS loaded even though the
+WinDbg machine doesn't have a version of the .NET CLR installed
+matching that of the CLR executing in the dumped process.</p>
+
+<h4>Step 1: Generate process dump</h4>
+
+<p>The first step is generating a dump file. Here I generate the dump
+by opening Task manager, right-clicking on w3wp.exe (which I know is
+executing .NET code), and selecting Create dump file. More advanced
+options are avilable as well. For instance, ADPlus, DebugDiag,
+ProcDump can create dumps based on triggers, like the CPU or memory
+utilization exceeding a threshold over a period of time, or when a
+certain type of exception is thrown.</p>
+
+<p>The instance of w3wp.exe selected is running SharePoint 2007 on
+.NET version 2.0.50727, 64 bit. If in doubt about the .NET version,
+one can always check the IIS application pool configuration. As for
+the bitness, Task Manager shows w3wp.exe without the *32 postfix,
+indicating it's a 64 bit process.</p>
+
+<p>Looking inside C:\Windows\Microsoft.NET\Framework64, the different
+x64 versions of .NET installed appear as directories (v2.0.50727,
+v4.0.30319, and so on). What's missing from the folder name is the
+patch version. If I inspect the properties of one of the DLLs in the
+folder, I see the version number, including patch level, is indeed
+2.0.50727.4253.</p>
+
+<h4>Step 2: group dump with matching .NET framework DLLs for transport</h4>
+
+<p>The exact .NET version is important when loading the dump into
+WinDbg on another machine. That machine may have .NET v2.0.50727
+installed, but with different patch level, meaning that the dump file
+cannot be properly loaded. To avoid the issue, I need to extract two
+files from the .NET Framework folder:</p>
+
+<ul>
+<li>mscordacwks.dll: the CLR workstation version of the external data
+access component [1]. The API exposed throgh this DLL allows WinDbg
+access to the CLR data structures. Actually, the component is created
+from the same source as the CLR executing in process, but clearly in a
+post-morten dump the CLR of the debuggee isn't running. Thus, the data
+access component takes over some tasks normally carried out by the CLR
+to gather runtime metadata.</li>
+
+<li>sos.dll: short for Sun of Strike, this library contains WinDbg
+extensions. By utilizing mscordacwks.dll and natively inspecting the
+image, these SOS commands allows us to query CLR internals. Without
+mscordacwks.dll and sos.dll, we'd be facing hex dumps of CLR
+structures as they're layed out in memory by the CLR (typically memory
+representations of C++ classes and structs).</li>
+</ul> 
+
+<p>Because the CLR internals and SOS commands implementation may
+change with each version of .NET, specific versions of these files are
+ship with every .NET version.</p>
+
+<p>Now I can gather w3wp.dump, mscordacwks.dll, and sos.dll and move
+these to the machine running WinDbg. I'll assume the files are copied
+into C:\debug\w3wp-sp-2007.</p>
+
+<h4>Step 3: First attempt at loading w3wp.dmp into WinDbg</h4>
+
+<p>Now open WinDbg (X64) and goto the File menu followed by Open Crash
+Dump... and locate C:\debug\w3wp-sp2007\w3wp.dmp. In response, WinDbg
+prints the following output:</p>
+
+<pre>
+Microsoft (R) Windows Debugger Version 10.0.14321.1024 AMD64
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+
+Loading Dump File [C:\Debug\w3wp-sp2007\w3wp.DMP]
+User Mini Dump File with Full Memory: Only application data is available
+
+Symbol search path is: srv*
+Executable search path is: 
+Windows Server 2008/Windows Vista Version 6002 (Service Pack 2) MP (16 procs) Free x64
+Product: Server, suite: TerminalServer SingleUserTS
+Machine Name:
+Debug session time: Fri Oct 14 15:42:20.000 2016 (UTC + 2:00)
+System Uptime: 128 days 10:41:39.295
+Process Uptime: 0 days 14:21:17.000
+................................................................
+................................................................
+................................................................
+................................................................
+................................................................
+................................................................
+.
+Loading unloaded module list
+................
+ntdll!NtWaitForSingleObject+0xa:
+00000000`775d68da c3              ret
+</pre>
+
+<p>If debugger and debuggee were both running on the same machine, I'd
+issue the following commands (in red) to set the symbol path to the
+public Microsoft symbol server and reload symbols in the symbol path
+which match the dump's content (it appears that recent versions of
+WinDbg does symfix upon startup, rendering these commands
+redundant). Finally, I load SOS extensions based on mscorwks (the CLR,
+workstation edition -- on more recent versions of the CLR, it's
+".loadby sos clr"):</p>
+
+<pre>
+0:000> .symfix
+0:000> .reload
+................................................................
+................................................................
+................................................................
+................................................................
+................................................................
+................................................................
+.
+Loading unloaded module list
+................
+0:000> .loadby sos mscorwks
+</pre>
+
+<p>Even though I wasn't presented with an error message, issuing the
+!CLRStack command SOS (and other SOS commands), yields the following
+error message:</p>
+
+<pre>
+0:000> !CLRStack
+Failed to load data access DLL, 0x80004005
+Verify that 1) you have a recent build of the debugger (6.2.14 or newer)
+            2) the file mscordacwks.dll that matches your version of mscorwks.dll is 
+                in the version directory
+            3) or, if you are debugging a dump file, verify that the file 
+                mscordacwks_<arch>_<arch>_<version>.dll is on your symbol path.
+            4) you are debugging on the same architecture as the dump file.
+                For example, an IA64 dump file must be debugged on an IA64
+                machine.
+
+You can also run the debugger command .cordll to control the debugger's
+load of mscordacwks.dll.  .cordll -ve -u -l will do a verbose reload.
+If that succeeds, the SOS command should work on retry.
+
+If you are debugging a minidump, you need to make sure that your executable
+path is pointing to mscorwks.dll as well.
+</pre>
+
+<p>Let's address the verification steps one by one:</p>
+
+<ol>
+<li>Not an issue as I'm running WinDbg 10.0.14321.1024.</li>
+<li>Means that WinDbg looked in the corresponding
+C:\Windows\Microsoft.NET\Framework64\v2.0.50727 folder and didn't find
+a version of mscordacwks.dll matching the CLR version running inside
+the dump. Remember that the dump file contains executed under
+v2.0.50727.4253, but looking inside the corresponding.NET folder on
+the debugger machine, the version is v2.0.50727.8009.</li>
+<li>Tells how to fix the issue, namely by renaming
+C:\Debug\w3wp-sp2007\mscordacwks.dll to
+mscordacwks_AMD64_AMD64_2.0.50727.4253.dll and including
+C:\Debug\w3wp-sp2007 in the symbol path (which I'll do in a
+moment).</li>
+<li>Not an issue because both the debugger and debuggee machines run
+on the AMD64 processor architecture. If uncertain about the
+architecture, have a look at the PROCESSOR_ARCHITECTURE environment
+variable, which on both machine are set to AMD64.</li>
+</ol>
+
+<p>So how do I add C:\Debug\w3wp-sp2007 to the symbol path? The
+.sympath command can be used to both show the current symbol path as
+well as modify it. To append a symbol path to the existing symbol
+path, issue the following command:</p>
+
+<pre>
+0:000> .sympath+ C:\Debug\w3wp-sp2007
+Symbol search path is: srv*;C:\Debug\w3wp-sp2007
+Expanded Symbol search path is: cache*;SRV*https://msdl.microsoft.com/download/symbols;c:\debug\w3wp-sp2007
+
+************* Symbol Path validation summary **************
+Response                         Time (ms)     Location
+Deferred                                       srv*
+OK                                             C:\Debug\w3wp-sp2007
+</pre>
+
+<p>Next, run .cordll [2] as shown with the debugger tips above.</p>
+
+<pre>
+0:000> .cordll -ve -u -l
+CLRDLL: C:\Windows\Microsoft.NET\Framework64\v2.0.50727\mscordacwks.dll:2.0.50727.8009 f:0
+doesn't match desired version 2.0.50727.4253 f:0
+CLRDLL: Unable to find '' on the path
+Cannot Automatically load SOS
+CLRDLL: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.50727.4253.dll
+CLR DLL status: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.50727.4253.dll
+</pre>
+
+<p>From the output, it's clear that now the correct version of
+mscordacwks.dll is loaded. However, SOS wasn't loaded.</p>
+
+<p>What the .cordll command does is search a number of locations,
+including the public Microsoft symbol server for the two
+DLLs. Unfortunately, for this old version of the CLR the DLLs aren't
+on the symbol server. We can make WinDbg print the paths searched by
+.cordll by first running "!sym noisy/!sym quiet" (works not only with
+the .cordll commands). This'll show lots of failed attempts at
+locating mscordacwks_AMD64_AMD64_2.0.50727.4253.dll before WinDbg
+starts looking for SOS_AMD64_AMD64_2.0.50727.4253.dll in the same
+locations but without success. While I don't see any probe for
+C:\Debug\w3wp-sp2007, the output hints that we should change the name
+of SOS.dll to SOS_AMD64_AMD64_2.0.50727.4253.dll and rerun the
+previous command.</p>
+
+<pre>
+0:000> .cordll -ve -u -l
+CLRDLL: C:\Windows\Microsoft.NET\Framework64\v2.0.50727\mscordacwks.dll:2.0.50727.8009 f:0
+doesn't match desired version 2.0.50727.4253 f:0
+Automatically loaded SOS Extension
+CLRDLL: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.50727.4253.dll
+CLR DLL status: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.50727.4253.dll
+</pre>
+
+<h4>Conclusion</h4>
+
+<p>At this point I've succesfully loaded both DLLs and the SOS
+commands are at my disposal, even though the machine running WinDbg
+has a different version of .NET installed compared to where I gathered
+the dump.</p>
+
+<!--
+
+Link to earlier blog post
+
+https://github.com/Microsoft/clrmd
+[1] https://github.com/dotnet/coreclr/blob/master/Documentation/botr/dac-notes.md
+
+[2] https://msdn.microsoft.com/en-us/library/windows/hardware/ff562263
+
+Link to book
+-->
+
+</div>
