@@ -116,12 +116,11 @@ ntdll!NtWaitForSingleObject+0xa:
 </pre>
 
 <p>If both debugger and debuggee were running on the same machine,
-we'd issue the following commands (in green) to set the symbol path to
+we'd start by issuing the following commands to set the symbol path to
 the public Microsoft symbol server and reload symbols for modules in
-the dump (it appears that recent versions of WinDbg does .symfix upon
-startup, making these commands redundant). Finally, we'd load SOS
-extensions based on the version of mscorwks inside the dump (on more
-recent versions of the CLR, it's <code>.loadby sos clr</code>):</p>
+the dump. Then we'd load SOS extensions based on the version of
+mscorwks inside the dump (on more recent versions of the CLR,
+it's <code>.loadby sos clr</code>):</p>
 
 <pre>
 0:000> <strong style="color: green;">.symfix</strong>
@@ -137,6 +136,10 @@ Loading unloaded module list
 ................
 0:000> <strong style="color: green;">.loadby sos mscorwks</strong>
 </pre>
+
+<p>It appears that recent versions of WinDbg does <code>.symfix</code>
+on startup, rendering <code>.symfix</code> and <code>.reload</code>
+redundant.</p>
 
 <h4>Step 4: First attempt at loading w3wp.dmp into WinDbg</h4>
 
