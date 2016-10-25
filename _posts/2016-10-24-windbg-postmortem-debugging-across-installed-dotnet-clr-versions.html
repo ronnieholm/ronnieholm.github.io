@@ -16,9 +16,9 @@ of the .NET CLR installed.</p>
 
 <h4>Step 1: Generate process dump</h4>
 
-<p>To generate an examplar dump, navigate to Task manager, right click
+<p>To generate an exemplar dump, navigate to Task manager, right click
 on w3wp.exe, which I know to be running .NET code, and select Create
-dump file. More advanced options for generating dumps are avilable as
+dump file. More advanced options for generating dumps are available as
 well. For
 instance, <a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff537953">ADPlus</a>,
 <a href="https://www.microsoft.com/en-us/download/details.aspx?id=49924">DebugDiag</a>,
@@ -57,16 +57,16 @@ Access Component</a> for workstations exposes an API through which
 WinDbg has access to internal CLR data structures (COR was one of the
 early names for .NET). The component is actually created from the same
 source as the CLR executing in-process (mscoree.dll, MS COR Execution
-Engine). In a postmorten dump, the CLR of the debuggee isn't running,
+Engine). In a postmortem dump, the CLR of the debuggee isn't running,
 yet we require access to some of its runtime capabilities to traverse
-its data structures. During postmorten debugging mscordacwks.dll acts
+its data structures. During postmortem debugging mscordacwks.dll acts
 as stand-in for the actual CLR.</li>
 
 <li>sos.dll: short
 for <a href="http://stackoverflow.com/questions/3572990/whats-the-story-behind-the-name-of-the-sos-son-of-strike-debugger-extension">Sun
 of Strike</a>, this library contains WinDbg extension commands. By
 utilizing mscordacwks.dll and natively inspecting the dump, these SOS
-commands query CLR internals and exposes those in a digestible
+commands query CLR internals and expose internals in a digestible
 format. Without mscordacwks.dll and sos.dll, we'd be looking at CLR
 structures as they're layed out in memory.</li>
 </ul> 
@@ -240,7 +240,7 @@ CLR DLL status: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.5072
 
 <h4>Conclusion</h4>
 
-<p>At this point we've succesfully loaded both DLLs and SOS commands
+<p>At this point we've successfully loaded both DLLs and SOS commands
 are now available, even though the machine running WinDbg doesn't have
 the CLR versions installed that the debuggee does.</p>
 
