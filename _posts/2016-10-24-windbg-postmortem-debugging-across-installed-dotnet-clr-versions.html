@@ -229,7 +229,7 @@ of mscordacwks.dll is loaded. However, SOS wasn't loaded.</p>
 
 <p>What <code>.cordll</code> does is search a number of locations,
 including the public Microsoft symbol server for the two DLLs (we can
-make WinDbg print the paths searched by by running <code>!sym
+make WinDbg print the paths searched by running <code>!sym
 noisy</code>/<code>!sym quiet</code>). Unfortunately, for this old
 version of the CLR the DLLs aren't present on the symbol
 server. Therefore, lots of failed attempts at locating
@@ -238,7 +238,7 @@ and WinDbg shifts to looking for SOS_AMD64_AMD64_2.0.50727.4253.dll
 but is unsuccessful. While we don't see a probe inside
 C:\Debug\w3wp-sp2007, the output hints that we should change the name
 of sos.dll to sos_AMD64_AMD64_2.0.50727.4253.dll and rerun
-.cordll.</p>
+<code>.cordll</code>.</p>
 
 <pre>
 0:000> <strong style="color: green;">.cordll -ve -u -l</strong>
