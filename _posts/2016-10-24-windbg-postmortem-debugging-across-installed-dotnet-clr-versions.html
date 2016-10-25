@@ -163,6 +163,11 @@ If you are debugging a minidump, you need to make sure that your executable
 path is pointing to mscorwks.dll as well.
 </pre>
 
+<p>(As a sidenote, notice the above HRESULT: 0x80004005. WinDbg has a
+command for converting this error number into text: "!error 80004005"
+yields "Error code: (HRESULT) 0x80004005 (2147500037) - Unspecified
+error".)</p>
+
 <p>Let's address the verification steps one by one:</p>
 
 <ol>
@@ -241,7 +246,18 @@ CLR DLL status: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.5072
 <h4>Conclusion</h4>
 
 <p>At this point we've successfully loaded both DLLs and SOS commands
-are now available, even though the machine running WinDbg doesn't have
-the CLR versions installed that the debuggee does.</p>
+are now available, even though the WinDbg machine doesn't have the
+version of the CLR installed being debugged.</p>
+
+<p>For a deep dive into WinDbg, the
+<a href="https://www.amazon.com/Advanced-NET-Debugging-Mario-Hewardt/dp/0321578899/ref=sr_1_1?ie=UTF8&qid=1477424398&sr=8-1&keywords=Advanced+.NET+debugging">Advanced
+.NET Debugging</a> is an excellent book covering some native WinDbg
+commands, but mostly focuses on SOS. By the same
+author <a href="https://www.amazon.com/Advanced-Windows-Debugging-Mario-Hewardt/dp/0321374460/ref=sr_1_1?ie=UTF8&qid=1477424479&sr=8-1&keywords=Advanced+Windows+debugging">Advanced
+Windows Debugging</a> covers the same topics from a native's code
+point of
+view. Lastly, <a href="https://www.youtube.com/watch?v=8zBpqc3HkSE&list=PLhx7-txsG6t6n_E2LgDGqgvJtCHPL7UFu">Introduction
+to WinDbg</a> is a nice series of screencasts introducing native
+WinDbg commands.</p>
 
 </div>
