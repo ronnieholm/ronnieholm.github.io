@@ -64,7 +64,7 @@ its data structures. During postmortem debugging mscordacwks.dll acts
 as stand-in for the actual CLR.</li>
 
 <li>sos.dll: short
-for <a href="http://stackoverflow.com/questions/3572990/whats-the-story-behind-the-name-of-the-sos-son-of-strike-debugger-extension">Sun
+for <a href="http://stackoverflow.com/questions/3572990/whats-the-story-behind-the-name-of-the-sos-son-of-strike-debugger-extension">Son
 of Strike</a>, this library contains WinDbg extension commands. By
 utilizing mscordacwks.dll and natively inspecting the dump, these SOS
 commands query CLR internals and expose internals in a digestible
@@ -227,9 +227,9 @@ CLR DLL status: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.5072
 <p>Running the above command, it's clear that now the correct version
 of mscordacwks.dll is loaded. However, SOS wasn't loaded.</p>
 
-<p>What .cordll does is search a number of locations, including the
-public Microsoft symbol server for the two DLLs (we can make WinDbg
-print the paths searched by by running <code>!sym
+<p>What <code>.cordll</code> does is search a number of locations,
+including the public Microsoft symbol server for the two DLLs (we can
+make WinDbg print the paths searched by by running <code>!sym
 noisy</code>/<code>!sym quiet</code>). Unfortunately, for this old
 version of the CLR the DLLs aren't present on the symbol
 server. Therefore, lots of failed attempts at locating
