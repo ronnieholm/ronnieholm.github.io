@@ -120,11 +120,11 @@ the public Microsoft symbol server and reload symbols for modules in
 the dump (it appears that recent versions of WinDbg does .symfix upon
 startup, making these commands redundant). Finally, we'd load SOS
 extensions based on the version of mscorwks inside the dump (on more
-recent versions of the CLR, it's ".loadby sos clr"):</p>
+recent versions of the CLR, it's <code>.loadby sos clr</code>):</p>
 
 <pre>
-0:000> .symfix
-0:000> .reload
+0:000> <strong style="color: green;">.symfix</strong>
+0:000> <strong style="color: green;">.reload</strong>
 ................................................................
 ................................................................
 ................................................................
@@ -134,17 +134,17 @@ recent versions of the CLR, it's ".loadby sos clr"):</p>
 .
 Loading unloaded module list
 ................
-0:000> .loadby sos mscorwks
+0:000> <strong style="color: green;">.loadby sos mscorwks</strong>
 </pre>
 
 <h4>Step 4: First attempt at loading w3wp.dmp into WinDbg</h4>
 
 <p>Even though we aren't presented with an error message, issuing the
-!CLRStack command from SOS (and other SOS commands), will yield the
-following error message:</p>
+<code>!CLRStack</code> command from SOS (and other SOS commands), will
+yield the following error message:</p>
 
 <pre>
-0:000> !CLRStack
+0:000> <strong style="color: green;">!CLRStack</strong>
 Failed to load data access DLL, 0x80004005
 Verify that 1) you have a recent build of the debugger (6.2.14 or newer)
             2) the file mscordacwks.dll that matches your version of mscorwks.dll is 
@@ -155,18 +155,19 @@ Verify that 1) you have a recent build of the debugger (6.2.14 or newer)
                 For example, an IA64 dump file must be debugged on an IA64
                 machine.
 
-You can also run the debugger command .cordll to control the debugger's
-load of mscordacwks.dll.  .cordll -ve -u -l will do a verbose reload.
-If that succeeds, the SOS command should work on retry.
+You can also run the debugger command .cordll to control the
+debugger's load of mscordacwks.dll. .cordll -ve -u -l will do a
+verbose reload.  If that succeeds, the SOS command should work on
+retry.
 
 If you are debugging a minidump, you need to make sure that your executable
 path is pointing to mscorwks.dll as well.
 </pre>
 
 <p>(As a sidenote, notice the above HRESULT: 0x80004005. WinDbg has a
-command for converting this error number into text: "!error 80004005"
-yields "Error code: (HRESULT) 0x80004005 (2147500037) - Unspecified
-error".)</p>
+command for converting this error number into text: <code>!error
+80004005</code> yields <code>Error code: (HRESULT) 0x80004005
+(2147500037) - Unspecified error.</code>)</p>
 
 <p>Let's address the verification steps one by one:</p>
 
@@ -189,12 +190,12 @@ architecture, have a look at the PROCESSOR_ARCHITECTURE environment
 variable, which on both machine are set to AMD64.</li>
 </ol>
 
-<p>The .sympath command can be used to both show the current symbol
-path as well as modify it. To append a symbol path to the existing
-path, issue the following command:</p>
+<p>The <code>.sympath</code> command can be used to both show the
+current symbol path as well as modify it. To append a symbol path to
+the existing path, issue the following command:</p>
 
 <pre>
-0:000> .sympath+ C:\Debug\w3wp-sp2007
+0:000> <strong style="color: green;">.sympath+ C:\Debug\w3wp-sp2007</strong>
 Symbol search path is: srv*;C:\Debug\w3wp-sp2007
 Expanded Symbol search path is: cache*;SRV*https://msdl.microsoft.com/download/symbols;c:\debug\w3wp-sp2007
 
@@ -205,12 +206,12 @@ OK                                             C:\Debug\w3wp-sp2007
 </pre>
 
 <p>Next, use
-the <a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff562263">.cordll</a>
+the <a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff562263"><code>.cordll</code></a>
 command as indicated by WinDbg out below the verification steps
 above.</p>
 
 <pre>
-0:000> .cordll -ve -u -l
+0:000> <strong style="color: green;">.cordll -ve -u -l</strong>
 CLRDLL: C:\Windows\Microsoft.NET\Framework64\v2.0.50727\mscordacwks.dll:2.0.50727.8009 f:0
 doesn't match desired version 2.0.50727.4253 f:0
 CLRDLL: Unable to find '' on the path
@@ -224,18 +225,19 @@ of mscordacwks.dll is loaded. However, SOS wasn't loaded.</p>
 
 <p>What .cordll does is search a number of locations, including the
 public Microsoft symbol server for the two DLLs (we can make WinDbg
-print the paths searched by by running "!sym noisy/!sym
-quiet"). Unfortunately, for this old version of the CLR the DLLs
-aren't present on the symbol server. Therefore, lots of failed
-attempts at locating mscordacwks_AMD64_AMD64_2.0.50727.4253.dll
-appears before it's found and WinDbg shifts to looking for
-SOS_AMD64_AMD64_2.0.50727.4253.dll but is unsuccessful. While we don't
-see a probe inside C:\Debug\w3wp-sp2007, the output hints that we
-should change the name of sos.dll to
-sos_AMD64_AMD64_2.0.50727.4253.dll and rerun .cordll.</p>
+print the paths searched by by running <code>!sym
+noisy</code>/<code>!sym quiet</code>). Unfortunately, for this old
+version of the CLR the DLLs aren't present on the symbol
+server. Therefore, lots of failed attempts at locating
+mscordacwks_AMD64_AMD64_2.0.50727.4253.dll appears before it's found
+and WinDbg shifts to looking for SOS_AMD64_AMD64_2.0.50727.4253.dll
+but is unsuccessful. While we don't see a probe inside
+C:\Debug\w3wp-sp2007, the output hints that we should change the name
+of sos.dll to sos_AMD64_AMD64_2.0.50727.4253.dll and rerun
+.cordll.</p>
 
 <pre>
-0:000> .cordll -ve -u -l
+0:000> <strong style="color: green;">.cordll -ve -u -l</strong>
 CLRDLL: C:\Windows\Microsoft.NET\Framework64\v2.0.50727\mscordacwks.dll:2.0.50727.8009 f:0
 doesn't match desired version 2.0.50727.4253 f:0
 Automatically loaded SOS Extension
