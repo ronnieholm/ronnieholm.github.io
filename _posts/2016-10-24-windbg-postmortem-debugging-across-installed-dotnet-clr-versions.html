@@ -26,7 +26,7 @@ are all able to create dumps based on triggers like CPU or memory
 utilization exceeding a threshold over a period of time, or when a
 certain type of exception is thrown.</p>
 
-<p>In preparation to copying the dump to the Windbg machine, we must
+<p>In preparation to copying the dump to the WinDbg machine, we must
 determine the CLR version running inside the w3wp.exe and its
 bitness. If in doubt about the CLR version, we can always check IIS
 application pool settings. In this case it shows .NET version
@@ -38,14 +38,14 @@ Explorer</a> and looked for DLLs loaded into the process coming from
 the C:\Windows\Microsoft.NET folder.</p>
 
 <p>Inside C:\Windows\Microsoft.NET\Framework64, each x64 version of
-.NET appear as a subdirectory (v2.0.50727, v4.0.30319, and so
+.NET appears as a subdirectory (v2.0.50727, v4.0.30319, and so
 on). What's missing from the folder name is the patch version. But
 looking into the properties of one of the DLLs in the v2.0.50727
 folder, we see it's actually version 2.0.50727.4253.</p>
 
 <p>Armed with a memory dump and knowledge about version and bitness of
 the CLR running managed code inside the dumped process, we're ready to
-copy the dump and auxilliary files to the WinDbg machine.</p>
+copy the dump and auxiliary files to the WinDbg machine.</p>
 
 <h4>Step 2: Copy dump and .NET CLR DLLs to other machine</h4>
 
