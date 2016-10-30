@@ -9,9 +9,11 @@ date: 2016-10-24 12:00 UTC
 <p>This post outlines the steps involved from generating a memory dump
 of a process, running some version of the CLR on one machine, to
 loading the dump into WinDbg running on another machine. Inside
-WinDbg, we want the SOS debugger extension loaded to interrogate the
-dump. Specifically, SOS should load even if the WinDbg machine doesn't
-have the CLR version of the dumped process machine installed.</p>
+WinDbg, we want
+the <a href="https://msdn.microsoft.com/en-us/library/bb190764">SOS
+debugger extension</a> loaded to interrogate the dump. Specifically,
+SOS should load even if the WinDbg machine doesn't have the CLR
+version of the dumped process machine installed.</p>
 
 <h4>Step 1: Generate process dump</h4>
 
@@ -58,7 +60,7 @@ two files from the .NET Framework folder, in addition to the dump
 file, to the WinDbg machine:</p>
 
 <ul>
-<li>mscordacwks.dll: the Microsoft Common Object
+<li><b>mscordacwks.dll</b>: the Microsoft Common Object
 Runtime <a href="https://github.com/dotnet/coreclr/blob/master/Documentation/botr/dac-notes.md">Data
 Access Component</a> for workstations (COR was one of the early names
 for the CLR) exposes APIs through which WinDbg can access memory, and
@@ -70,7 +72,7 @@ querying CLR data structures implies not just reading data, but
 executing code to traverse and interpret the data. The data access
 component serves this purpose, but runs out of the process.</li>
 
-<li>sos.dll: short
+<li><b>sos.dll</b>: short
 for <a href="http://stackoverflow.com/questions/3572990/whats-the-story-behind-the-name-of-the-sos-son-of-strike-debugger-extension">Son
 of Strike</a>, this library contains WinDbg .NET extension
 commands. By utilizing mscordacwks.dll and natively inspecting the
@@ -179,10 +181,10 @@ If you are debugging a minidump, you need to make sure that your executable
 path is pointing to mscorwks.dll as well.
 </pre>
 
-<p>As another aside, notice the HRESULT: 0x80004005 above. WinDbg has
-a command for converting HRESULT error number into text: <code>!error
+<p>As an aside, notice the HRESULT: 0x80004005 above. WinDbg has a
+command for converting HRESULT error number into text: <code>!error
 80004005</code> results in <code>Error code: (HRESULT) 0x80004005
-(2147500037) - Unspecified error.</code>)</p>
+(2147500037) - Unspecified error</code>.</p>
 
 <p>Let's address the suggested verification steps one by one:</p>
 
@@ -245,7 +247,7 @@ mscordacwks_AMD64_AMD64_2.0.50727.4253.dll before it's found. Then
 WinDbg starts looking for sos_AMD64_AMD64_2.0.50727.4253.dll but
 cannot locate it. The output indicates that we should rename sos.dll
 to sos_AMD64_AMD64_2.0.50727.4253.dll and rerun
-<code>.cordll</code>.</p>
+<code>.cordll -ve -u -l</code>.</p>
 
 <pre>
 0:000> <strong style="color: green;">.cordll -ve -u -l</strong>
