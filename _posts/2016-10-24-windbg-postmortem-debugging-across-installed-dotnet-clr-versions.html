@@ -126,8 +126,13 @@ ntdll!NtWaitForSingleObject+0xa:
 machine, we'd issue the following commands to set the symbol path to
 the public Microsoft symbol server and reload symbols for modules
 loaded into w3wp. Next we'd be able to load the SOS extensions based
-on the version of mscorwks loaded into w3wp (on more recent versions
-of the CLR, this command is <code>.loadby sos clr</code>):</p>
+on the version of mscorwks loaded into w3wp, and with sos.dll loaded
+from whichever folder folder mscorwks.dll resides
+in. <code>.loadby</code> is actually a shortcut for <code>.load</code>
+which takes a path to a DLL to load. But since .NET DLLs tend to have
+a long path, the shortcut resolves it based on the folder location of
+mscorwks (on CLR 4.0 and above, the command is <code>.loadby sos
+clr</code>.):</p>
 
 <pre>
 0:000> <strong style="color: green;">.symfix</strong>
@@ -283,3 +288,11 @@ Applications</a> presentation shows how WinDbg fits in with other
 debugger tools. </p>
 
 </div>
+
+<!-- 
+  Excellent intros to assembly, linking, malware, et al
+  https://www.youtube.com/user/OpenSecurityTraining
+
+  - Color code important part of output as well as in 
+    https://blogs.msdn.microsoft.com/abhinaba/2014/09/29/net-just-in-time-compilation-and-warming-up-your-system/https://blogs.msdn.microsoft.com/abhinaba/2014/09/29/net-just-in-time-compilation-and-warming-up-your-system/
+-->
