@@ -12,80 +12,84 @@ loading the dump into WinDbg running on another machine. Inside
 WinDbg, we want
 the <a href="https://msdn.microsoft.com/en-us/library/bb190764">SOS
 debugger extension</a> loaded to interrogate the dump. Specifically,
-SOS should load even if the WinDbg machine doesn't have the CLR
-version of the dumped process machine installed.</p>
+SOS should load even if the WinDbg machine doesn't have the version of
+the CLR installed that the machine running the dumped process machine
+has.</p>
 
 <h4>Step 1: Generate process dump</h4>
 
-<p>To generate an exemplar dump, navigate to Task manager, right click
-on w3wp.exe which we know is running .NET code, and select Create dump
-file. In more advanced
-cases, <a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff537953">ADPlus</a>,
+<p>To generate an exemplar dump, navigate to Windows Task Manager,
+right click on w3wp.exe which we know is running .NET code, and select
+Create dump file. For the cases where we want to generate dumps based
+on triggers like CPU or memory utilization exceeding some threshold,
+or when a process throws a certain type of
+exception, <a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff537953">ADPlus</a>,
 <a href="https://www.microsoft.com/en-us/download/details.aspx?id=49924">DebugDiag</a>,
 and
 <a href="https://technet.microsoft.com/en-us/sysinternals/dd996900.aspx">ProcDump</a>
-are all able to create dumps based on triggers like CPU or memory
-utilization exceeding a threshold over a period of time, or when a
-certain type of exception is thrown.</p>
+are better candidates.</p>
 
-<p>In preparation to copying the dump to the WinDbg machine, we must
-determine the CLR version running inside the w3wp.exe and its
-bitness. If in doubt about the CLR version, we can always check IIS
-application pool settings. In this case it shows .NET version
-2.0.50727. As for the bitness, Task Manager shows w3wp.exe without an
-*32 suffix, indicating a 64 bit process. As an alternative, we
+<p>In preparation for the copying of the dump to the WinDbg machine,
+we must determine the CLR version running inside the w3wp process as
+well as its bitness. If in doubt about the CLR version, we can always
+check IIS application pool settings. In this case it shows .NET
+version 2.0.50727. As for the bitness, Task Manager shows w3wp without
+the *32 suffix, indicating a 64 bit process. As an alternative, we
 could've used
 Sysinternals <a href="https://technet.microsoft.com/en-us/sysinternals/processexplorer.aspx">Process
 Explorer</a> and looked for DLLs loaded into the process coming from
-the C:\Windows\Microsoft.NET folder.</p>
+one of the C:\Windows\Microsoft.NET subfolders.</p>
 
 <p>Inside C:\Windows\Microsoft.NET\Framework64, each x64 version of
-.NET appears as a subdirectory (v2.0.50727, v4.0.30319, and so
-on). What's missing from the folder name is the patch version. But
-looking into the properties of one of the DLLs in the v2.0.50727
-folder, we see it's actually version 2.0.50727.4253.</p>
+.NET appears as a subfolder (v2.0.50727, v4.0.30319, and so
+on). What's missing from the folder name versioning scheme is the
+patch version. Looking at the properties of one of the DLLs in the
+v2.0.50727 folder, we see the exact version of the CLR running inside
+the w3wp process is actually 2.0.50727.4253.</p>
 
-<p>Armed with a memory dump and knowledge about version and bitness of
-the CLR running managed code inside the dumped process, we're ready to
-copy the dump and auxiliary files to the WinDbg machine.</p>
+<p>Armed with the memory dump and knowledge about version and bitness
+of the CLR running managed code inside the dumped process, we're ready
+to copy the dump and auxiliary files to the WinDbg machine.</p>
 
 <h4>Step 2: Copy dump and .NET CLR DLLs to other machine</h4>
 
 <p>For WinDbg to load and inspect the dump, auxiliary files from the
-CLR running inside w3wp must be available on the WinDbg machine. In
-principle, these files may already exist on the WinDbg machine, but
-only if the exact same CLR version, including patch version and
-bitness, is installed. Instead of assuming this to hold true, we copy
-two files from the .NET Framework folder, in addition to the dump
-file, to the WinDbg machine:</p>
+CLR running inside w3wp must be available on the WinDbg machine. These
+files, matching patch version and bitness determined above, may
+already exist on the WinDbg machine. But rather than relying on it, we
+copy the required two files from the .NET Framework folder from the
+w3wp machine, in addition to the dump file, to the WinDbg machine:</p>
 
 <ul>
-<li><b>mscordacwks.dll</b>: the Microsoft Common Object
+<li><p><b>mscordacwks.dll</b>: the Microsoft Common Object
 Runtime <a href="https://github.com/dotnet/coreclr/blob/master/Documentation/botr/dac-notes.md">Data
-Access Component</a> for workstations (COR was one of the early names
-for the CLR) exposes APIs through which WinDbg can access memory, and
-hence CLR data structures, of the w3wp process at dump time. The
-component is actually created from the same source code as the CLR
-executing in-process, and during postmortem debugging is a stand-in
-for the CLR frozen in time inside the dump. In a running process,
-querying CLR data structures implies not just reading data, but
-executing code to traverse and interpret the data. The data access
-component serves this purpose, but runs out of the process.</li>
+Access Component</a> for workstations (COR was an early name for the
+CLR) exposes APIs through which WinDbg can access memory, and thereby
+CLR data structures, of the captured w3wp process. The component is
+actually compiled from the same source code as the CLR executing
+in-process, and during postmortem debugging acts as a stand-in for the
+CLR frozen in time inside the dump. Inside a running process, querying
+CLR data structures implies not only reading memory, but executing
+native code to traverse and interpret it. This data access component
+serves the same purpose, but running outside the debugged
+process.</p></li>
 
-<li><b>sos.dll</b>: short
+<li><p><b>sos.dll</b>: short
 for <a href="http://stackoverflow.com/questions/3572990/whats-the-story-behind-the-name-of-the-sos-son-of-strike-debugger-extension">Son
 of Strike</a>, this library contains WinDbg .NET extension
-commands. By utilizing mscordacwks.dll and natively inspecting the
-dump, these SOS commands query CLR internals and expose those in a
-digestible format. Without mscordacwks.dll and sos.dll, we'd be
-looking at CLR data structures as they're layed out in memory.</li>
+commands. By utilizing mscordacwks.dll (and by natively inspecting the
+dump), these SOS commands query and interpret CLR data structures and
+surface those in a digestible format. Without mscordacwks.dll and
+sos.dll, we'd be looking at CLR data structures as they're layed out
+in memory.</p></li>
 </ul> 
 
-<p>Because the CLR, and therefore the implementation of the SOS
-commands, can potentially change with each version of .NET, specific
-versions of these files ship with each .NET version. Thus, collect
-w3wp.dmp, mscordacwks.dll, and sos.dll and copy those to the
-C:\debug\w3wp-sp2007 folder on the WinDbg machine.</p>
+<p>Because CLR internals, and therefore the implementation of the SOS
+commands, can change with each version, specific versions of
+mscordacwks.dll and sos.dll ship with each .NET version. Thus, collect
+mscordacwks.dll and sos.dll from the .NET framework folder and
+together with w3wp.dmp copy these files to the C:\debug\w3wp-sp2007
+folder on the WinDbg machine.</p>
 
 <h4>Step 3: First attempt at loading w3wp.dmp into WinDbg</h4>
 
@@ -122,17 +126,16 @@ ntdll!NtWaitForSingleObject+0xa:
 00000000`775d68da c3              ret
 </pre>
 
-<p>If both WinDbg and the w3wp process were running on the same
-machine, we'd issue the following commands to set the symbol path to
-the public Microsoft symbol server and reload symbols for modules
-loaded into w3wp. Next we'd be able to load the SOS extensions based
-on the version of mscorwks loaded into w3wp, and with sos.dll loaded
-from whichever folder folder mscorwks.dll resides
-in. <code>.loadby</code> is actually a shortcut for <code>.load</code>
-which takes a path to a DLL to load. But since .NET DLLs tend to have
-a long path, the shortcut resolves it based on the folder location of
-mscorwks (on CLR 4.0 and above, the command is <code>.loadby sos
-clr</code>.):</p>
+<p>Next we issue commands to set the symbol path to the public
+Microsoft symbol server and reload symbols for modules loaded into
+w3wp. Then, based on the folder location (the version) of mscorwks.dll
+loaded into w3wp, we load SOS from the same
+path. The <code>.loadby</code> command is actually a shortcut for the
+general <code>.load</code> command, accepting a path of a DLL to
+load. <code>.loadby</code> got introduced because .NET DLLs tend to
+have a lengthy path, and so the shortcut resolves the path based on
+the location of the loaded mscorwks.dll (on CLR 4.0 and above, the
+command changed to <code>.loadby sos clr</code>.):</p>
 
 <pre>
 0:000> <strong style="color: green;">.symfix</strong>
@@ -149,21 +152,20 @@ Loading unloaded module list
 0:000> <strong style="color: green;">.loadby sos mscorwks</strong>
 </pre>
 
-<p>Judging from the output (the lack of any error message), it appears
-that SOS loaded correctly. But that isn't the case as we'll see in a
-moment.</p>
+<p>As an aside, recent versions of WinDbg run <code>.symfix</code> on
+startup, rendering the <code>.symfix</code> and <code>.reload</code>
+commands from above redundant.</p>
 
-<p>As an aside, recent versions of WinDbg appear to
-run <code>.symfix</code> on startup, rendering <code>.symfix</code>
-and <code>.reload</code> redundant.</p>
+<p>Judging from the absence of any error message, it seems that SOS
+got loaded. But that isn't the case as we'll see in a moment.</p>
 
 <p></p>
 
 <h4>Step 4: Second attempt at loading w3wp.dmp into WinDbg</h4>
 
-<p>Even though we weren't presented with an error message, issuing the
-<code>!CLRStack</code> command part of SOS (and other SOS commands for
-that matter), yields the following error message:</p>
+<p>Even though we see no error messages, issuing the
+<code>!CLRStack</code> command, which is part of SOS (and other SOS
+commands for that matter), yields the following error message:</p>
 
 <pre>
 0:000> <strong style="color: green;">!CLRStack</strong>
@@ -186,10 +188,11 @@ If you are debugging a minidump, you need to make sure that your executable
 path is pointing to mscorwks.dll as well.
 </pre>
 
-<p>As an aside, notice the HRESULT: 0x80004005 above. WinDbg has a
-command for converting HRESULT error number into text: <code>!error
-80004005</code> results in <code>Error code: (HRESULT) 0x80004005
-(2147500037) - Unspecified error</code>.</p>
+<p>As an aside, notice the HRESULT: 0x80004005 above. WinDbg comes
+with a command for converting HRESULT error number into
+text: <code>!error 80004005</code> resolves the HRESULT to <code>Error
+code: (HRESULT) 0x80004005 (2147500037) - Unspecified
+error</code>.</p>
 
 <p>Let's address the suggested verification steps one by one:</p>
 
@@ -197,22 +200,21 @@ command for converting HRESULT error number into text: <code>!error
 <li>Isn't relevant as we're running WinDbg 10.0.14321.1024.</li>
 <li>WinDbg looked in C:\Windows\Microsoft.NET\Framework64\v2.0.50727,
 but didn't find a version of mscordacwks.dll matching the CLR version
-inside the dump. The w3wp process was executing under v2.0.50727.4253,
-but the CLR version inside the v2.0.50727 folder on the WinDbg machine
-is v2.0.50727.8009.</li>
+inside the dump. Remember that the w3wp process was executing under
+v2.0.50727.4253, but the CLR version inside the v2.0.50727 folder on
+the WinDbg machine turns out to be v2.0.50727.8009.</li>
 <li>Tells how to fix the CLR version mismatch issue by renaming
 C:\Debug\w3wp-sp2007\mscordacwks.dll to
-mscordacwks_AMD64_AMD64_2.0.50727.4253.dll and including
-C:\Debug\w3wp-sp2007 in the symbol path.</li>
-<li>Isn't an issue because the WinDbg and wp3wp machine architecture
-is AMD64. If unsure about the architecture, have a look at the
-PROCESSOR_ARCHITECTURE environment variable, which on both machine is
-assigned the value of AMD64.</li>
+mscordacwks_AMD64_AMD64_2.0.50727.4253.dll and adding
+C:\Debug\w3wp-sp2007 to the symbol path.</li>
+<li>Isn't an issue because the architecture of the machines running
+WinDbg and wp3wp are both AMD64. If unsure about the architecture,
+have a look at the PROCESSOR_ARCHITECTURE environment variable, which
+on both machine is assigned the value of AMD64.</li>
 </ol>
 
-<p>The <code>.sympath</code> command is used to both show the current
-symbol paths and append a path to those as per suggestion (3)
-above:</p>
+<p>As per suggestion (3), the <code>.sympath</code> command can both
+show the current symbol paths and append a path to it:</p>
 
 <pre>
 0:000> <strong style="color: green;">.sympath+ C:\Debug\w3wp-sp2007</strong>
@@ -227,7 +229,7 @@ OK                                             C:\Debug\w3wp-sp2007
 
 <p>Now run
 <a href="https://msdn.microsoft.com/en-us/library/windows/hardware/ff562263"><code>.cordll
--ve -u -l</code></a> as indicated below the suggestions above.</p>
+-ve -u -l</code></a> as suggested below the verification steps.</p>
 
 <pre>
 0:000> <strong style="color: green;">.cordll -ve -u -l</strong>
@@ -239,19 +241,20 @@ CLRDLL: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.50727.4253.d
 CLR DLL status: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.50727.4253.dll
 </pre>
 
-<p>From the output, it's clear that the correct version of
-mscordacwks.dll is loaded. However, SOS isn't.</p>
+<p>From the output it seems that the correct version of
+mscordacwks.dll got loaded, but sos.dll didn't.</p>
 
-<p>What <code>.cordll</code> does is search a number of locations,
-including the public Microsoft symbol server for the two DLLs (we can
-make WinDbg print the paths searched by <code>!sym
-noisy</code>/<code>!sym quiet</code>). Activating noisy output, we see
-that for this version of the CLR, the DLLs aren't on the symbol
-server, and we see a lot of failed attempts at locating
-mscordacwks_AMD64_AMD64_2.0.50727.4253.dll before it's found. Then
-WinDbg starts looking for sos_AMD64_AMD64_2.0.50727.4253.dll but
-cannot locate it. The output indicates that we should rename sos.dll
-to sos_AMD64_AMD64_2.0.50727.4253.dll and rerun
+<p>What <code>.cordll</code> does is search locations, including the
+public Microsoft symbol server, for the DLLs (WinDbg prints/hides the
+paths searched through the <code>!sym noisy</code>/<code>!sym
+quiet</code> commands). Activating noisy output, we can tell that for
+this version of the CLR, the DLLs aren't on the symbol server, and we
+see failed attempts at locating
+mscordacwks_AMD64_AMD64_2.0.50727.4253.dll before it's finally
+located. Then WinDbg starts looking for
+sos_AMD64_AMD64_2.0.50727.4253.dll but cannot locate it. The output
+indicates that we should rename sos.dll to
+sos_AMD64_AMD64_2.0.50727.4253.dll and rerun
 <code>.cordll -ve -u -l</code>.</p>
 
 <pre>
@@ -265,9 +268,8 @@ CLR DLL status: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.5072
 
 <h4>Conclusion</h4>
 
-<p>At this point we've successfully loaded the correct versions of
-mscordacwks.dll and sos.dll and the SOS commands are at our
-disposal.</p>
+<p>At this point we've loaded the correct versions of mscordacwks.dll
+and sos.dll and the SOS commands are at our disposal.</p>
 
 <p>For an in-depth treatment of WinDbg,
 <a href="https://www.amazon.com/Advanced-NET-Debugging-Mario-Hewardt/dp/0321578899/ref=sr_1_1?ie=UTF8&qid=1477424398&sr=8-1&keywords=Advanced+.NET+debugging">Advanced
@@ -277,7 +279,7 @@ author <a href="https://www.amazon.com/Advanced-Windows-Debugging-Mario-Hewardt/
 Windows Debugging</a> covers the same topics from a native point of
 view. The <a href="https://www.youtube.com/watch?v=8zBpqc3HkSE&list=PLhx7-txsG6t6n_E2LgDGqgvJtCHPL7UFu">Introduction
 to WinDbg</a> is a nice series of screencasts introducing native
-WinDbg commands, many of which are shown in action in
+WinDbg commands, many of which are also shown in action in
 the <a href="https://www.youtube.com/watch?v=2rGS5fYGtJ4">Windows
 Debugging and Troubleshooting</a> presentation.</p>
 
@@ -285,14 +287,10 @@ Debugging and Troubleshooting</a> presentation.</p>
 the <a href="https://www.youtube.com/watch?v=iBRsGhfV85I">Unlock the
 essential toolbox for production debugging of .NET Web
 Applications</a> presentation shows how WinDbg fits in with other
-debugger tools. </p>
+debugger tools,
+and <a href="https://www.youtube.com/user/OpenSecurityTraining">Open
+Security Training</a> provides an excellent introduction into
+low-level details of assembly and linking that to some extend are
+prerequisites to fully understanding WinDbg output.</p>
 
 </div>
-
-<!-- 
-  Excellent intros to assembly, linking, malware, et al
-  https://www.youtube.com/user/OpenSecurityTraining
-
-  - Color code important part of output as well as in 
-    https://blogs.msdn.microsoft.com/abhinaba/2014/09/29/net-just-in-time-compilation-and-warming-up-your-system/https://blogs.msdn.microsoft.com/abhinaba/2014/09/29/net-just-in-time-compilation-and-warming-up-your-system/
--->
