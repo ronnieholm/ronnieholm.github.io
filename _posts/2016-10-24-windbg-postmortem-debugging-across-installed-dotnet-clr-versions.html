@@ -134,8 +134,9 @@ path. The <code>.loadby</code> command is actually a shortcut for the
 general <code>.load</code> command, accepting a path of a DLL to
 load. <code>.loadby</code> got introduced because .NET DLLs tend to
 have a lengthy path, and so the shortcut resolves the path based on
-the location of the loaded mscorwks.dll (on CLR 4.0 and above, the
-command changed to <code>.loadby sos clr</code>.):</p>
+the location of the loaded mscorwks.dll. On CLR 4.0 and above, the
+command is <code>.loadby sos clr</code> because the CLR is now inside
+clr.dll:</p>
 
 <pre>
 0:000> <strong style="color: green;">.symfix</strong>
