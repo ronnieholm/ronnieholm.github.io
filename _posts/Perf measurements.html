@@ -1,0 +1,150 @@
+---
+layout: post
+title: "Optimizing SharePoint list view load time performance"
+date: 2017-06-19 12:00 UTC
+---
+
+<div id="post">
+
+<p>Users have reported that at its work a SharePoint document library
+view takes between two and four minutes to load. The library itself
+holds only 510 documents, and according to Developer Tools, Chrome
+isn't network bound during that time. Once the server responds, it
+contains only a modest amount of bytes.</p>
+
+<p>This post attempts to learn where the two-four minutes are spent and
+improve on the load time. It systematically breaks down load time
+components by sampling a number of runs, changing a single component
+at a time.</p>
+
+<p>The summary section contains a table listing all results.</p>
+
+<h4>Establishing a baseline</h4>
+
+<p>To establish a baseline on which to improve, we collect five
+samples of slow view (Documents/Forms/AllItems.aspx) load time and
+compute the average and standard deviation. On shared infrastructure,
+collecting good samples may require a few retries. We sample three
+times and pick the best result.</p>
+
+<p>For the baseline, we arrive at <b>27.9 seconds</b> of average load
+time.</p>
+
+<p>Most likely, the baseline view worked well when the number of
+documents in the document library where fewer. As the count grew, the
+view has gotten gradually slower.</p>
+
+<h4>Common causes for slow view rendering time</h4>
+
+<p>To generate candidate test cases for improving load times, it's
+worth reviewing common causes for page and list view slowness:</p>
+
+<ul>
+<li><p>Do the document library and its items retain role inheritance?
+Breaking role inheritance causes extra work on SharePoint behalf to
+security trim elements in the view. In this case, the web, list, and
+items inherit permissions from the parent.</p></li>
+
+<li><p>Is the type of navigation used expensive? SharePoint defaults
+to structural navigation for the top links and quick launch
+menus. Alternatives include manual or metadata driven maintained
+navigation. In this case, the web inherits the top menu from its
+parent, consisting of multiple webs.</p></li>
+
+<li><p>How many lookup fields does the view contain? These are columns
+of the type <i>Managed metadata</i> or <i>Person or Group</i>. These
+may cause additional internal queries. Of the list's 11 lookup fields
+10 are part of the view.</p></li>
+
+<li><p>Does the view have an non-default items limit? Views are born
+with an item limit of 30 and implement paging. A larger value is
+rarely a good idea as users aren't likely to browse more items
+anyway. Instead they apply additional filtering to locate a
+document. For the view in question, the item limit is 300.</p></li>
+</ul>
+
+<p>Based on these common causes of sluggish performance, we want to
+look into the cost of rendering non-view parts of the page. In
+addition, the cost of an item limit of 300 needs
+investigation. Lastly, the two-level group by on Managed Metadata,
+including expansion, could prove potentially costly.</p>
+
+<h4>Overhead of non-view part of page</h4>
+
+<p>We're able to determine the overhead of non-view components on the
+page by benchmarking against one which cannot be modified and which
+has minimal additional overhead. One such page is the Site Settings
+application page (_layouts/15/settings.aspx). Its main content is
+static while still including both top links and quick launch
+menus. Furthermore, we benchmark against an out of the box team with
+minimal navigation items.</p>
+
+<p>On average the Site Settings application page takes <b>3.5
+seconds</b> to load. The same page on an empty team site takes
+only <b>0.7 seconds</b>. Hence <b>2.8 seconds</b> is spent rendering
+ribbon and navigation components. Without making changes to the ribbon
+and navigation components, 2.8 seconds provides a lower bound on the
+entire view page load time (and any other page on the web for that
+matter).</p>
+
+<h4>Flattening the view</h4>
+
+<p>On the surface, we wouldn't expect grouping on Managed metadata
+fields to have a significant impact on the load time. But let's verify
+by flattening the view, i.e., keeping view settings constant but
+disabling group by with expansion.</p>
+
+<p>The result is surprising. Load time decreases from <b>27.9
+seconds</b> to <b>7.5 seconds</b>. Perhaps SQL Server isn't optimized
+for group by operations.</p>
+
+<p>Taking into account that non-view specific parts of the page loads
+in 2.8 seconds, 7.5 seconds is bordering on acceptable. Users may have
+a good business reason for group by, in which case adding refining to
+the page might be worth looking into.</p>
+
+<h4>Removing lookup fields from the view</h4>
+
+<p>Next, let's estimate the cost of the view's 10 lookup fields by
+removing those from the flat view. Load time then goes down
+from <b>7.5 seconds</b> to <b>5.1 seconds</b>. In other words, the
+lookup field overhead <b>2.4 seconds</b>. Compare those numbers to
+the <b>4.7 seconds</b> it takes to render only the name field and
+the <b>4.8 seconds</b> it takes to render with group by but without
+expansion.</p>
+
+<h4>Reducing the item limit</h4>
+
+<p>By reducing the item limit from 300 to 30, even including group by
+and expansion, page rendering time can be reduced to <b>6.4
+seconds</b>. If we were to disable group by we'd arrive at <b>4.2
+seconds</b>.</p>
+
+<h4>Summary</h4>
+
+<p>The table below summarizes measurements from both outside and
+inside business hours. A "-" in front of a measurement indicates
+baseline with a property disabled while "+" indicates a change to a
+propety value:</p>
+
+<pre>
+                                                                Avg  StdDev
+= sort by name, two-level group by expanded, 300 item limit    27.9     2.4
++ 30 item limit                                                 6.4     0.9   
+- two-level group by expanded                                   7.5     0.7
+- two-level group by expanded - lookup field                    5.1     0.5
+- two-level group by expanded - all but name field              4.7     0.2
+- expanded                                                      4.8     0.4
+- two-level group by expanded + 30 item limit                   4.2     0.3
+- non-view part of baseline page                                3.5     0.4
+= non-view part of empty web                                    0.7     0.1
+</pre>
+
+<p>Considering the <b>2.8 seconds</b> non-view overhead, which is a
+constant, we've managed to bring down load time from <b>27.9
+seconds</b> to <b>4.8 seconds</b> by disabling expansion or <b>4.2
+seconds</b> by disabling group by and limiting the view to 30
+items. Both of these numbers are certainly within SharePoint normal
+operating parameters.</p>
+
+</div>
