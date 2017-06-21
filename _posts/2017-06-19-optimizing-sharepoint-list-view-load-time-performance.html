@@ -22,16 +22,21 @@ measurements.</p>
 
 <h4>Establishing a baseline</h4>
 
-<p>In order to set a baseline on which to improve, we sample the slow
-view (at Documents/Forms/AllItems.aspx) and use the average load time
-and its standard deviation. On shared infrastructure, collecting good
-samples may require a few retries. In all measurements, we sample
-three times and pick the best result.</p>
+<p>In order to setup a baseline on which to improve, we sample the
+slow view (at Documents/Forms/AllItems.aspx) and use the average load
+time and its standard deviation. On shared infrastructure, collecting
+decent samples may require a few retries. In all measurements, we
+sample three times and pick the best result. We should also take into
+account
+how <a href="https://support.office.com/en-us/article/Using-the-object-cache-with-SharePoint-Online-38bc9c14-3826-449c-beb6-b1003bcbeaaf">SharePoint
+Online uses the object cache</a>. Frontend servers have object caching
+enabled, but compared to on-premises it has mostly no effect on load
+times.</p>
 
 <p>For the baseline, we arrive at 27.9 seconds of average load
 time.</p>
 
-<h4>Common causes for slow view rendering time</h4>
+<h4>Common causes for long view load time</h4>
 
 <p>To generate candidate test cases for improving page load time, it's
 worth reviewing typical causes of slowness:</p>
@@ -45,9 +50,10 @@ items inherit permissions from the parent.</p></li>
 <li><p>What's the navigational complexity? SharePoint defaults to
 structural navigation for the top links and quick launch
 menus. <a href="https://support.office.com/en-us/article/Navigation-options-for-SharePoint-Online-adb92b80-b342-4ecb-99a1-da2a2b4782eb">Navigation
-options</a> include manual, metadata driven, or search driven
-navigation. In this case, the web inherits the top menu from its
-parent, consisting of multiple levels of webs.</p></li>
+options</a> include structural navigation, managed navigation, and
+search-driven navigation. In this case, the navigation is structural
+with the web inheriting top links from its parent, consisting of
+multiple levels of web links.</p></li>
 
 <li><p>How many lookup fields does the view contain? Lookups are
 fields of the type <i>Managed metadata</i> or <i>Person or
@@ -122,7 +128,7 @@ business hours from an Azure virtual machine:</p>
 
 <pre>
                                                                    Avg  StdDev
-= sort by name, two-level group by expanded, 300 item limit       27.9     2.4
+= Sort by name, two-level group by expanded, 300 item limit       27.9     2.4
 With 30 item limit                                                 6.4     0.9   
 Without two-level group by expanded                                7.5     0.7
 Without two-level group by expanded, without lookup field          5.1     0.5
@@ -130,7 +136,7 @@ Without two-level group by expanded, without all but name field    4.7     0.2
 Without expansion                                                  4.8     0.4
 Without two-level group by expanded, with 30 item limit            4.2     0.3
 Without non-view part of baseline page                             3.5     0.4
-= non-view part of out of the box web                              0.7     0.1
+= Non-view part of out of the box web                              0.7     0.1
 </pre>
 
 <p>We've managed to bring down load time from 27.9 seconds to 4.8
