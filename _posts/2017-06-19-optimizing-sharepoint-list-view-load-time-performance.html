@@ -136,7 +136,7 @@ Without two-level group by expanded, without all but name field    4.7     0.2
 Without expansion                                                  4.8     0.4
 Without two-level group by expanded, with 30 item limit            4.2     0.3
 Without non-view part of baseline page                             3.5     0.4
-= Non-view part of out of the box web                              0.7     0.1
+= Non-view part of out of the box new web                          0.7     0.1
 </pre>
 
 <p>We've managed to bring down load time from 27.9 seconds to 4.8
@@ -145,8 +145,8 @@ and limiting the view to 30 items. Considering the constant non-view
 overhead of 2.8 seconds, both these numbers are within SharePoint's
 normal operating parameters.</p>
 
-<p>Most likely, the baseline view worked well when the number of
-documents where few. As the count grew, the load time of the view has
-gradually degraded.</p>
+<p>In addition to the tweaks above, for large lists and
+libraries, <a href="https://support.office.com/en-us/article/Set-up-metadata-navigation-for-a-list-or-library-c222a75d-8b18-44e2-9ed8-7ee4e0d23cfc?ui=en-US&rs=en-US&ad=US">setting
+up metadata navigation</a> might also be worth pursuing.</p>
 
 </div>
