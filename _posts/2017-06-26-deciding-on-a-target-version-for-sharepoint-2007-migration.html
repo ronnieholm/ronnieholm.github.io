@@ -1,0 +1,259 @@
+---
+layout: post
+title: "Deciding on a target version for SharePoint 2007 migration"
+date: 2017-06-26 12:00 UTC
+---
+
+<div id="post">
+
+<p>This post outlines the pros and cons of migrating the functionality
+and content of a SharePoint 2007 farm to a new home, i.e., from one
+datacenter or hosting partner to another. Given that extended support
+for SharePoint 2007 is about to end, the question is which version of
+SharePoint to migrate to. This post attempts to balance the relative
+merits of three options: (1) staying with SharePoint 2007 but on a new
+farm, (2) moving to a higher on-premise version of SharePoint, or (3)
+moving to in-cloud SharePoint Online.</p>
+
+<p>Given the potential intricate nature of SharePoint 2007 -- with
+custom development and third-party product -- the answer of which
+target version to migration to isn't as clear cut as it may seems.</p>
+
+<p>In the options below, <font color="green">green</font> and <font
+color="red">red</font> is used to denote pros and cons,
+respectively. Each of the pros and cons arose from a recent migration
+project.</p>
+
+<h4>Terminology used in this post</h4>
+
+<ul>
+
+  <li><p><i>On-premise vs. in-cloud</i>. On-premise SharePoint refers
+      to any version of SharePoint except SharePoint Online. Whether
+      SharePoint is deployed on-premise or in a non-Microsoft
+      datacenter, SharePoint is still considered on-premise. True
+      in-cloud SharePoint is SharePoint Online (SaaS) only, dependent
+      on Azure (PaaS), and hosted in a Microsoft datacenter.</p></li>
+
+  <li><p><i>Farm</i>. Denotes a collection of Windows servers making
+      up a SharePoint hosting environment. To users and applications
+      hosted on SharePoint, these servers make up a logical cluster
+      with which they interact. In principle, SharePoint's services
+      are provided by a single server or partitioned amongst any
+      number of servers, acting in unison. The more servers, the
+      better performance, fault tolerance, and so on.</p></li> </ul>
+
+<h4>Common concerns independent of target environment</h4>
+
+<ul>
+
+  <li><p><i>In-depth analysis of SharePoint 2007 farm</i>. Independent
+    of the options below, a significant investment in time must go
+    into analyzing the existing farm. With little or no governance to
+    rely upon in such old environment, we'll have to document platform
+    settings in reverse, and mirror those setting in the new
+    environment. The consequence of missing or not understanding the
+    ramifications of a setting can result in the new environment
+    malfunctioning in a not obvious way. In general, migration without
+    existing, up to date documentation is best-effort. This lack of
+    guarantee particularly applies to on-premise targets. For
+    in-cloud, likely no current custom code or third-party products
+    will work as-is. In other words, a migration to on-premise is
+    likely going to add latent instability to the platform.</p></li>
+
+<h4>Option 1: SharePoint 2007 -> SharePoint 2007</h4>
+
+<p>Considering a SharePoint 2007 to SharePoint 2007 migration, we need
+to install from scratch the software stack from the operating system
+and up. SharePoint doesn't support cloning an existing SharePoint
+server and restoring its image on new hardware.</p>
+
+<ul> 
+
+  <li><p><font color="green">Microsoft licensing</font>. Existing
+      Windows Server, SharePoint, and MS SQL Server licenses are
+      candidates for reuse in the new farm.</p></li>
+
+  <li><p><font color="green">Feature parity</font>. Because source and
+      target farms are both SharePoint 2007, and because dependent
+      software such as Windows and SQL Server remain fixed at their
+      current versions, source and target are compatible. As a
+      consequence, we can apply regular SQL Server database backup and
+      restore procedures to move content across farms, making the
+      migration low risk.</p></li>
+
+  <li><p><font> color="green">SharePoint and Nintex Workflows survive
+      migration</font>. Any existing SharePoint or Nintex workflow
+      remains unaffected by the migration, i.e., long-running
+      workflows will pick up where they left off in the old
+      environment.</p></li>
+
+  <li><p><font color="red">Third-party licensing</font>. For any
+      non-Microsoft product part of the farm, such as Nintex and
+      Bamboo Solution, different license terms may apply. For each
+      product, the vendor must be contacted to clarify license terms,
+      and provide lost installation media and documentation.</p></li>
+
+  <li><p><font color="red">Third-party products no longer
+      supported</font>. While third-party licenses likely remain
+      valid, for some products support has likely expired. As a
+      consequence, issues with third-party products arising from the
+      migration may not be resolvable.</p></li>
+
+  <li><p><font color="red">SharePoint 2007 no longer supported by
+      Microsoft</font>. Mainstream support for SharePoint 2007 ended
+      October 9, 2012 and extended support <a
+      href="https://support.microsoft.com/da-dk/help/3198497/office-2007-approaching-end-of-extended-support">ends</a>
+      October 10, 2017. Following end of extended support, Microsoft
+      no longer provides security updates or general support. With the
+      proper agreements, Microsoft can, however, provide
+      troubleshooting support, but on a low-priority, best-effort
+      basis.</p></li>
+
+  <li><p><font color="red">No development environment
+      available</font>. In case custom functionality fails as part of
+      migration and needs correcting, likely no up to date SharePoint
+      2007 development exist to test, update, and re-package the
+      functionality. Worse yet, we can't be certain to have located
+      the source code behind every deployed feature. In case we
+      haven't, and the feature is essential, it need
+      redeveloping.</p></li> </ul>
+
+<h4>Option 2: SharePoint 2007 -> SharePoint 2010 (or higher)</h4>
+
+<p>When referring to SharePoint 2010, we're actually referring to
+SharePoint 2010 or any higher on-premise version. Besides, with
+SharePoint it isn't possible to skip versions along the migration
+path. Migration from SharePoint 2007 to SharePoint 2016, for instance,
+requires establishing intermediate farms along the migration path for
+SharePoint 2010 and SharePoint 2013. By induction, for each farm along
+the migration path, each point below requires revisiting. Migrating to
+SharePoint 2016 roughly amounts to a three-fold increase in complexity
+over staying with SharePoint 2007.</p>
+
+<ul>
+
+  <li><p><font color="green">SharePoint 2010 still supported by
+      Microsoft</font>. While mainstream support ended October 13,
+      2015, <a
+      href="https://support.microsoft.com/en-us/lifecycle/search?sort=PN&alpha=Microsoft%20SharePoint%20Server%202010&Filter=FilterNO">extended
+      support</a>, covering only security updates, is in effect till
+      October 13, 2020. Updates containing new features have ceased
+      with mainstream support, though.</p></li>
+
+  <li><p><font color="red">New Microsoft licenses
+      required</font>. Applies not only to SharePoint 2010 itself, but
+      to dependent software such as SQL Server and Windows.</p></li>
+
+  <li><p><font color="red">New third-party licenses required.</font>
+      For each third-party product (Nintex, Bamboo solution, and so
+      on), we must locate a compatible SharePoint 2010 version. For
+      some products, a SharePoint 2010 version may no longer be
+      available.</p></li>
+
+  <li><p><font color="red">SharePoint 2010 pre-upgrade check likely
+      reveals issues</font>. Microsoft supplies a pre-upgrade check
+      tool to assess the readiness of a SharePoint 2007 farm prior to
+      upgrading. For a large SharePoint 2007 farm, the tool likely
+      reveals many issues which need fixing before the upgrade can
+      proceed. We must resolve these issues in the SharePoint 2007
+      farm, running the risk of breaking existing
+      functionality.</p></li>
+
+  <li><p><font color="red">Not all workflows can survive
+      migration</font>. It's unlikely that all SharePoint and Nintex
+      workflow can survive a migration. It's likely that part of, or
+      the whole of, many workflows aren't supported by a higher
+      version. While SharePoint workflows are covered by the
+      SharePoint 2010 pre-upgrade check, Nintex provides its
+      own <a href="
+      https://community.nintex.com/docs/DOC-1177">pre-upgrade
+      check</a>, targeted at Nintex 2007 workflows.</li></p>
+
+  <li><p><font color="red">No feature parity</font>. With SharePoint
+      2010 being newer, Microsoft deprecated some SharePoint 2007
+      features and added new ones. In practice, it means the migration
+      involves the mapping of SharePoint 2007 features onto SharePoint
+      2010, and that some customizations may require
+      re-development.</p></li>
+
+  <li><p><font color="red">Development environment
+      required</font>. Whereas a development environment may be
+      optional in the SharePoint 2007 case, it's mandatory with
+      SharePoint 2010. Customization may have hardcoded references to
+      SharePoint 2007 locations (file system path, registry path,
+      package structure and content) and requires a rebuild from
+      source.</p></li>
+
+</ul>
+
+<h4>Option 3: SharePoint 2007 -> SharePoint Online</h4>
+
+<ul>
+
+  <li><p><font color="green">Ability to treat SharePoint as SaaS
+      environment</font>. The responsibility of backing up and
+      restoring SharePoint and of monitoring and patching is on
+      Microsoft. Customers cannot stay on an old version, and accrue
+      technical debt, but are nudged forward by Microsoft continuously
+      rolling out updates to the platform.</p></li>
+
+  <li><p><font color="green">Decommissioning on-premise server
+      farms</font>. The existing SharePoint 2007 farms may consist of
+      development, testing, pre-production, and production become
+      redundant. The money which goes to their maintainance and
+      associated technical tasks can be focused elsewhere.</p></li>
+
+  <li><p><font color="green">No need for dedicated SharePoint
+      development environment</font>. With SharePoint Online, any
+      machine with .NET development tools can develop for
+      SharePoint. SharePoint Online and Azure services can make up for
+      the development environment.</p></li>
+
+  <li><p><font color="green">Possible existing experience with content
+      migration</font>. Custom tools and Sharegate may be used to
+      migrate content from the source environment.</p></li>
+
+  <li><p><font color="red">Reuse of existing licenses</font>. For a
+      user to access SharePoint Online, the user requires an Office
+      365 license. Depending on the ratio of employees to externals
+      (with no default license) this may be an issue.</p></li>
+
+  <li><p><font color="red">Database content migration not
+      supported</font>. With SharePoint Online's development model,
+      Microsoft prohibits direct server access, and thus direct
+      database to database migration of content isn't
+      possible. Instead, existing content needs re-adding through
+      Microsoft's web service APIs using either a custom tool or
+      Sharegate.</p></li>
+
+  <li><p><font color="red">Nintex on-premise to in-cloud not
+      supported</font>. At a technical level, the Nintex of SharePoint
+      Online <a
+      href="https://community.nintex.com/thread/1323">differs</a> from
+      the Nintex of on-premise. Even though Sharegate offers some
+      workflow migration support, in all likeliness many workflows
+      require recreation by hand with gaps in functionality to be
+      worked out.</p></li>
+
+  <li><p><font color="red">No feature parity</font>. The closest
+      parity is with SharePoint 2016 as that's the version behind
+      SharePoint Online. But many on-premise services are unavailable
+      in-cloud or work differently. It's unlikely that any custom code
+      developed for SharePoint 2007 can be migrated as-is. To achieve
+      the same functionality in SharePoint Online, the code needs to
+      be re-developed, following the SharePoint Online development
+      model. As a supplement to missing SharePoint functionality,
+      Nintex Online Workflows and Forms may be called for.</p></li>
+
+</ul>
+
+<h4>Conclusion</h4>
+
+<p>Migrating SharePoint 2007 to a new on-premise farm, even SharePoint
+2007, is best-effort and will likely end up taking a disproportionate
+amount of time compared to the benefits realized. Given that
+SharePoint Online is likely the strategic platform of choice, the
+migration effort is best directed towards SharePoint Online, skipping
+intermediate platforms and using custom solutions in tandem with
+Sharegate.</p>
