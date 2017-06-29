@@ -11,10 +11,10 @@ library view takes two to four minutes to load. The library itself
 holds only 510 documents, and Chrome Developer Tools reveals that the
 issue isn't a bandwidth issue. Once the server returns the ASPX page,
 containing the view data, the ASPX page size is 169 KB and the total
-page payload is 236 KB cached and 2.6 MB uncached. Furthermore,
+page payload is 236 KB cached and 2.6 MB not cached. Furthermore,
 because the ASPX page is the one referencing images, JavaScript, CSS,
-and the like, no other resources begins to load until the the ASPX
-page is returned and parsed.</p>
+and the like, no other resources begins to load until the ASPX page is
+returned and parsed.</p>
 
 <p>This post attempts to pinpoint what the two to four minutes load
 time is spent on. It does so by breaking down the load time into
@@ -55,15 +55,15 @@ tends to make little sense as users aren't likely to read through a
 long list anyway. Instead users apply additional filtering to find a
 document. For the view in question, the item limit is 300.</p></li>
 
-<li><p>How many lookup fields does the view contain? Lookups are
-fields of types <i>Managed metadata</i> or <i>Person or
+<li><p>How many lookup fields does the view contain? Lookup fields are
+those of types <i>Managed metadata</i> and <i>Person or
 Group</i>. These cause SharePoint to run additional queries against
 the
 <a href="http://sharepointviews.com/hidden-users-list-in-sharepoint/">hidden
 users list</a>
 and <a href="http://info.summit7systems.com/blog/troubleshooting-sharepoints-hidden-list-and-managed-metadata-columns">hidden
 taxonomy list</a> of the root web. When in edit mode the real user and
-taxomony store is used, but views rely on the hidden lists for better
+taxomomy store is used, but views rely on the hidden lists for better
 performance. Of the document library's 11 lookup fields 10 are part of
 the slow view.</p></li>
 
