@@ -41,12 +41,11 @@ of each test case.</p>
 slow view (Documents/Forms/AllItems.aspx) and arrive at an average
 load time of 27.9 seconds.</p>
 
-<h4>Common causes for long view load time</h4>
+<h4>Common causes for extended view load times</h4>
 
-<p>To generate test cases, it pays to review typical causes of
-slowness and to keep in mind that slowness tends to creep in gradually
-as the number of items in a document library or subwebs in a site
-increase:</p>
+<p>Starting from typical causes of slowness, and knowing that slowness
+has likely crept in gradually as the number of list items or webs has
+increased, we can come up with ideas of properties to test:</p>
 
 <ul>
 
@@ -67,7 +66,7 @@ taxomomy store is used, but views rely on the hidden lists for better
 performance. Of the document library's 11 lookup fields 10 are part of
 the slow view.</p></li>
 
-<li><p>What's the web's navigational complexity? SharePoint defaults
+<li><p>What's the web's navigation complexity? SharePoint defaults
 to structural navigation for the top links and quick launch menus, but
 other <a href="https://support.office.com/en-us/article/Navigation-options-for-SharePoint-Online-adb92b80-b342-4ecb-99a1-da2a2b4782eb">navigation
 options</a> such as managed navigation and search-driven navigation
