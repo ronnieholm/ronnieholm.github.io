@@ -1,0 +1,170 @@
+---
+layout: post
+title: "Debugging recurring web farm outages: Context and clarification with HTTP heartbeat pings"
+date: 2017-07-16 12:00 UTC
+---
+
+<div id="post">
+
+<p>A client has reported that their web farm running SharePoint 2007
+(effectively ASP.NET, MS SQL Server, and associated services) has been
+going offline each night for the past couple of months. In this post
+I'll document the steps that went into troubleshooting the issue. As
+it's a fairly long process, it'll take a few posts to arrive at the
+root cause. We'll start by collecting precise timing data on the
+farm's uptime and downtime and then correlate these measurements with
+server logs. From there we'll switch to using DebugDiag and WinDbg to
+narrow down the cause.</p>
+
+<h4>Collecting uptime/downtime measurements</h4>
+
+<p>First order of business is talking to the affected internal
+users. They consistently report that when navigating to the intranet,
+Internet Explorer keeps showing a blank page while the loader wheel
+within the tab bar spins for minutes (forever). The page remains
+blank, which indicates that the web server never gets to deliver
+content to the client. Users also report that the farm is down every
+night and gives a rough range of the downtime.</p>
+
+<p>I want to collect more accurate timing to see if a pattern emerges:
+how long is the farm down? How many servers in farm are affected? How
+many Internet Information Services (IIS) web applications are
+affected?  Since no existing monitoring system had been in place for
+the past couple of months, I rolled my own simple tool. While it isn't
+enterprise grade monitoring, it's plenty sufficient for the case in
+hand.</p>
+
+<p>My monitoring tool uses HTTP heartbeat monitoring as a proxy for
+farm uptime and downtime. It's comprised of the following C#
+program:</p>
+
+<pre class="prettyprint lang-cs">
+using System;
+using System.Net;
+using System.Threading;
+
+// Usage examples:
+// ./HttpHeartbeat interval url
+// ./HttpHeartbeat 5 http://dtu.dk/images/modules/socialmedia/twitter_small.png | tee dtu.txt
+// ./HttpHeartbeat 30 http://intranet.acme.dk/org/it/pages/default.aspx | tee intranet.txt
+// ./HttpHeartbeat 30 http://projects.acme.dk/pages/default.aspx | tee project.txt
+
+namespace HttpHeartbeat {
+    class Program {
+        static void Main(string[] args) {
+            var cache = new CredentialCache();
+            cache.Add(new Uri("http://intranet.acme.dk"), "NTLM", new NetworkCredential("rh", "secret", "acme.dk"));
+            cache.Add(new Uri("http://projects.acme.dk"), "NTLM", new NetworkCredential("rh", "secret", "acme.dk"));
+
+            var run = 0;
+            while (true) {
+                using (var wc = new WebClient { Credentials = cache, Proxy = WebRequest.DefaultWebProxy }) {
+                    Console.Write($"{++run} {DateTime.Now} ");
+                    try {
+                        var s = wc.DownloadString(args[1]);
+                        Console.WriteLine(string.IsNullOrEmpty(s) ? "Empty" : "OK");
+                    } catch (Exception e) {
+                        Console.WriteLine(e.Message);
+                    }
+                }
+                Thread.Sleep(int.Parse(args[0]) * 1000);
+            }
+            Console.WriteLine();
+        }
+    }
+}
+</pre>
+
+<p>Every n'th second, the HttpHeartbeat tool attempts to establish a
+connection with an endpoint and fetch the content of a URL. The tool
+is well-suited for execution in a PowerShell terminal using
+the <pre>tee</pre> cmdlet. It simultaneously writes output to the
+console and a file for later analysis.</p>
+
+<p>I setup HttpHeartbeat to run across a host of machines: on a
+reference laptop on the local network and on key servers that are part
+of the farm. These servers typically resolve intranet.acme.dk to
+127.0.0.1 (by way of their hosts file). Thus, running HttpHeartbeat
+directly on a server, fetching a page on the intranet from there,
+causes the request to be processed by the local server's web
+stack. That way I can determine if most or all servers are affected
+and root out issues with the network between the farm and
+client. Because when the browser is showing an empty page, it could
+just as well be a network issue. As for the reference laptop, its
+requests pass through a load balancer.</p>
+
+<pre>
+Reference laptop:
+    07-07-2017 22:47:26 to 08-07-2017 06:47:47
+    08-07-2017 22:47:59 to 09-07-2017 00:04:22
+    09-07-2017 22:46:25 to 10-07-2017 00:19:01
+    10-07-2017 22:46:43 to 11-07-2017 01:01:05
+    11-07-2017 22:46:53 to 12-07-2017 00:14:06
+    12-07-2017 22:46:39 to 13-07-2017 00:09:31
+    13-07-2017 22:47:39 to 14-07-2017 00:31:07
+Web front-end server 1: 
+    07-07-2017 22:48:03 to 08-07-2017 06:47:04
+    08-07-2017 22:47:25 to 09-07-2017 00:03:47
+    09-07-2017 22:46:15 to 10-07-2017 00:17:48
+    10-07-2017 22:46:30 to 11-07-2017 01:01:28
+    11-07-2017 22:46:48 to 12-07-2017 00:13:29
+    12-07-2017 22:46:32 to 13-07-2017 00:09:55
+    No further heartbeats collected as user was logged out
+Web front-end server 2: 
+    07-07-2017 22:47:24 to 08-07-2017 06:48:35
+    08-07-2017 22:47:25 to 09-07-2017 00:03:47
+    No further heartbeats collected as user was logged out
+Search application server (resolves intranet.acme.dk to Web front-end server 2):
+    07-07-2017 22:47:55 to 08-07-2017 06:47:25
+    08-07-2017 22:47:02 to 09-07-2017 00:04:56
+    No further heartbeats collected as was logged out
+Management application server: 
+    07-07-2017 22:47:24 to 08-07-2017 06:47:41
+    08-07-2017 22:47:25 to 09-07-2017 00:03:17
+    09-07-2017 22:46:40 to 10-07-2017 00:17:43
+    No further heartbeats collected as was logged out
+</pre>
+
+<p>The output reveals an interesting pattern. The reference laptop and
+every server in the farm running HttpHeartbeat show roughly identical
+uptimes and downtimes. The slight difference in time can likely be
+ascribed to the 30 second heartbeat detection interval and that it
+takes some time until heartbeat detection fails. I've aggregated the
+tool's output above. In the log files, "The operation has timed out"
+is what shows up for almost every heartbeat request within the
+downtime period.</p>
+
+<p>Next I setup an additional heartbeat target on the reference
+laptop. I'm fetching a page within the projects web application. I ran
+the heartbeat pings on the reference laptop only, assuming the results
+generalize to servers as well. Pinging another web application (of
+which the servers have about 16 each) in the farm, I want to see if
+the issue is isolated to a single web application or every IIS web
+application.</p>
+
+<pre>
+Reference laptop: 
+    11-07-2017 00:55:26 to 11-07-2017 00:59:46
+    12-07-2017 00:55:16 to 12-07-2017 00:59:36
+    13-07-2017 00:55:36 to 13-07-2017 01:02:06
+</pre>
+
+<p>On the first night, because downtime was so brief, I thought it was
+maybe just a glitch. Subsequent nights do reveal a pattern,
+however. The projects web application goes down at a later point in
+time compared to the intranet web application, and it stays down for a
+shorter time as well.</p>
+
+<h4>Conclusion</h4>
+
+<p>When all servers in a farm goes down at roughly the same time, and
+stays down for roughly the same duration of time, it indicates that
+the issue isn't with any particular server. More likely, the downtime
+is due to some shared component that each server requires in order to
+operate: a SharePoint component, Active Directory, MS SQL Server, SAN,
+and so on.</p>
+
+<p>In the next post I'll dig into the Event log and other server logs
+to look for hints patterns.</p>
+
+</div>
