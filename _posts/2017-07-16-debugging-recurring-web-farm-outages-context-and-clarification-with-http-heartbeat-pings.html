@@ -52,13 +52,16 @@ using System.Threading;
 namespace HttpHeartbeat {
     class Program {
         static void Main(string[] args) {
+            var credential = new NetworkCredential("rh", "secret", "acme.dk");
             var cache = new CredentialCache();
-            cache.Add(new Uri("http://intranet.acme.dk"), "NTLM", new NetworkCredential("rh", "secret", "acme.dk"));
-            cache.Add(new Uri("http://projects.acme.dk"), "NTLM", new NetworkCredential("rh", "secret", "acme.dk"));
+            cache.Add(new Uri("http://intranet.acme.dk"), "NTLM", credential);
+            cache.Add(new Uri("http://projects.acme.dk"), "NTLM", credential);
 
             var run = 0;
             while (true) {
-                using (var wc = new WebClient { Credentials = cache, Proxy = WebRequest.DefaultWebProxy }) {
+                using (var wc = new WebClient()) {
+                    wc.Credentials = cache;
+                    wc.Proxy = WebRequest.DefaultWebProxy;
                     Console.Write($"{++run} {DateTime.Now} ");
                     try {
                         var s = wc.DownloadString(args[1]);
@@ -77,9 +80,9 @@ namespace HttpHeartbeat {
 
 <p>Every n'th second, the HttpHeartbeat tool attempts to establish a
 connection with an endpoint and fetch the content of a URL. The tool
-is well-suited for execution in a PowerShell terminal using
-the <pre>tee</pre> cmdlet. It simultaneously writes output to the
-console and a file for later analysis.</p>
+is well-suited for execution in a PowerShell terminal using the tee
+cmdlet. It simultaneously writes output to the console and a file for
+later analysis.</p>
 
 <p>I setup HttpHeartbeat to run across a host of machines: on a
 reference laptop on the local network and on key servers that are part
