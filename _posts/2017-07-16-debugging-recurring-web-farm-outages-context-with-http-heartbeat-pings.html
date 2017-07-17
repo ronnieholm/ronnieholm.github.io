@@ -6,6 +6,12 @@ date: 2017-07-16 12:00 UTC
 
 <div id="post">
 
+<p>
+Part 1: Debugging recurring web farm outages: Context with HTTP heartbeat pings<br>
+Part 2: Debugging recurring web farm outages: Analyzing Event Log and other server logs with PowerShell (upcoming)<br>
+Part 3: Debugging recurring web farm outages: Collecting and analyzing memory dump using DebugDiag and WinDbg (upcoming)
+</p>
+
 <p>A client has reported that their web farm running SharePoint 2007
 (effectively ASP.NET, MS SQL Server, and associated services) has been
 going offline each night for the past couple of months. In this post
@@ -52,7 +58,9 @@ using System.Threading;
 namespace HttpHeartbeat {
     class Program {
         static void Main(string[] args) {
-            var credential = new NetworkCredential("rh", "secret", "acme.dk");
+            // Present custom NTLM credential to the web server. Otherwise, the credential
+            // with which the tool is running is used. It may not provide access to URL.
+            var credential = new NetworkCredential("admin", "secret", "acme.dk");
             var cache = new CredentialCache();
             cache.Add(new Uri("http://intranet.acme.dk"), "NTLM", credential);
             cache.Add(new Uri("http://projects.acme.dk"), "NTLM", credential);
@@ -91,10 +99,10 @@ of the farm. These servers typically resolve intranet.acme.dk to
 directly on a server, fetching a page on the intranet from there,
 causes the request to be processed by the local server's web
 stack. That way I can determine if most or all servers are affected
-and root out issues with the network between the farm and
-client. Because when the browser is showing an empty page, it could
-just as well be a network issue. As for the reference laptop, its
-requests pass through a load balancer.</p>
+and root out issues with the network between the farm and client. When
+the browser is showing an empty page, it may just as well be a network
+issue. As for the reference laptop, its requests pass through a load
+balancer.</p>
 
 <pre>
 Reference laptop:
@@ -134,9 +142,9 @@ Management application server:
 
 <p>The output reveals an interesting pattern. The reference laptop and
 every server in the farm running HttpHeartbeat show roughly identical
-uptimes and downtimes. The slight difference in time can likely be
-ascribed to the 30 second heartbeat detection interval and that it
-takes some time until heartbeat detection fails. I've aggregated the
+uptimes and downtimes. The difference in time can likely be ascribed
+to the 30 second heartbeat detection interval and that it takes some
+time until heartbeat detection reports failure. I've aggregated the
 tool's output above. In the log files, "The operation has timed out"
 is what shows up for almost every heartbeat request within the
 downtime period.</p>
