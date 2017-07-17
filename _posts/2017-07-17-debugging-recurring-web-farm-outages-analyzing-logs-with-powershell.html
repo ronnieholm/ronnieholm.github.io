@@ -22,14 +22,14 @@ browsing log files is a good start, once a piece of relevant
 information is found, we use PowerShell to weed through the
 entries.</p>
 
-<h4>Windows Event log</h4>
+<h4>Windows Event Log</h4>
 
 <p>For Windows and Internet Information Services (IIS) related issues,
 the Event log is a good place to start. The downside, however, is that
 it tends to contain lots of irrelevant entries. Nevertheless, for each
 server in farm we start by browsing through the Application and System
 logs from around July 7, 22:45 and until July 8, 07:00. On Web
-front-end server 1, one few entries immediately stand out:</p>
+front-end server 1, a few entries immediately stand out:</p>
 
 <pre>
 07-07-2017 23:21:57 - Application log
@@ -58,7 +58,7 @@ Get-EventLog -Logname System -Message '*exceeded time limits*' `
   | foreach { $_.TimeGenerated }
 </pre>
 
-<p>Running these PowerShell commands against the Event log on Web
+<p>Running these PowerShell commands against the Event Log on Web
 Front-end server 1, we get a list of matching events.</p>
 
 <pre>
@@ -75,15 +75,15 @@ Application ->  System
 06:14:07    ->  06:17:11
 </pre>
 
-<p>Once we have the PowerShell, it's easy to "grep" the Event log for
-the same pattern on other servers in farm. Turns out they show a
-similar ordering of messages but with different frequencies and
+<p>Once we have the PowerShell, it's easy to "grep" the Event Log for
+the same pattern on other servers in farm. Turns out all servers show
+a similar ordering of messages but with different frequencies and
 times.</p>
 
 <p>An MSDN post
 on <a href="https://blogs.msdn.microsoft.com/webtopics/2016/04/05/data-collection-for-deadlock-detected-issue-of-a-iis-based-web-application">Data
 Collection for Deadlock Detected issue of a IIS based web
-application</a>, explains the deadlock detection mechanism as
+application</a> explains the deadlock detection mechanism as
 follows:</p>
 
 <blockquote>
