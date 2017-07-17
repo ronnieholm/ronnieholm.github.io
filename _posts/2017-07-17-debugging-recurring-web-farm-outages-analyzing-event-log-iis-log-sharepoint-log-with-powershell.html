@@ -159,7 +159,7 @@ authentication headers to the HTTP request. This causes IIS to respond
 with HTTP 401 and a list of supported authentication providers as
 configured within IIS Manager for the site. The client picks a
 provider that both it and the server supports and resends the request,
-including NTLM authentication token. That's what makes the HTTP 200
+including NTLM authentication token. That's what makes HTTP 200
 entries list a domain and user name. It's been inferred from the NTLM
 authentication token passed in the HTTP header. This handshake process
 is hidden away inside the .NET WebClient class employed by the
