@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Debugging recurring web farm outages: Analyzing logs with PowerShell"
+title: "Debugging recurring web farm outages: Analyzing Event Log, IIS log, and SharePoint log with PowerShell"
 date: 2017-07-17 12:00 UTC
 ---
 
@@ -8,7 +8,7 @@ date: 2017-07-17 12:00 UTC
 
 <p>
 Part 1: <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">Establishing context with HTTP heartbeat pings</a><br>
-Part 2: Analyzing Event Log and other server logs with PowerShell<br>
+Part 2: Analyzing Event Log, IIS log, and SharePoint log with PowerShell<br>
 Part 3: Collecting and analyzing memory dump with DebugDiag and WinDbg (upcoming)
 </p>
 
@@ -42,7 +42,7 @@ limits during shut down. The process id was '11004'.
 </pre>
 
 <p>The w3wp process restart happens a few minutes after the deadlock
-detection was detected. With PowerShell we search the Event log for
+detection was detected. With PowerShell we search the Event Log for
 occurrences of these messages both inside and outside the downtime
 interval (to make sure the message are related to the downtime).</p>
 
@@ -139,12 +139,12 @@ log is two hours behinds. It's recording in UTC time while the
 heartbeat uses local time:</p>
 
 <pre>
-Heartbeats
+Heartbeats log
 5170 09-07-2017 18:30:01 OK
 5171 09-07-2017 18:30:31 OK
 5172 09-07-2017 18:31:01 OK
 
-IIS
+IIS log
 2017-07-09 16:30:01 127.0.0.1 GET /org/it/pages/default.aspx - 80 - 127.0.0.1 - 401 2 5 0
 2017-07-09 16:30:01 127.0.0.1 GET /org/it/pages/default.aspx - 80 acme\admin 127.0.0.1 - 200 0 0 6973
 2017-07-09 16:30:31 127.0.0.1 GET /org/it/pages/default.aspx - 80 - 127.0.0.1 - 401 2 5 0
@@ -168,12 +168,12 @@ between the HTTP 401 and the HTTP 200 response. As we get close to the
 timeout, the server becomes slower at processing requests:</p>
 
 <pre>
-Heartbeats
+Heartbeats log
 5675 09-07-2017 22:46:03 OK
 5676 09-07-2017 22:46:40 The operation has timed out
 5677 09-07-2017 22:48:51 The operation has timed out
 
-IIS
+IIS log
 2017-07-09 20:46:03 127.0.0.1 GET /org/it/pages/default.aspx - 80 - 127.0.0.1 - 401 2 5 0
 2017-07-09 20:46:10 127.0.0.1 GET /org/it/pages/default.aspx - 80 acme\admin 127.0.0.1 - 200 0 0 6973
 2017-07-09 20:46:40 127.0.0.1 GET /org/it/pages/default.aspx - 80 - 127.0.0.1 - 401 2 5 0
