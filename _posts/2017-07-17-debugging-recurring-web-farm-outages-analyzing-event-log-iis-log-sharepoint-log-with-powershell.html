@@ -13,7 +13,7 @@ Part 3: Collecting and analyzing memory dump with DebugDiag and WinDbg (upcoming
 </p>
 
 <p>In
-the <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-context-with-http-heartbeat-pings">previous</a>
+the <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">previous</a>
 post, we discovered a pattern to the outages. The servers in farm go
 offline at the same time every day and come back up at times without a
 clear pattern. In this post, we dig into the Event log, IIS logs, and
@@ -190,14 +190,15 @@ it.</p>
 <h4>Conclusion</h4>
 
 <p>The entries from the event log and IIS log indicate that ASP.NET is
-experiencing issues, i.e., the w3wp worker thread pool. We can't tell
-from the message alone if what we're experiencing is worker thread
-pool exhaustion or if it's due
-to <a href="https://blogs.msdn.microsoft.com/perfdude/2008/09/20/web-server-deadlocks-aspnet_isapi-dll">COM
-interop</a>. Either way, that could be why WAS decides to restart the
-w3wp process.</p>
+experiencing issues, i.e., the w3wp worker thread pool isn't
+processing requests. We can't tell from the log message alone whether
+we're experiencing worker thread pool exhaustion or
+perhaps <a href="https://blogs.msdn.microsoft.com/perfdude/2008/09/20/web-server-deadlocks-aspnet_isapi-dll">COM
+interop</a> issues. Either way, that could be why WAS decides to
+restart the w3wp process that often. No Event Log entries on MS SQL
+Server stand out.</p>
 
 <p>In the next post, we'll grab a memory dump of the w3wp process and
-have a look at the state of the worker thread pool.</p>
+have a look at the state of the worker thread pool threads.</p>
   
 </div>
