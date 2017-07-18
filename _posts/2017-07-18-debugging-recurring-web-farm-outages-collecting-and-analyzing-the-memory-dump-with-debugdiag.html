@@ -9,7 +9,7 @@ date: 2017-07-18 12:00 UTC
 <p>
 Part 1: <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">Establishing context with HTTP heartbeat pings</a><br>
 Part 2: <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-windows-event-log-iis-log-sharepoint-log-with-powershell">Analyzing Windows Event Log, IIS log, and SharePoint log with PowerShell</a><br>
-Part 3: Collecting and analyzing a memory dump with DebugDiag<br>
+Part 3: Collecting and analyzing the memory dump with DebugDiag<br>
 Part 4: Analyzing the memory dump with WinDbg (future)
 </p>
   
@@ -83,20 +83,21 @@ request.</p>
 
 <p>Here's a sample from the report listing a couple of completed
 requests and every not completed ones. The heartbeat pings are the GET
-requests to /org/it/pages/default.aspx:</p>
+requests to /org/it/pages/default.aspx (removed from original list
+column ReturnCode containing 200 and column Verb containing GET):</p>
 
 <pre>
-HttpContext   Timeout   Completed   RunningSince   ThreadId   ReturnCode   Verb   RequestPath+QueryString 
-1020c2550     110 Sec   Yes         ---                       200          GET    /favicon.ico  
-105cc7988     360 Sec   Yes         ---                       200          GET    /_layouts/1030/styles/core.css rev=RlafelT4IyQwdwdVUY0P3w%3D%3D
-112e66ee8     110 Sec   No          501 Sec        26         200          GET    /pages/frontpage.aspx
-14da07450     110 Sec   No          661 Sec        27         200          GET    /org/it/pages/default.aspx
-18f72bce8     110 Sec   No          246 Sec        52         200          GET    /pages/frontpage.aspx
-18f7ab300     110 Sec   No           52 Sec        56         200          GET    /pages/frontpage.aspx 
-1cb74f958     110 Sec   No          401 Sec        21         200          GET    /org/it/pages/default.aspx
-1cb7e31b8     110 Sec   No          348 Sec        28         200          GET    /pages/frontpage.aspx   
-1cb8588a8     110 Sec   No          204 Sec        54         200          GET    /pages/frontpage.aspx
-1cb86b8d8     110 Sec   No          109 Sec        55         200          GET    /org/it/pages/default.aspx
+HttpContext   Timeout   Completed   RunningSince   ThreadId   RequestPath+QueryString 
+1020c2550     110 Sec   Yes         ---                       /favicon.ico  
+105cc7988     360 Sec   Yes         ---                       /_layouts/1030/styles/core.css rev=RlafelT4IyQwdwdVUY0P3w%3D%3D
+112e66ee8     110 Sec   No          501 Sec        26         /pages/frontpage.aspx
+14da07450     110 Sec   No          661 Sec        27         /org/it/pages/default.aspx
+18f72bce8     110 Sec   No          246 Sec        52         /pages/frontpage.aspx
+18f7ab300     110 Sec   No           52 Sec        56         /pages/frontpage.aspx 
+1cb74f958     110 Sec   No          401 Sec        21         /org/it/pages/default.aspx
+1cb7e31b8     110 Sec   No          348 Sec        28         /pages/frontpage.aspx   
+1cb8588a8     110 Sec   No          204 Sec        54         /pages/frontpage.aspx
+1cb86b8d8     110 Sec   No          109 Sec        55         /org/it/pages/default.aspx
 </pre>
 
 <p>The above listing is from a dump collected at 23:00. The report
