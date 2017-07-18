@@ -89,7 +89,7 @@ column ReturnCode containing 200 and column Verb containing GET):</p>
 <pre>
 HttpContext   Timeout   Completed   RunningSince   ThreadId   RequestPath+QueryString 
 1020c2550     110 Sec   Yes         ---                       /favicon.ico  
-105cc7988     360 Sec   Yes         ---                       /_layouts/1030/styles/core.css rev=RlafelT4IyQwdwdVUY0P3w%3D%3D
+105cc7988     360 Sec   Yes         ---                       /_layouts/1030/styles/core.css rev=...
 112e66ee8     110 Sec   No          501 Sec        26         /pages/frontpage.aspx
 14da07450     110 Sec   No          661 Sec        27         /org/it/pages/default.aspx
 18f72bce8     110 Sec   No          246 Sec        52         /pages/frontpage.aspx
@@ -117,10 +117,12 @@ started detecting downtime.</p>
 
 <p>Matching these not completed requests, the report has another
 section showing eight undisposed SPWeb objects and eight undisposed
-SPRequest objects. The thread IDs of each of these match up with the
-block requests so it's safe to assume that these undisposed resources
-are currently in use, i.e., they don't represent a memory leak. The
-addresses of each come in handy once we load the dump into WinDbg.</p>
+SPRequest objects. Those are Microsoft's SharePoint specific classes
+involved in processing requests. The thread IDs of each of these match
+up with the block requests so it's safe to assume that these
+undisposed resources are currently in use, i.e., they don't represent
+a memory leak. The addresses of each come in handy once we load the
+dump into WinDbg.</p>
 
 <pre>
 Address            SPRequest   Auto-Dispose   Auth     Thread   Url [Title]
