@@ -50,7 +50,7 @@ could be a achieved using a scheduled task, but the script approach is
 about as non-intrusive as it gets:</p>
 
 <pre>
-$dumpAt = (Get-Date -Year 2017 -Month 7 -Day 17 -Hour 15 -Minute 39 -Second 00)
+$dumpAt = (Get-Date -Year 2017 -Month 7 -Day 17 -Hour 23 -Minute 15 -Second 00)
 sleep -Seconds (New-TimeSpan -end $dumpAt).TotalSeconds
 $pids = C:\Windows\system32\inetsrv\appcmd.exe list wps /apppool.name:"SP_Intranet_AppPool" /text:WP.NAME
 $pids | foreach {
@@ -102,10 +102,10 @@ HttpContext   Timeout   Completed   RunningSince   ThreadId   RequestPath+QueryS
 
 <p>The above listing is from a dump collected at 23:00. The report
 lists 14% threads blocked (8 threads in total). A later dump collected
-at 23:15, but on another day, reports 30% threads blocked (22 threads
-in total). While the heartbeat script may cause the number of blocked
-thread to increase faster than if only regular users had accessed the
-site, the trend seems clear.</p>
+at 23:15, but on a different day, reports 30% threads blocked (22
+threads in total). While the heartbeat script may cause the number of
+blocked thread to increase faster than if only regular users access
+the site, the trend is clear.</p>
 
 <p>At neither 23:00 nor 23:15 has ASP.NET raised the unhealthy
 flag. Only heartbeat GET requests report timeouts and Internet
@@ -164,8 +164,8 @@ QueryString
 Request mapped to    
 HTTP Request State     HTR_READING_CLIENT_REQUEST 
 Native Request State   NREQ_STATE_PROCESS 
-HTTP Headers   Authorization: NTLM TlRMTVNTUA...AAAAAAAAAAAAAAAAAA==
-               Host: intranet.acme.dk
+HTTP Headers           Authorization: NTLM TlRMTVNTUA...AAAAAAAAAAAAAAAAAA==
+                       Host: intranet.acme.dk
 </pre>
 
 <h4>Conclusion</h4>
