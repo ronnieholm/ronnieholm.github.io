@@ -8,13 +8,13 @@ date: 2017-07-18 12:00 UTC
 
 <p>
 Part 1: <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">Establishing context with HTTP heartbeat pings</a><br>
-Part 2: <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-event-log-iis-log-sharepoint-log-with-powershell">Analyzing Event Log, IIS log, and SharePoint log with PowerShell</a><br>
-Part 3: Collecting and analyzing a memory dump with DebugDiag
+Part 2: <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-windows-event-log-iis-log-sharepoint-log-with-powershell">Analyzing Windows Event Log, IIS log, and SharePoint log with PowerShell</a><br>
+Part 3: Collecting and analyzing a memory dump with DebugDiag<br>
 Part 4: Analyzing the memory dump with WinDbg (future)
 </p>
   
 <p>From
-the <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-event-log-iis-log-sharepoint-log-with-powershell">previous</a>
+the <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-windows-event-log-iis-log-sharepoint-log-with-powershell">previous</a>
 post, it's clear that IIS is receiving requests and that ASP.NET
 doesn't finish processing. To gain insights into what goes on inside
 ASP.NET's request pipeline, this post outlines how to dump the w3wp
@@ -35,8 +35,8 @@ to run on an old Windows Server 2008.</p>
 
 <p>Once a dump has
 been <a href="https://blogs.msdn.microsoft.com/webtopics/2016/04/05/data-collection-for-deadlock-detected-issue-of-a-iis-based-web-application">captured</a>
-(when the isapi!SSFReportUnhealthy function it called), the dump can
-be moved to another machine for DebugDiag report generation and WinDbg
+(when isapi!SSFReportUnhealthy is called by ASP.NET), the dump can be
+moved to another machine for DebugDiag report generation and WinDbg
 analysis. Unfortunately, DebugDiag requires running an MSI installer
 on each server where we'd like to gather a dump. That may be an issue,
 and ideally we prefer a non-intrusive capture mechanism.</p>
@@ -77,8 +77,9 @@ file. Inside report, we find a HttpContext Report. Based on the
 HttpContext objects in the dump, that report lists a number of useful
 information about each request (of which there're 304 in total). For
 our case, the most interesting piece of information is the whether the
-request is completes, and if not then for how long its been running,
-and which worker thread pool thread is responsible for the request.</p>
+request is completes, and if not then for how long it's been running,
+and which worker thread pool thread is responsible for the
+request.</p>
 
 <p>Here's a sample from the report listing a couple of completed
 requests and every not completed ones. The heartbeat pings are the GET
@@ -177,7 +178,7 @@ only, but not arguments. We didn't include the stack trace above
 because with the thread identifiers, WinDbg is better suited for
 digging into that side.</p>
 
-<p>In the next post, we'l load the DebugDiag generated DMP file into
+<p>In the next post, we'll load the DebugDiag generated DMP file into
 WinDbg and learn on what the worker thread pool threads is
 blocked.</p>
 

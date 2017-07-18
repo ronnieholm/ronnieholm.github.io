@@ -1,0 +1,211 @@
+---
+layout: post
+title: "Debugging recurring web farm outages: Analyzing Windows Event Log, IIS log, and SharePoint log with PowerShell"
+date: 2017-07-17 12:00 UTC
+---
+
+<div id="post">
+
+<p>
+Part 1: <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">Establishing context with HTTP heartbeat</a><br>
+Part 2: Analyzing Windows Event Log, IIS log, and SharePoint log with PowerShell<br>
+Part 3: <a href="/blog/2017/07/18/debugging-recurring-web-farm-outages-collecting-and-analyzing-a-memory-dump-with-debugdiag">Collecting and analyzing a memory dump with DebugDiag</a><br>
+Part 4: Analyzing the memory dump with WinDbg (future)
+</p>
+
+<p>In
+the <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">previous</a>
+post we discovered that outages follow a pattern. Servers go offline
+at the same time each day and come back up within a few hours, give or
+take. In this post, we dig into the Windows Event logs, Internet
+Information Services file logs, and SharePoint file logs to look for
+the cause. While manually browsing log files provides a good start,
+once a relevant piece of information has been uncovered, we use
+PowerShell to weed through the logs. Both in terms of servers, log
+files, and time.</p>
+
+<h4>Windows Event Logs</h4>
+
+<p>For Windows and IIS issues, the Application and System event logs
+are a good place to start. The downside is that each contain lots of
+irrelevant entries. Nonetheless, for each server in farm we start
+browsing the logs from around July 7, 22:45 and until July 8,
+07:00. The following entries originate from Web front-end server
+1. Similar entries not shown exist across servers:</p>
+
+<pre>
+07-07-2017 23:21:57 - Application log
+ISAPI 'C:\Windows\Microsoft.NET\Framework64\v2.0.50727\aspnet_isapi.dll'
+reported itself as unhealthy for the following reason: 'Deadlock detected'.
+
+07-07-2017 23:25:24 - System log
+A process serving application pool 'SP_Intranet_AppPool' exceeded time
+limits during shut down. The process id was '11004'.
+</pre>
+
+<p>A couple of minutes after a deadlock is detected, the w3wp process
+is restarted. With PowerShell we search the Event Log for similar
+occurrences both inside and outside the downtime interval to make sure
+the messages are related to the downtime.</p>
+
+<pre>
+Get-EventLog -LogName Application -Message '*unhealthy*' `
+  -After $(Get-Date -Year 2017 -Month 7 -Day 7 -Hour 22 -Minute 45) `
+  -Before $(Get-Date -Year 2017 -Month 7 -Day 8 -Hour 07 -Minute 00) `
+  | foreach { $_.TimeGenerated }
+
+Get-EventLog -Logname System -Message '*exceeded time limits*' `
+  -After $(Get-Date -Year 2017 -Month 7 -Day 7 -Hour 22 -Minute 45) `
+  -Before $(Get-Date -Year 2017 -Month 7 -Day 8 -Hour 07 -Minute 00) `
+  | foreach { $_.TimeGenerated }
+</pre>
+
+<p>Running this PowerShell script against the Event Log on Web
+Front-end server 1, we get a list of matching events.</p>
+
+<pre>
+Deadlock -> Restart  
+23:21:57 -> 23:25:24
+00:10:25 -> 00:13:55
+01:06:04 -> 01:09:28
+01:59:09 -> 02:02:34
+02:21:02 -> 02:24:00
+03:08:09 -> 03:11:32
+03:48:04 -> 03:51:33
+04:45:41 -> 04:49:06
+05:29:02 -> 05:32:08
+06:14:07 -> 06:17:11
+</pre>
+
+<p>Once we have the PowerShell script, it's easy to "grep" the Windows
+Event Logs for similar patterns on other servers in farm and at
+different days. Turns out all servers show a similar ordering of
+messages but with different frequencies and timestamps.</p>
+
+<p>An MSDN post
+on <a href="https://blogs.msdn.microsoft.com/webtopics/2016/04/05/data-collection-for-deadlock-detected-issue-of-a-iis-based-web-application">Data
+Collection for Deadlock Detected issue of an IIS based web
+application</a> explains how the deadlock detection and restart
+mechanisms work:</p>
+
+<blockquote>
+When a web application is busy, there may be instances when the
+maximum number of threads has been spawned and some of the threads are
+unresponsive, resulting in degraded performance. IIS has the ability
+to solve the problem of unresponsive threads by recycling the worker
+process that hosts that particular instance of
+the <a href="https://msdn.microsoft.com/en-us/library/ms525172.aspx">ISAPI</a>. When
+threads are unresponsive, the appropriate ISAPI, i.e., ASP.dll
+[classic ASP] or aspnet_isapi.dll [ASP.NET on IIS 6
+or <a href="https://stackoverflow.com/questions/15060161/why-aspnet-isapi-dll-still-exists-in-iis7">[ASP.NET
+on] IIS 7 in classic mode</a>] calls the ISAPI server support
+function <a href="https://msdn.microsoft.com/en-us/library/ms524715.aspx">HSE_REQ_REPORT_UNHEALTHY</a>,
+and the WAS
+[<a href="https://en.wikipedia.org/wiki/Windows_Activation_Services">Windows
+process Activation Service</a>] (in IIS 7) or WWW service (in IIS 6)
+will recycle the worker process and make an entry in the event log.
+</blockquote>
+
+<p>While the quote mentions the HSE_REQ_REPORT_UNHEALTHY function, it
+actually refers to
+the <a href="https://msdn.microsoft.com/en-us/library/ms525975.aspx">ServerSupportFunction</a>
+function passed HSE_REQ_REPORT_UNHEALTHY as the argument. On IIS 7,
+the function is called isapi!SSFReportUnhealthy, e.g., a function
+named SSFReportUnhealthy inside the ISAPI module. Later on, when we
+collect a memory dump, one approach is triggering the dump when a
+breakpoint on isapi!SSFReportUnhealthy is hit.</p>
+
+<p>Recycling the w3wp process takes longer than the default 90 seconds
+which is why we see the second message in the event log.</p>
+
+<h4>SharePoint 12 hive logs files</h4>
+
+<p>The 12 hive log files contain nothing out the ordinary, except that
+only few HTTP requests show up. That could indicate that ASP.NET has
+stopped processing requests. Once in a while, the logs contain
+database activity originating from SharePoint's timer job service and
+possibly SharePoint Server Object Model generated traffic.</p>
+
+<h4>IIS log files</h4>
+
+<p>Let's try and correlate our HTTP ping requests with IIS
+logs. Remember that IIS first receives the request and based on the
+URL it might pass it along to ASP.NET. Aspx requests are processed by
+ASP.NET and SharePoint while requests for static resources such as
+images, CSS, and JavaScript files may be served directly from the
+filesystem.</p>
+
+<p>First we trace a few successful heartbeats. Observe how the IIS log
+is two hours behind. It record entries in UTC time while the
+heartbeats log is in local time:</p>
+
+<pre>
+Heartbeats log
+5170 09-07-2017 18:30:01 OK
+5171 09-07-2017 18:30:31 OK
+5172 09-07-2017 18:31:01 OK
+
+IIS log
+2017-07-09 16:30:01 127.0.0.1 GET /org/it/pages/default.aspx - 80 - 127.0.0.1 - 401 2 5 0
+2017-07-09 16:30:01 127.0.0.1 GET /org/it/pages/default.aspx - 80 acme\admin 127.0.0.1 - 200 0 0 6973
+2017-07-09 16:30:31 127.0.0.1 GET /org/it/pages/default.aspx - 80 - 127.0.0.1 - 401 2 5 0
+2017-07-09 16:30:31 127.0.0.1 GET /org/it/pages/default.aspx - 80 acme\admin 127.0.0.1 - 200 0 0 6973
+2017-07-09 16:31:01 127.0.0.1 GET /org/it/pages/default.aspx - 80 - 127.0.0.1 - 401 2 5 0
+2017-07-09 16:31:01 127.0.0.1 GET /org/it/pages/default.aspx - 80 acme\admin 127.0.0.1 - 200 0 0 6973
+</pre>
+
+<p>For what appears as one request when generated by heartbeat tool,
+two entries appear in the IIS log. That's because the client (the .NET
+WebClient class) requests the URL without providing an authentication
+header. This causes IIS to respond with HTTP 401 and a list of
+supported authentication providers as configured within IIS Manager
+for the site. The client then picks a provider that both it and the
+server supports and resends the request, now including the NTLM
+authentication header. That's why the subsequent HTTP 200 entry lists
+domain and user name. Those have been extracted from the NTLM
+authentication token. This handshake process is hidden away inside the
+.NET WebClient class and the HTTP 401 isn't a sign of an error.</p>
+
+<p>Next we trace failing requests. Notice also the seven seconds delay
+between the HTTP 401 and the HTTP 200. As we get closer to timeout
+occuring, the server appears to become slower at processing
+requests:</p>
+
+<pre>
+Heartbeats log
+5675 09-07-2017 22:46:03 OK
+5676 09-07-2017 22:46:40 The operation has timed out
+5677 09-07-2017 22:48:51 The operation has timed out
+
+IIS log
+2017-07-09 20:46:03 127.0.0.1 GET /org/it/pages/default.aspx - 80 - 127.0.0.1 - 401 2 5 0
+2017-07-09 20:46:10 127.0.0.1 GET /org/it/pages/default.aspx - 80 acme\admin 127.0.0.1 - 200 0 0 6973
+2017-07-09 20:46:40 127.0.0.1 GET /org/it/pages/default.aspx - 80 - 127.0.0.1 - 401 2 5 0
+2017-07-09 20:48:51 127.0.0.1 GET /org/it/pages/default.aspx - 80 - 127.0.0.1 - 401 2 5 0
+</pre>
+
+<p>Even when the server timeouts on the original request, it still
+receives, responds, and logs the initial requires authentication
+header request resulting in a HTTP 401. That's because the HTTP 401 is
+generated by IIS without consulting ASP.NET. The HTTP 200 response,
+however, never shows up in the log because ASP.NET never gets around
+to finish processing it.</p>
+
+<h4>Conclusion</h4>
+
+<p>Entries from Windows Event logs and IIS logs indicate that ASP.NET
+is experiencing issues. The w3wp worker thread pool isn't processing
+requests as it ought to. From the log messages we can't definitely
+conclude if what we're experiencing is worker thread pool exhaustion
+(caused
+by <a href="https://blogs.msdn.microsoft.com/perfdude/2008/09/20/web-server-deadlocks-aspnet_isapi-dll">COM
+interop</a> or some other issue), but signs of exhaustion are
+there. That could explain why the Windows process Activation Service
+decides to restart the w3wp process.</p>
+
+<p>In
+the <a href="/blog/2017/07/18/debugging-recurring-web-farm-outages-collecting-and-analyzing-a-memory-dump-with-debugdiag">next</a>
+post, we'll grab a memory dump of the w3wp process and have a look at
+the state of the worker thread pool.</p>
+  
+</div>
