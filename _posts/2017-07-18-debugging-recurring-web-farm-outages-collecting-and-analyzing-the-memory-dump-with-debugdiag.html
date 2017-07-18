@@ -116,13 +116,14 @@ was received by IIS around 22:46, just about when the heartbeat script
 started detecting downtime.</p>
 
 <p>Matching these not completed requests, the report has another
-section showing eight undisposed SPWeb objects and eight undisposed
-SPRequest objects. Those are Microsoft's SharePoint specific classes
-involved in processing requests. The thread IDs of each of these match
-up with the block requests so it's safe to assume that these
-undisposed resources are currently in use, i.e., they don't represent
-a memory leak. The addresses of each come in handy once we load the
-dump into WinDbg.</p>
+section showing eight undisposed SPWeb objects (not to be confused
+with SPSWeb below) and eight undisposed SPRequest objects. SPWeb and
+SPRequest are Microsoft SharePoint .NET specific classes involved in
+processing requests. The thread IDs of these SPRequests match up with
+the threads IDs of the not completed requests above. It's therefore
+safe to assume that these undisposed resources are currently in use,
+i.e., they don't represent a memory leak. The addresses of each object
+come in handy once we load the dump into WinDbg:</p>
 
 <pre>
 Address            SPRequest   Auto-Dispose   Auth     Thread   Url [Title]
