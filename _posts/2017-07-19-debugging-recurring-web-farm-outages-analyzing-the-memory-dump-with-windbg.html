@@ -9,7 +9,7 @@ date: 2017-07-19 12:00 UTC
 <p>
 Part 1: <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">Establishing context with HTTP heartbeat pings</a><br>
 Part 2: <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-event-log-iis-log-sharepoint-log-with-powershell">Analyzing Event Log, IIS log, and SharePoint log with PowerShell</a><br>
-Part 3: <a href="/blog/2017/07/18/debugging-recurring-web-farm-outages-collecting-and-analyzing-the-memory-dump-with-debugdiag">Collecting and analyzing a memory dump with DebugDiag<7</a><br>
+Part 3: <a href="/blog/2017/07/18/debugging-recurring-web-farm-outages-collecting-and-analyzing-the-memory-dump-with-debugdiag">Collecting and analyzing a memory dump with DebugDiag</a><br>
 Part 4: Analyzing the memory dump with WinDbg
 </p>
 
@@ -175,7 +175,7 @@ ntdll!NtWaitForSingleObject+0xa:
 0e 00000000`0b40a400 00000000`72e2443c STSWEL!Voledb::ExecQuery+0x37e
 0f 00000000`0b40a560 00000000`72e24837 STSWEL!VauditEntry::createInternalEntry+0x418
 10 00000000`0b40acc0 00000000`72e24fe7 STSWEL!VauditEntry::createInternalEntry+0x813
-11 00000000`0b40ad50 00000000`72e25335 STSWEL!VglobalAuditStore::addAuditEntry+0x97
+<font color="red">11 00000000`0b40ad50 00000000`72e25335 STSWEL!VglobalAuditStore::addAuditEntry+0x97</font>
 12 00000000`0b40ad90 00000000`72efe6de STSWEL!VglobalAuditStore::checkAuditQueue+0x241
 13 00000000`0b40ae70 00000000`72f35055 STSWEL!VdocumentStore::httpGetDocument+0x2ed2
 14 00000000`0b40be60 00000000`72f367e0 STSWEL!VhttpManager::loadFileCore+0x5c5
@@ -230,7 +230,7 @@ numbers from the native stack for easier reference:</p>
 <pre>
 0:027> <font color="green">!CLRStack</font>
 OS Thread Id: 0x380 (27)
-Child-SP         RetAddr          Call Site
+     Child-SP         RetAddr          Call Site
 <font color="red">[19] 000000000b40d090 000007fe96c643a1 DomainNeutralILStubClass.IL_STUB(...)</font>
 [1a] 000000000b40d490 000007fe96c63d52 Microsoft.SharePoint.Library.SPRequest.GetFileAndMetaInfo(System.String, ...)
 [1b] 000000000b40d620 000007fe96c578c5 Microsoft.SharePoint.SPWeb.GetWebPartPageContent(System.Uri,  ...)
