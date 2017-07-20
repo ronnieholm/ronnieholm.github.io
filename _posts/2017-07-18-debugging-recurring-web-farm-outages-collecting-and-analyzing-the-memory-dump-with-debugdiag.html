@@ -27,20 +27,22 @@ reporting capabilities to analyze the dump.</p>
 
 <h4>DebugDiag dump collection</h4>
 
-<p>DebugDiag is both a capture and reporting utility. The reporting
-part automates a lot of manual WinDbg digging around, collecting and
-organizing information to provide an overview. For dump purposes,
-we're interested in its ability to capture-on-breakpoint-hit. Other
-tools, such as ProcDump doesn't support this feature. WinDbg does, but
-in a more crude and manual fashion.</p>
+<p>DebugDiag (watch the four-part introduction on Channel 9: <a href="
+https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-121-DebugDiag-Part-1">1</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-122-DebugDiag-Part-2">2</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-123-DebugDiag-Part-3">3</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-124-DebugDiag-Part-4">4</a>)is
+both a capture and reporting utility. The reporting part automates
+manual WinDbg digging around by analyzing a dump using predefined
+rules and heurisics. For dump purposes, we're interested in its
+ability to capture-on-breakpoint-hit. Other tools, such as ProcDump
+doesn't support this feature. WinDbg does, but in a more crude and
+manual fashion.</p>
 
 <p>Once a dump is
 <a href="https://blogs.msdn.microsoft.com/webtopics/2016/04/05/data-collection-for-deadlock-detected-issue-of-a-iis-based-web-application">generated</a>
 (when isapi!SSFReportUnhealthy is called by the ASP.NET runtime), the
 dump can be moved to another machine for DebugDiag report generation
-and further WinDbg analysis. Unfortunately, DebugDiag requires running
-an MSI installer on the machine where we want to capture the
-dump. Ideally, we prefer a less intrusive capture.</p>
+and further WinDbg analysis. Unfortunately, DebugDiag isn't fully
+xcopy deployable. One has to xcopy deploy the installation folder and
+then run the included Register.bat and Unregister.bat files.</p>
 
 <h4>Scheduled dump collection</h4>
 
@@ -100,6 +102,12 @@ HttpContext   Timeout   Completed   RunningSince   ThreadId   RequestPath+QueryS
 1cb8588a8     110 Sec   No          204 Sec        54         /pages/frontpage.aspx
 1cb86b8d8     110 Sec   No          109 Sec        55         /org/it/pages/default.aspx
 </pre>
+
+<p>The report summary states that these threads are blocked, calling
+an ISAPI Extension named OWSSVR. For .NET code, DebugDiag would be
+able to tell that, for instance, these threads are waiting on data to
+be returned from the database server. But here, OWSSVR is an opaque
+COM component. We must dig out the information ourselves.</p>.
 
 <p>The above listing is from a dump collected at 23:00. Notice how the
 report lists 14% threads blocked (8 threads in total). A later dump
