@@ -156,7 +156,7 @@ blocked. Since the !DumpStack command doesn't include stack frame
 numbers we manually include those for easier reference:</p>
 
 <pre>
-0:027> !DumpStack
+0:027> <font color="green">!DumpStack</font>
 OS Thread Id: 0x380 (27)
    Child-SP         RetAddr          Call Site
 <font color="red">00 000000000b409838 000007fefd3af5f1 ntdll!NtWaitForSingleObject+0xa</font>
@@ -183,8 +183,8 @@ OS Thread Id: 0x380 (27)
 21 000000000b40c700 000000006d9a0543 STSWEL!VhttpManager::loadFileAndMetaInfo+0xc4
 22 000000000b40c7c0 000000006d9ab514 OWSSVR!GetExtensionVersion+0x89b57
 23 000000000b40cb80 000007fef60170a7 OWSSVR!GetExtensionVersion+0x94b28
-<font color="red">24 000000000b40cf00 000007fe96c64bba mscorwks!DoCLRToCOMCall+0x177</font>
-25 000000000b40d090 000007fe96c643a1 Microsoft_SharePoint_Library!DomainNeutralILStubClass.IL_STUB(...)+0x96c64bbb
+<font color="red">24 000000000b40cf00 000007fe96c64bba mscorwks!DoCLRToCOMCall+0x177
+25 000000000b40d090 000007fe96c643a1 Microsoft_SharePoint_Library!DomainNeutralILStubClass.IL_STUB(...)+0x96c64bbb</font>
 26 000000000b40d490 000007fe96c63d52 Microsoft_SharePoint!Microsoft.SharePoint.Library.SPRequest.GetFileAndMetaInfo(System.String, ...)+0x271
 27 000000000b40d620 000007fe96c578c5 Microsoft_SharePoint!Microsoft.SharePoint.SPWeb.GetWebPartPageContent(System.Uri, ...)+0xa12
 28 000000000b40d980 000007fe96c56e87 Microsoft_SharePoint!Microsoft.SharePoint.ApplicationRuntime.SPRequestModuleData.FetchWebPartPageInformationForInit(System.Web.HttpContext, ...)+0x495
@@ -323,10 +323,10 @@ sqloledb!CStmt::ExecDirect+0xa5b:
 
 <p>Using
 the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/d--da--db--dc--dd--dd--df--dp--dq--du--dw--dw--dyb--dyd--display-memor">du
-command</a> (for dump memory region as Unicode string), we can get at
-the SQL statement. Some amount of guesswork is required as to which
-register holds the pointer to the SQL statement. It turns out to be
-CPU register r13 which we can deference:</p>
+command</a> (short for dump memory region as Unicode string), we can
+get at the SQL statement. Some amount of guesswork is required as to
+which register holds the pointer to the SQL statement. It turns out to
+be CPU register r13 which we can deference:</p>
 
 <pre>
 0:027> <font color="green">du 000000001322a1b0 L1000</font>
