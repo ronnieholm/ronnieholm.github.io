@@ -88,7 +88,7 @@ CLR DLL status: Loaded DLL C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\
 </pre>
 
 <p>(On this target machine, the proper core files were already
-present. Otherwise the loader output above would've include
+present. Otherwise the loader output above would've included
 c:\dumps.)</p>
 
 <p>Because the Event Log entry mentions a (potential) deadlock, in
@@ -239,9 +239,9 @@ can dump the HttpWorkerRequest object passed as an argument in frame
 38. It has a _path property (and a _startTime property which
 presumably DebugDiag uses to compute the value of "RunningSince" in
 its report) which we can write out the value of. The same drill-down
-technique could be applied to HttpContext at frame 32. It's
-Httpcontext points to 0x000000014da07450 which we should recognize
-from the DebugDiag report:</p>
+technique could be applied to HttpContext at frame 32. Its HttpContext
+argument points to 0x000000014da07450 which we should recognize from
+the DebugDiag report:</p>
 
 <pre>
 0:027> <font color="green">!CLRStack -a</font>
@@ -275,9 +275,9 @@ Size: 96(0x60) bytes
 ...
 </pre>
 
-<p>As we move futher up the call stack, at frame 30 we see SharePoint
-initialize the SPWeb based on the URL and prepare a request for the
-document library item storing the page (frame 26) inside the content
+<p>Moving up the call stack, at frame 30 we see SharePoint initialize
+the SPWeb based on the URL and prepare a request for the document
+library item storing the page (frame 26) inside the content
 database.</p>
 
 <p>At this point something interesting happens. Turns out that instead
@@ -326,7 +326,7 @@ the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/
 command</a> (for dump memory region as Unicode string), we can get at
 the SQL statement. Some amount of guesswork is required as to which
 register holds the pointer to the SQL statement. It turns out to be
-r13:</p>
+CPU register r13 which we can deference:</p>
 
 <pre>
 0:027> <font color="green">du 000000001322a1b0 L1000</font>
@@ -338,19 +338,19 @@ Cleaned up output:
      0,'20170713 20:49:50',3,NULL,0,NULL,NULL;</font>
 </pre>
 
-<p>So OLE DB is calling a stored procedure which adds a row to the
-audit log table (if auditing is enabling). The arguments identify
-object requested and the user. The time zone is UTC and given that the
-debug session time is reported as 23:00:51 and the request has been
-queued for 661 seconds, 20:49:50 makes sense.</p>
+<p>OLE DB is calling a stored procedure which adds a row to the audit
+log table (if auditing is enabling). The arguments identify object
+requested and the user. The time zone is UTC and given that the debug
+session time is reported as 23:00:51 and the request has been queued
+for 661 seconds, 20:49:50 makes sense.</p>
 
 <h4>Conclusion</h4>
 
 <p>Inspecting the call stacks of the eight blocked threads, they're
 all blocked waiting for MS SQL Server to respond to the
-proc_AddAuditEntry. It's unlikely that there's anything wrong with
-that procedure. It's just the first database operation which happens
-before actual content is fetched.</p>
+proc_AddAuditEntry stored procedure. It's unlikely that there's
+anything wrong with that procedure. It's just the first database
+operation which happens before actual content is fetched.</p>
 
 <p>The culprit causing recurring platform outages appear to be MS SQL
 Server not responding to requests. It's a bit odd that no timeout
