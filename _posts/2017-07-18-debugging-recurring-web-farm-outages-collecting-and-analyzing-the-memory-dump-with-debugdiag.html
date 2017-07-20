@@ -28,8 +28,8 @@ reporting capabilities to analyze the dump.</p>
 <h4>DebugDiag dump collection</h4>
 
 <p>DebugDiag (watch the four-part introduction on Channel 9: <a href="
-https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-121-DebugDiag-Part-1">1</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-122-DebugDiag-Part-2">2</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-123-DebugDiag-Part-3">3</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-124-DebugDiag-Part-4">4</a>)is
-both a capture and reporting utility. The reporting part automates
+https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-121-DebugDiag-Part-1">1</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-122-DebugDiag-Part-2">2</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-123-DebugDiag-Part-3">3</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-124-DebugDiag-Part-4">4</a>)
+is both a capture and reporting utility. The reporting part automates
 manual WinDbg digging around by analyzing a dump using predefined
 rules and heurisics. For dump purposes, we're interested in its
 ability to capture-on-breakpoint-hit. Other tools, such as ProcDump
@@ -107,7 +107,7 @@ HttpContext   Timeout   Completed   RunningSince   ThreadId   RequestPath+QueryS
 an ISAPI Extension named OWSSVR. For .NET code, DebugDiag would be
 able to tell that, for instance, these threads are waiting on data to
 be returned from the database server. But here, OWSSVR is an opaque
-COM component. We must dig out the information ourselves.</p>.
+COM component. We must dig out the information ourselves.</p>
 
 <p>The above listing is from a dump collected at 23:00. Notice how the
 report lists 14% threads blocked (8 threads in total). A later dump

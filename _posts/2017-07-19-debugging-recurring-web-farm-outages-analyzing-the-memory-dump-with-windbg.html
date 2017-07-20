@@ -15,33 +15,32 @@ Part 4: Analyzing the memory dump with WinDbg
 
 <p>In
 the <a href="/blog/2017/07/18/debugging-recurring-web-farm-outages-collecting-and-analyzing-the-memory-dump-with-debugdiag">previous</a>
-post we used DebugDiag to narrow down the problem. It turned out that
-ASP.NET stops processing requests because worker thread pool threads
-are getting stuck. As more requests come in, more threads get stuck,
-until finally the ASP.NET runtime notices that something is wrong. It
-marks its host process, the w3wp process, as unhealthy which
-eventually causes the Windows process Activation Service to restart
-the w3wp process. And the process repeats itself.</p>
+post we used DebugDiag to narrow down the problem. As expected, the
+ASP.NET runtime stops processing requests because worker thread pool
+threads are getting stuck. As more requests come in, more threads get
+stuck, until finally the runtime notices that something is wrong. It
+then signals the w3wp host process which the Windows process
+Activation Service detects and restarts w3wp. This flow repeats itself
+a number of times.</p>
 
-<p>This post investigates the reasons behind why worker threads have
-become blocked. To do so, we load the memory dump captured earlier
-into WinDbg.</p>
+<p>This post investigates on what worker threads get blocked. We do so
+by loading the memory dump captured earlier into WinDbg.</p>
 
 <h4>Loading the dump into WinDbg</h4>
 
 <p>We don't want to analyze the memory dump directly on a production
-server. Instead we move it to another machine and do the postmortem
+server. Instead we move it to another machine and do postmortem
 analysis there. For WinDbg to work reliably within this setup, we must
 follow the steps outlined
 in <a href="/blog/2016/10/24/windbg-postmortem-debugging-across-installed-dotnet-clr-versions">postmortem
 debugging across installed .NET CLR versions</a>. These steps are
-necessary because the dump was captured on a Windows Server 2008 with
-the w3wp process hosting a specific version of the .NET 2.0 runtime,
-not necessarily available on the target machine. Key files related to
-the CLR must therefore be copied across machines.</p>
+required because the dump was captured on a Windows Server 2008 with
+w3wp running a version of .NET 2.0 not necessarily available on the
+target machine. Key files related to the CLR version must therefore be
+copied across machines.</p>
 
-<p>In the WinDbg session below, commands typed in are in
-<font color="green">green</font>. Important parts of the output worth
+<p>In the WinDbg session below, commands issues are marked in
+<font color="green">green</font>. The parts of the output worth
 highlighting are in <font color="red">red</font>.</p>
 
 <pre>
@@ -49,7 +48,7 @@ Microsoft (R) Windows Debugger Version 10.0.15063.137 AMD64
 Copyright (c) Microsoft Corporation. All rights reserved.
 
 
-Loading Dump File [C:\Deadlock\w3wp.exe_170713_230009.dmp]
+Loading Dump File [C:\dumps\w3wp.exe_170713_230009.dmp]
 User Mini Dump File with Full Memory: Only application data is available
 
 Comment: '
@@ -72,14 +71,14 @@ Loading unloaded module list
 ..............
 ntdll!NtWaitForSingleObject+0xa:
 00000000`778d68da c3              ret
-0:000> <font color="green">.sympath+ C:\Deadlock</font>
-Symbol search path is: srv*;C:\Deadlock
-Expanded Symbol search path is: cache*;SRV*https://msdl.microsoft.com/download/symbols;c:\deadlock
+0:000> <font color="green">.sympath+ C:\dumps</font>
+Symbol search path is: srv*;C:\dumps
+Expanded Symbol search path is: cache*;SRV*https://msdl.microsoft.com/download/symbols;c:\dumps
 
 ************* Symbol Path validation summary **************
 Response                         Time (ms)     Location
 Deferred                                       srv*
-OK                                             C:\Deadlock
+OK                                             C:\dumps
 0:000> <font color="green">.cordll -ve -u -l</font>
 CLRDLL: C:\Windows\Microsoft.NET\Framework64\v2.0.50727\mscordacwks.dll:2.0.50727.8745 f:0
 doesn't match desired version 2.0.50727.8762 f:0
@@ -88,13 +87,17 @@ CLRDLL: Loaded DLL C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\sym\msco
 CLR DLL status: Loaded DLL C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\sym\mscordacwks_AMD64_AMD64_2.0.50727.8762.dll\58E462F09a0000\mscordacwks_AMD64_AMD64_2.0.50727.8762.dll</font>
 </pre>
 
-<p>Because the Event Log entry mentions that a (potential) deadlock
-has occurred, in addition to
+<p>(On this target machine, the proper core files were already
+present. Otherwise the loader output above would've include
+c:\dumps.)</p>
+
+<p>Because the Event Log entry mentions a (potential) deadlock, in
+addition to
 <a href="https://docs.microsoft.com/en-us/dotnet/framework/tools/sos-dll-sos-debugging-extension">sos</a>,
 we load the <a href="http://www.stevestechspot.com/">sosex</a>
-debugger extension. sos's !locks command leaves interpretation to the
-user while sosex's !dlk command aims to detect and present a deadlocks
-within managed resources:</p>
+debugger extension. While the SOS !locks command requires manual
+interpretation, the SOSEX !dlk command aims to detect and present
+deadlocks within managed resources:</p>
 
 <pre>
 0:000> <font color="green">.load C:\Deadlock\sosex_64\sosex</font>
@@ -111,17 +114,17 @@ Scanning for threads waiting on CriticalSections...
 <font color="red">No deadlocks detected.</font>
 </pre>
 
-<p>So either the deadlock hasn't happened yet, the deadlock doesn't
-involve managed resources, or it's a false positive Event Log
+<p>Either the deadlock hasn't manifested itself yet, the deadlock
+doesn't involve managed resources, or it's a false positive Event Log
 message.</p>
 
 <h4>Analyzing blocked threads</h4>
 
 <p>Let's start by looking at high-level thread pool statistics. From
-the DebugDiag report we know that eight worker thread pool threads are
-currently blocked. More threads are running inside w3wp; in fact the ~
-command lists 58 threads. Those just aren't managed thread pool
-threads:</p>
+the DebugDiag report we know that eight worker thread pool threads
+were blocked at the time of the dump. More threads are running inside
+w3wp; in fact the ~ command lists 58 threads. Those just aren't
+managed thread pool threads:</p>
 
 <pre>
 0:000> <font color="green">!ThreadPool</font>
@@ -134,149 +137,111 @@ Number of Timers: 17
 Completion Port Thread:Total: 1 Free: 1 MaxFree: 8 CurrentLimit: 0 MaxLimit: 400 MinLimit: 4
 </pre>
 
-<p>If we want to see just the managed part of the call stack of each
-of those eight threads, we could issue the "~*e!CLRStack" command: for
-all threads (~*), execute (e) command (!CLRStack). But instead of
-including the stacks here (it's a long listing), we focus on one
-thread and generalize the analysis to the other seven. Let's use
-thread 27 as an example. It's the first thread reported as blocked in
-the DebugDiag output, servicing our HTTP ping request. It's also the
-thread blocked for the longest (661 seconds).</p>
+<p>If we wanted to see the managed call stacks of those eight threads,
+we could issue the ~*e!CLRStack command: for all threads (~*), execute
+(e) command (!CLRStack). But rather than include the stacks here (it's
+a long listing), instead we focus on one thread and generalize the
+analysis. Let's use thread 27 as an example. It's the first thread
+that DebugDiag reported blocked and is servicing our HTTP ping
+request. It's also the one thread blocked for the longest (661
+seconds).</p>
 
-<p>Instead of listing just the managed part of the stack as !CLRStack
-would, we're interesting in the entire stack, native and
-managed. Because SharePoint consists of partly native code, partly
-managed code, the native stack may reveal clues that would otherwise
-remain hidden. To dump the native stack, we first switch to thread 27
-and then execute
+<p>Instead of listing first the native call stack as
 the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/k--kb--kc--kd--kp--kp--kv--display-stack-backtrace-">k
-command</a></p>:
+command</a> would do, or then the managed call stack as the !CLRStack
+command would, we combined those using the !DumpStack command. We want
+both stacks because SharePoint consists of both native and managed
+code, and the native stack may reveal clues as to why a thread is
+blocked. Since the !DumpStack command doesn't include stack frame
+numbers we manually include those for easier reference:</p>
 
 <pre>
-0:000> <font color="green">~27s</font>
-ntdll!NtWaitForSingleObject+0xa:
-00000000`778d68da c3              ret
-0:027> <font color="green">k</font>
- # Child-SP          RetAddr           Call Site
-<font color="red">00 00000000`0b409838 000007fe`fd3af5f1 ntdll!NtWaitForSingleObject+0xa</font>
-01 00000000`0b409840 000007fe`fd3b1a68 mswsock!_GSHandlerCheck_SEH+0x2e41
-02 00000000`0b4098c0 000007fe`fea5295c mswsock!_GSHandlerCheck_SEH+0x62a6
-03 00000000`0b4099b0 000007fe`e6a0120d ws2_32!recv+0x13c
-04 00000000`0b409a50 000007fe`e2e16f28 dbnetlib!ConnectionRead+0x491
-05 00000000`0b409b30 000007fe`e2e15b11 sqloledb!CDataSource::ConnectionTransact+0xde
-06 00000000`0b409b90 000007fe`e2e15866 sqloledb!CDBConnection::SendPacket+0x1e1
-<font color="red">07 00000000`0b409c40 000007fe`e2e15617 sqloledb!CStmt::ExecDirect+0xa5b</font>
-08 00000000`0b409d80 000007fe`e2e1531d sqloledb!CStmt::SQLExecDirect+0x44
-09 00000000`0b409db0 000007fe`e2e140b1 sqloledb!CCommand::ExecuteHelper+0x209
-0a 00000000`0b409e40 000007fe`e2e13b4c sqloledb!CCommand::Execute+0x1458
-0b 00000000`0b409f50 000007fe`e3f9d28b sqloledb!CImpICommandText::Execute+0x181
-0c 00000000`0b409fb0 000007fe`e3f5d674 oledb32!CCommandText::DoExecute+0x5ab
-0d 00000000`0b40a1b0 00000000`72fc59fa oledb32!CCommandText::Execute+0x92f
-0e 00000000`0b40a400 00000000`72e2443c STSWEL!Voledb::ExecQuery+0x37e
-0f 00000000`0b40a560 00000000`72e24837 STSWEL!VauditEntry::createInternalEntry+0x418
-10 00000000`0b40acc0 00000000`72e24fe7 STSWEL!VauditEntry::createInternalEntry+0x813
-<font color="red">11 00000000`0b40ad50 00000000`72e25335 STSWEL!VglobalAuditStore::addAuditEntry+0x97</font>
-12 00000000`0b40ad90 00000000`72efe6de STSWEL!VglobalAuditStore::checkAuditQueue+0x241
-13 00000000`0b40ae70 00000000`72f35055 STSWEL!VdocumentStore::httpGetDocument+0x2ed2
-14 00000000`0b40be60 00000000`72f367e0 STSWEL!VhttpManager::loadFileCore+0x5c5
-15 00000000`0b40c700 00000000`6d9a0543 STSWEL!VhttpManager::loadFileAndMetaInfo+0xc4
-16 00000000`0b40c7c0 00000000`6d9ab514 OWSSVR!GetExtensionVersion+0x89b57
-17 00000000`0b40cb80 000007fe`f60170a7 OWSSVR!GetExtensionVersion+0x94b28
-<font color="red">18 00000000`0b40cf00 000007fe`96c64bba mscorwks!DoCLRToCOMCall+0x177
-19 00000000`0b40d090 000007fe`96c643a1 0x000007fe`96c64bba</font>
-1a 00000000`0b40d490 000007fe`96c63d52 0x000007fe`96c643a1
-1b 00000000`0b40d620 000007fe`96c578c5 0x000007fe`96c63d52
-1c 00000000`0b40d980 000007fe`96c56e87 0x000007fe`96c578c5
-1d 00000000`0b40dc10 000007fe`96c563b4 0x000007fe`96c56e87
-1e 00000000`0b40dee0 000007fe`9698fa39 0x000007fe`96c563b4
-1f 00000000`0b40df60 000007fe`9698f769 0x000007fe`9698fa39
-20 00000000`0b40e050 000007fe`9698f2e3 0x000007fe`9698f769
-21 00000000`0b40e090 000007fe`e4bc78b0 0x000007fe`9698f2e3
-22 00000000`0b40e190 000007fe`e4bb86bb System_Web_ni+0x2778b0
-23 00000000`0b40e1f0 000007fe`e4bc6c15 System_Web_ni+0x2686bb
-24 00000000`0b40e290 000007fe`e4bb7773 System_Web_ni+0x276c15
-25 00000000`0b40e340 000007fe`e4bbba94 System_Web_ni+0x267773
-26 00000000`0b40e3a0 000007fe`e4bbb67c System_Web_ni+0x26ba94
-27 00000000`0b40e430 000007fe`e4bba2ac System_Web_ni+0x26b67c
-<font color="red">28 00000000`0b40e470 000007fe`f6018e92 System_Web_ni+0x26a2ac</font>
-29 00000000`0b40e5a0 000007fe`f5ea6b63 mscorwks!CallDescrWorker+0x82
-2a 00000000`0b40e600 000007fe`f5e9c4be mscorwks!CallDescrWorkerWithHandler+0xd3
-2b 00000000`0b40e6a0 000007fe`f6507b96 mscorwks!ForwardCallToManagedMethod+0x172
-2c 00000000`0b40e740 000007fe`f5e66054 mscorwks!COMToCLRWorkerBody+0x2b6
-2d 00000000`0b40e990 000007fe`f5eb5662 mscorwks!COMToCLRWorkerDebuggerWrapper+0x50
-2e 00000000`0b40ea00 000007fe`f601900e mscorwks!COMToCLRWorker+0x366
-2f 00000000`0b40ecf0 000007fe`e2d782b3 mscorwks!GenericComCallStub+0x5e
-30 00000000`0b40eda0 000007fe`e2d78693 webengine!HttpCompletion::ProcessRequestInManagedCode+0x2a3
-31 00000000`0b40f250 000007fe`e2dbad04 webengine!HttpCompletion::ProcessCompletion+0x63
-32 00000000`0b40f290 000007fe`f5f28787 webengine!CorThreadPoolWorkitemCallback+0x24
-33 00000000`0b40f2c0 000007fe`f5f16d6a mscorwks!UnManagedPerAppDomainTPCount::DispatchWorkItem+0x157
-34 00000000`0b40f360 000007fe`f5e4c3dc mscorwks!ThreadpoolMgr::WorkerThreadStart+0x1ba
-35 00000000`0b40f400 00000000`7777a4bd mscorwks!Thread::intermediateThreadProc+0x78
-36 00000000`0b40f7d0 00000000`778b6461 kernel32!BaseThreadInitThunk+0xd
-37 00000000`0b40f800 <font color="red">00000000`00000000</font> ntdll!RtlUserThreadStart+0x1d
-</pre>
-
-<p>That call stack is quite a mouthful. We'll go through the relevant
-call stack frames shortly. But first, notice how stack frames 19 to
-28, both inclusive, appear without much detail. Those are the managed
-parts of the stack. Because we're looking at a native stack, WinDbg
-doesn't know how to interprete those frames. Only the CLR knows how to
-resolve those adresses to .NET method calls. We can get the managed
-part of the call stack like via the !CLRStack command. In the output
-we've shortened the argument lists of a few methods as they contained
-more than 30 arguments. We also amended the output with stack frame
-numbers from the native stack for easier reference:</p>
-
-<pre>
-0:027> <font color="green">!CLRStack</font>
+0:027> !DumpStack
 OS Thread Id: 0x380 (27)
-     Child-SP         RetAddr          Call Site
-<font color="red">[19] 000000000b40d090 000007fe96c643a1 DomainNeutralILStubClass.IL_STUB(...)</font>
-[1a] 000000000b40d490 000007fe96c63d52 Microsoft.SharePoint.Library.SPRequest.GetFileAndMetaInfo(System.String, ...)
-[1b] 000000000b40d620 000007fe96c578c5 Microsoft.SharePoint.SPWeb.GetWebPartPageContent(System.Uri,  ...)
-[1c] 000000000b40d980 000007fe96c56e87 Microsoft.SharePoint.ApplicationRuntime.SPRequestModuleData.FetchWebPartPageInformationForInit(...)
-[1d] 000000000b40dc10 000007fe96c563b4 Microsoft.SharePoint.ApplicationRuntime.SPRequestModuleData.GetFileForRequest(System.Web.HttpContext, ...)
-[1e] 000000000b40dee0 000007fe9698fa39 Microsoft.SharePoint.ApplicationRuntime.SPRequestModule.InitContextWeb(System.Web.HttpContext, Microsoft.SharePoint.SPWeb)
-[1f] 000000000b40df60 000007fe9698f769 Microsoft.SharePoint.WebControls.SPControl.SPWebEnsureSPControl(System.Web.HttpContext)
-[20] 000000000b40e050 000007fe9698f2e3 Microsoft.SharePoint.WebControls.SPControl.GetContextWeb(System.Web.HttpContext)
-[21] 000000000b40e090 000007fee4bc78b0 Microsoft.SharePoint.ApplicationRuntime.SPRequestModule.PostResolveRequestCacheHandler(System.Object, System.EventArgs)
-[22] 000000000b40e190 000007fee4bb86bb System.Web.HttpApplication+SyncEventExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
-[23] 000000000b40e1f0 000007fee4bc6c15 System.Web.HttpApplication.ExecuteStep(IExecutionStep, Boolean ByRef)
-[24] 000000000b40e290 000007fee4bb7773 System.Web.HttpApplication+ApplicationStepManager.ResumeSteps(System.Exception)
-[25] 000000000b40e340 000007fee4bbba94 System.Web.HttpApplication.System.Web.IHttpAsyncHandler.BeginProcessRequest(System.Web.HttpContext, ...)
-[26] 000000000b40e3a0 000007fee4bbb67c System.Web.HttpRuntime.ProcessRequestInternal(System.Web.HttpWorkerRequest)
-[27] 000000000b40e430 000007fee4bba2ac System.Web.HttpRuntime.ProcessRequestNoDemand(System.Web.HttpWorkerRequest)
-<font color="red">[28] 000000000b40e470 000007fef6018e92 System.Web.Hosting.ISAPIRuntime.ProcessRequest(IntPtr, Int32)</font>
+   Child-SP         RetAddr          Call Site
+<font color="red">00 000000000b409838 000007fefd3af5f1 ntdll!NtWaitForSingleObject+0xa</font>
+01 000000000b409840 000007fefd3b1a68 mswsock!_GSHandlerCheck_SEH+0x2e41
+02 000000000b4098c0 000007fefea5295c mswsock!_GSHandlerCheck_SEH+0x62a6
+03 000000000b4099b0 000007fee6a0120d ws2_32!recv+0x13c
+04 000000000b409a50 000007fee2e16f28 dbnetlib!ConnectionRead+0x491
+05 000000000b409b30 000007fee2e15b11 sqloledb!CDataSource::ConnectionTransact+0xde
+06 000000000b409b90 000007fee2e15866 sqloledb!CDBConnection::SendPacket+0x1e1
+<font color="red">07 000000000b409c40 000007fee2e15617 sqloledb!CStmt::ExecDirect+0xa5b</fon>
+08 000000000b409d80 000007fee2e1531d sqloledb!CStmt::SQLExecDirect+0x44
+09 000000000b409db0 000007fee2e140b1 sqloledb!CCommand::ExecuteHelper+0x209
+10 000000000b409e40 000007fee2e13b4c sqloledb!CCommand::Execute+0x1458
+11 000000000b409f50 000007fee3f9d28b sqloledb!CImpICommandText::Execute+0x181
+12 000000000b409fb0 000007fee3f5d674 oledb32!CCommandText::DoExecute+0x5ab
+13 000000000b40a1b0 0000000072fc59fa oledb32!CCommandText::Execute+0x92f
+14 000000000b40a400 0000000072e2443c STSWEL!Voledb::ExecQuery+0x37e
+15 000000000b40a560 0000000072e24837 STSWEL!VauditEntry::createInternalEntry+0x418
+16 000000000b40acc0 0000000072e24fe7 STSWEL!VauditEntry::createInternalEntry+0x813
+<font color="red">17 000000000b40ad50 0000000072e25335 STSWEL!VglobalAuditStore::addAuditEntry+0x97</font>
+18 000000000b40ad90 0000000072efe6de STSWEL!VglobalAuditStore::checkAuditQueue+0x241
+19 000000000b40ae70 0000000072f35055 STSWEL!VdocumentStore::httpGetDocument+0x2ed2
+20 000000000b40be60 0000000072f367e0 STSWEL!VhttpManager::loadFileCore+0x5c5
+21 000000000b40c700 000000006d9a0543 STSWEL!VhttpManager::loadFileAndMetaInfo+0xc4
+22 000000000b40c7c0 000000006d9ab514 OWSSVR!GetExtensionVersion+0x89b57
+23 000000000b40cb80 000007fef60170a7 OWSSVR!GetExtensionVersion+0x94b28
+<font color="red">24 000000000b40cf00 000007fe96c64bba mscorwks!DoCLRToCOMCall+0x177</font>
+25 000000000b40d090 000007fe96c643a1 Microsoft_SharePoint_Library!DomainNeutralILStubClass.IL_STUB(...)+0x96c64bbb
+26 000000000b40d490 000007fe96c63d52 Microsoft_SharePoint!Microsoft.SharePoint.Library.SPRequest.GetFileAndMetaInfo(System.String, ...)+0x271
+27 000000000b40d620 000007fe96c578c5 Microsoft_SharePoint!Microsoft.SharePoint.SPWeb.GetWebPartPageContent(System.Uri, ...)+0xa12
+28 000000000b40d980 000007fe96c56e87 Microsoft_SharePoint!Microsoft.SharePoint.ApplicationRuntime.SPRequestModuleData.FetchWebPartPageInformationForInit(System.Web.HttpContext, ...)+0x495
+29 000000000b40dc10 000007fe96c563b4 Microsoft_SharePoint!Microsoft.SharePoint.ApplicationRuntime.SPRequestModuleData.GetFileForRequest(System.Web.HttpContext, ...)+0x2d7
+30 000000000b40dee0 000007fe9698fa39 Microsoft_SharePoint!Microsoft.SharePoint.ApplicationRuntime.SPRequestModule.InitContextWeb(System.Web.HttpContext, Microsoft.SharePoint.SPWeb)+0xa4
+31 000000000b40df60 000007fe9698f769 Microsoft_SharePoint!Microsoft.SharePoint.WebControls.SPControl.SPWebEnsureSPControl(System.Web.HttpContext)+0x299
+32 000000000b40e050 000007fe9698f2e3 Microsoft_SharePoint!Microsoft.SharePoint.WebControls.SPControl.GetContextWeb(System.Web.HttpContext)+0x29
+33 000000000b40e090 000007fee4bc78b0 Microsoft_SharePoint!Microsoft.SharePoint.ApplicationRuntime.SPRequestModule.PostResolveRequestCacheHandler(System.Object, System.EventArgs)+0x253
+34 000000000b40e190 000007fee4bb86bb System_Web_ni!System.Web.HttpApplication+SyncEventExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()+0x50
+35 000000000b40e1f0 000007fee4bc6c15 System_Web_ni!System.Web.HttpApplication.ExecuteStep(IExecutionStep, Boolean ByRef)+0xab
+36 000000000b40e290 000007fee4bb7773 System_Web_ni!System.Web.HttpApplication+ApplicationStepManager.ResumeSteps(System.Exception)+0x1a5
+37 000000000b40e340 000007fee4bbba94 System_Web_ni!System.Web.HttpApplication.System.Web.IHttpAsyncHandler.BeginProcessRequest(System.Web.HttpContext, System.AsyncCallback, System.Object)+0xd3
+38 000000000b40e3a0 000007fee4bbb67c System_Web_ni!System.Web.HttpRuntime.ProcessRequestInternal(System.Web.HttpWorkerRequest)+0x1c4
+39 000000000b40e430 000007fee4bba2ac System_Web_ni!System.Web.HttpRuntime.ProcessRequestNoDemand(System.Web.HttpWorkerRequest)+0x7c
+<font color="red">40 000000000b40e470 000007fef6018e92 System_Web_ni!System.Web.Hosting.ISAPIRuntime.ProcessRequest(IntPtr, Int32)+0x18c</font>
+41 000000000b40e5a0 000007fef5ea6b63 mscorwks!CallDescrWorker+0x82
+42 000000000b40e600 000007fef5e9c4be mscorwks!CallDescrWorkerWithHandler+0xd3
+43 000000000b40e6a0 000007fef6507b96 mscorwks!ForwardCallToManagedMethod+0x172
+44 000000000b40e740 000007fef5e66054 mscorwks!COMToCLRWorkerBody+0x2b6
+45 000000000b40e990 000007fef5eb5662 mscorwks!COMToCLRWorkerDebuggerWrapper+0x50
+46 000000000b40ea00 000007fef601900e mscorwks!COMToCLRWorker+0x366
+47 000000000b40ecf0 000007fee2d782b3 mscorwks!GenericComCallStub+0x5e
+48 000000000b40eda0 000007fee2d78693 webengine!HttpCompletion::ProcessRequestInManagedCode+0x2a3
+49 000000000b40f250 000007fee2dbad04 webengine!HttpCompletion::ProcessCompletion+0x63
+50 000000000b40f290 000007fef5f28787 webengine!CorThreadPoolWorkitemCallback+0x24
+51 000000000b40f2c0 000007fef5f16d6a mscorwks!UnManagedPerAppDomainTPCount::DispatchWorkItem+0x157
+52 000000000b40f360 000007fef5e4c3dc mscorwks!ThreadpoolMgr::WorkerThreadStart+0x1ba
+53 000000000b40f400 000000007777a4bd mscorwks!Thread::intermediateThreadProc+0x78
+54 000000000b40f7d0 00000000778b6461 kernel32!BaseThreadInitThunk+0xd
+55 000000000b40f800 <font color="red">0000000000000000</font> ntdll!RtlUserThreadStart+0x1d
 </pre>
 
-<p>Notice how the Child-SP addresses match the opaque ones from the
-native stack. This enables us to splice the two traces. That's exactly
-what DebugDiag does in its report, listing only the spliced call
-sites.</p>
+<p>That's quite a mouthful. We'll go through the relevant parts of the
+call stack next.
 
-<h4>Interpreting the spliced native and .NET call stacks</h4>
+<h4>Interpreting the native and managed call stack</h4>
 
-<p>The stack can be read bottom up, representing how inside one
-function there's a call to the next. At stack frame 37, the user space
-part of the Windows kernel kicks of thread execution by passing
-control to ntdll!RtlUserThreadStart. Notice how RetAddr is all zeroes
-indicating that this function isn't called from anywhere and should
-never return. The thread is passed the address of a function to run by
-the operating system, in this case that of the CLR method at frame
-35. The thread would appear to execute code setting it up (frame 34)
-as work thread pool thread for executing managed code (2b). From there
-the thread is assigned to execution managed code (28) part of the
-ASP.NET request processing pipeline.</p>
+<p>When the call stack is read bottom up, it shows how (and where) one
+function calls into the next. At frame 55, the user space part of the
+Windows kernel kicks of thread execution by passing control to
+ntdll!RtlUserThreadStart. Notice how RetAddr has all zeroes as its
+RetAddr, indicating it wasn't called from anywhere and should never
+return. The operating system passes RtlUserThreadStart the address of
+a function to run (passed to the Window create thread function), in
+this case the C++/CLR method at frame 52. From there and until 39, the
+thread prepares itself to run managed code. Then at frame 40, the
+thread is assigned the processing of an incoming request and starts
+executing managed code.</p>
 
-<p>The CLR itself is a COM component so that's likely the reason for
-the in calls between 2f to 2c transitioning from native COM to managed
-code.</p>
-
-<p>If we're interested in the request, the URL, being processed by the
-thread, we can dump the HttpContext object passed as an argument in
-frame 26. From there we can dump the value of HttpContext._path
-(_startTime presumably is what DebugDiag uses to compute the value of
-"RunningSince" in its report):</p>
+<p>Say we're interested in the URL being processed by the thread. We
+can dump the HttpWorkerRequest object passed as an argument in frame
+38. It has a _path property (and a _startTime property which
+presumably DebugDiag uses to compute the value of "RunningSince" in
+its report) which we can write out the value of. The same drill-down
+technique could be applied to HttpContext at frame 32. It's
+Httpcontext points to 0x000000014da07450 which we should recognize
+from the DebugDiag report:</p>
 
 <pre>
 0:027> <font color="green">!CLRStack -a</font>
@@ -310,38 +275,36 @@ Size: 96(0x60) bytes
 ...
 </pre>
 
-<p>As we move up the call stack we see SharePoint retrieve the SPWeb
-object matching the URL (frame 20) and fetching a virtual file (frame
-1d) storing a web part page (frame 1b). That in turn ends up as a
-request to fetch a file from a document library (frame 1a). That file
-is stored in SharePoint content database.</p>
+<p>As we move futher up the call stack, at frame 30 we see SharePoint
+initialize the SPWeb based on the URL and prepare a request for the
+document library item storing the page (frame 26) inside the content
+database.</p>
 
 <p>At this point something interesting happens. Turns out that instead
-of using ADO.NET to connect to MS SQL Server and fetch the file (a row
-in the database), SharePoint relies on a COM component to do so. Using
-a CLR generated CLR-to-COM wrapper method (frame 18), a transition to
-execute native OWSSVR.dll happens (frame 17). After transitioning
-through a number calls to resolve the virtual file address, the native
-code attempts to setup an audit log entry (frame 11). It makes sense
-to do so prior to fetching the actual virtual file. Audit log entries
-are stored in a single table inside the content database.</p>
+of using ADO.NET to connect to MS SQL Server and fetch the file -- a
+row in the database -- SharePoint transfers control to a native code
+COM component (frame 23) inside OWSSVR.dll. The following calls appear
+to resolve the file path inside the virtual filesystem of the
+database, and then before loading the actual file construct an audit
+log entry (frame 17). If enabled, audit log entries are stored in a
+single table inside the content database.</p>
 
-<p>Because we're in native code, we lost most of our runtime
-metadata. But what we can gather from the method names is that using a
-legacy COM based equivalent to ADO.NET
-(<a href="https://en.wikipedia.org/wiki/OLE_DB">Microsoft OLE DB</a>),
-a SQL statement is composed and sent (frame 7) to MS SQL Server. Data
-appears to have been sent on the underlying socket (frame 6) and the
-driver calls the socket receive method waiting for a response (frame
-4). Because no data is available at this point, the socket library
-blocks itself awaiting data (0). Blocking causes the thread to not be
-scheduled for execution until it's unblocked by data arriving.</p>
+<p>Because we're in native code, we lost our runtime metadata. But
+from the method names we see that
+<a href="https://en.wikipedia.org/wiki/OLE_DB">Microsoft OLE DB</a>, a
+COM based legacy equivalent to ADO.NET, composes and sends a SQL
+statement to MS SQL Server (frame 7). Data appears to have been sent
+on the socket (frame 6). The OLE driver calls the socket receive
+method waiting for a response (frame 4). Because no data is available,
+the socket blocks the thread (frame 3). Once socket data becomes
+available, Windows wakes up the thread.</p>
 
-<p>We can extract the SQL statement send to SQL Server. !CLRStack will
-not help us as before as we're in native code. What we can do,
+<p>We can extract the SQL statement which OLE DB sends to SQL
+Server. !CLRStack isn't applicable in native code. What we can do,
 however, is dump the native stack frame using
 the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/-frame--set-local-context-">frame</a>
-command:</p>
+command. It holds the values of the CPU registers at that point in
+time:</p>
 
 <pre>
 0:027> <font color="green">.frame /r 7</font>
@@ -360,9 +323,10 @@ sqloledb!CStmt::ExecDirect+0xa5b:
 
 <p>Using
 the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/d--da--db--dc--dd--dd--df--dp--dq--du--dw--dw--dyb--dyd--display-memor">du
-command</a>, we can dump parts of memory holding the SQL
-statement. Some amount of guesswork is required, but it turns out that
-a pointer to the SQL string is stored in CPU register r13:</p>
+command</a> (for dump memory region as Unicode string), we can get at
+the SQL statement. Some amount of guesswork is required as to which
+register holds the pointer to the SQL statement. It turns out to be
+r13:</p>
 
 <pre>
 0:027> <font color="green">du 000000001322a1b0 L1000</font>
@@ -374,25 +338,23 @@ Cleaned up output:
      0,'20170713 20:49:50',3,NULL,0,NULL,NULL;</font>
 </pre>
 
-<p>It makes sense that before any actual content is retrieved from the
-content database, an audit log entry is created (if auditing is
-enabling) recording that the user access the file. The time zone is UTC
-and given that the debug session time is reported as 23:00:51 and the
-request has been queued for 661 seconds things start to come
-together.</p>
+<p>So OLE DB is calling a stored procedure which adds a row to the
+audit log table (if auditing is enabling). The arguments identify
+object requested and the user. The time zone is UTC and given that the
+debug session time is reported as 23:00:51 and the request has been
+queued for 661 seconds, 20:49:50 makes sense.</p>
 
 <h4>Conclusion</h4>
 
-<p>From inspecting the call stacks of the eight blocked threads, we
-can tell that they're all blocked waiting for MS SQL Server to respond
-to the call to the proc_AddAuditEntry stored procedure. It's unlikely
-that there's anything wrong with that procedure. Logging to the audit
-table is just the first database operation which happens before actual
-content is fetched.</p>
+<p>Inspecting the call stacks of the eight blocked threads, they're
+all blocked waiting for MS SQL Server to respond to the
+proc_AddAuditEntry. It's unlikely that there's anything wrong with
+that procedure. It's just the first database operation which happens
+before actual content is fetched.</p>
 
-<p>The culprit causing period platform outages appear to be MS SQL
-Server not responding to requests. It's odd that no timeout has been
-registered with the OLE DB driver. Without such timeout, SharePoint
-code is stuck forever waiting for a database reply.</p>
+<p>The culprit causing recurring platform outages appear to be MS SQL
+Server not responding to requests. It's a bit odd that no timeout
+occurs with the OLE DB driver. Without such timeout, SharePoint code
+is stuck forever waiting for a reply.</p>
 
 </div>
