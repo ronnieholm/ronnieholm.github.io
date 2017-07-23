@@ -118,7 +118,7 @@ AuditData_OnSiteOccurredEvent and AuditData_OnSiteItem:</p>
 sp_spaceused AuditData
 
 name       rows         reserved        data             index_size     unused
-AuditData  <font color="red">500,797,831</font>  <font color="red">179,610,816 KB</font>  144,268,664 KB   34,772,344 KB        569,808 KB
+AuditData  <font color="red">500,797,831</font>  179,610,816 KB  <font color="red">144,268,664 KB</font>   34,772,344 KB  569,808 KB
 </pre>
 
 <p>To better get a feeling for the normal activity pattern around the
@@ -181,7 +181,7 @@ to report an update to SPID 906:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 SPID  Status    HostName   BlkBy  DBName                  Command          LastBatch       ProgramName
-<font color="red"906</font>   ROLLBACK  WFE4              SP_Intranet_Content_01  <font color="red">KILLED/ROLLBACK</font>  07/21 22:45:38  .Net SqlClient Data Provider
+<font color="red">906</font>   ROLLBACK  WFE4              SP_Intranet_Content_01  <font color="red">KILLED/ROLLBACK</font>  07/21 22:45:38  .Net SqlClient Data Provider
 </pre>
 
 <p>While rollback is in progress, inserts remain blocked. Once the
