@@ -10,7 +10,7 @@ date: 2017-07-23 12:00 UTC
 Part 1: <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">Establishing context with HTTP heartbeat pings</a><br>
 Part 2: <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-event-log-iis-log-sharepoint-log-with-powershell">Analyzing Event Log, IIS log, and SharePoint log with PowerShell</a><br>
 Part 3: <a href="/blog/2017/07/18/debugging-recurring-web-farm-outages-collecting-and-analyzing-the-memory-dump-with-debugdiag">Collecting and analyzing a memory dump with DebugDiag</a><br>
-Part 4: <a href="/blog/2017/07/19/debugging-recurring-web-farm-outages-analyzing-the-memory-dump-with-windbg">Analyzing the memory dump with WinDbg<a><br>
+Part 4: <a href="/blog/2017/07/19/debugging-recurring-web-farm-outages-analyzing-the-memory-dump-with-windbg">Analyzing the memory dump with WinDbg</a><br>
 Part 5: SQL Server heartbeat pings and lock contention analysis with build-in tools
 </p>
 
@@ -43,7 +43,7 @@ query. As native SharePoint connects to SQL Server using OLE DB, the
 tool executes the same query using both ADO.NET and OLE DB, just in
 case there's an issue with the OLE DB driver:</p>
 
-<pre>
+<pre class="prettyprint lang-cs" style="overflow: auto; word-wrap: normal; white-space: pre;">
 namespace SQLServerHeartbeat {
     class Program {
         static void Main(string[] args) {
@@ -98,10 +98,12 @@ AuditData table almost verbatim (only DocLocation gets sometimes gets
 rewritten based on from Location):</p>
 
 <pre>
-INSERT INTO AuditData (SiteId, ItemId, ItemType, UserId, MachineName, MachineIp, DocLocation,
-                       LocationType, <font color="red">Occurred</font>, Event, EventName, EventSource, SourceName, EventData)
-       VALUES (@SiteId, @ItemId, @ItemType, @UserId, @MachineName, @MachineIp, @Location, @LocationType,
-               <font color="red">@Occurred</font>, @Event, @EventName, @EventSource, @SourceName, @EventData)
+INSERT INTO AuditData (SiteId, ItemId, ItemType, UserId, MachineName, MachineIp, 
+                       DocLocation, LocationType, <font color="red">Occurred</font>, Event, 
+                       EventName, EventSource, SourceName, EventData)
+       VALUES (@SiteId, @ItemId, @ItemType, @UserId, @MachineName, @MachineIp, 
+               @Location, @LocationType, <font color="red">@Occurred</font>, @Event, 
+               @EventName, @EventSource, @SourceName, @EventData)
 </pre>
 
 <p>With
@@ -278,10 +280,9 @@ command provides
 the <a href="https://technet.microsoft.com/en-us/library/cc706879.aspx">Trimauditlog</a>
 operation for that purpose, but it should be used incrementally. The
 operation of trimming acquires locks which for longer runs take down
-SharePoint.</p>
-
-<p>Only with SharePoint 2010 and up, does Central Administration allow
-the specification of the number of days to retain entries and a way to
-provide a location to store entries before trimming.</p>
+SharePoint. Only with SharePoint 2010 and up, does Central
+Administration allow the specification of the number of days to retain
+entries and a way to provide a location to store entries before
+trimming.</p>
 
 </div>
