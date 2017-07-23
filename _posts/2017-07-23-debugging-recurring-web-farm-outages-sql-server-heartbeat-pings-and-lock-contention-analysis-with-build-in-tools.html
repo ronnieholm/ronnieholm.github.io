@@ -118,7 +118,7 @@ AuditData_OnSiteOccurredEvent and AuditData_OnSiteItem:</p>
 sp_spaceused AuditData
 
 name       rows         reserved        data             index_size     unused
-AuditData  500,797,831  179,610,816 KB  144,268,664 KB   34,772,344 KB	569,808 KB
+AuditData  <font color="red">500,797,831</font>  <font color="red">179,610,816 KB</font>  144,268,664 KB   34,772,344 KB        569,808 KB
 </pre>
 
 <p>To better get a feeling for the normal activity pattern around the
@@ -181,7 +181,7 @@ to report an update to SPID 906:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 SPID  Status    HostName   BlkBy  DBName                  Command          LastBatch       ProgramName
-906   <font color="red">ROLLBACK</font>  WFE4              SP_Intranet_Content_01  <font color="red">KILLED/ROLLBACK</font>  07/21 22:45:38  .Net SqlClient Data Provider
+<font color="red"906</font>   ROLLBACK  WFE4              SP_Intranet_Content_01  <font color="red">KILLED/ROLLBACK</font>  07/21 22:45:38  .Net SqlClient Data Provider
 </pre>
 
 <p>While rollback is in progress, inserts remain blocked. Once the
@@ -215,10 +215,10 @@ AuditData  <font color="red">1826105546</font>  U     USER_TABLE  2010-05-12 15:
 <p>The output confirms that SPID 906 was granted a lock because of an
 index_operation and that the other requests are waiting for that lock
 to be released. The request_mode
-(actually <a href="https://technet.microsoft.com/en-us/library/ms175519(v=sql.105).aspx">request
-lock mode</a>) of Sch-M is short schema modification</a>. A lock of
-type Sch-M lock prevents concurrent access to the table. This means
-that Sch-M blocks operations such as inserts until the lock is
+(<a href="https://technet.microsoft.com/en-us/library/ms175519(v=sql.105).aspx">request
+lock mode</a> in full) of Sch-M is short schema modification</a>. A
+lock of type Sch-M lock prevents concurrent access to the table. This
+means that Sch-M blocks operations such as inserts until the lock is
 released.</p>
 
 <p>Furthermore, a few times during the downtime and later at 00:24:34
@@ -227,8 +227,8 @@ below, indicating that the I/O subsystem is overloaded, likely due to
 the large size of the table and indices:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
-SQL Server has encountered 1699 occurrence(s) of I/O requests taking
-longer than 15 seconds to complete on file
+SQL Server has encountered <font color="red">1699 occurrence(s) of I/O requests taking
+longer than 15 seconds to complete</font> on file
 [D:\MSSQL\DATA\SP_Intranet_Content_01.mdf:MSSQL_DBCC116] in database
 [SP_Intranet_Content_01] (116).  The OS file handle is
 0x0000000000000A24.  The offset of the latest long I/O is:
@@ -264,7 +264,7 @@ procedure contains lines such as the following for each of
 SharePoint's main tables:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
-UPDATE STATISTICS AuditData WITH RESAMPLE
+update statistics AuditData with resample
 </pre>
 
 <p>The Database Statistics timer job logs operational status code to
