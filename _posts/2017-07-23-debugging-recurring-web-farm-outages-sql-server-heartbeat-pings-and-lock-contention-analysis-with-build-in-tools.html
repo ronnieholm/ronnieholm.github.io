@@ -161,7 +161,7 @@ shortly after SharePoint goes offline. Here we're looking at the
 period of July 21-22 on which HTTP heartbeats reported SharePoint down
 from 22:47:38 to 00:20:43:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 SPID  Status     HostName   BlkBy   DBName                  Command      LastBatch       ProgramName
  <font color="red">906</font>  RUNNABLE   WFE4               SP_Intranet_Content_01  ALTER INDEX  07/21 22:45:38  .Net SqlClient Data Provider
 <font color="red">1011</font>  SUSPENDED  ADMIN       <font color="red"> 906</font>   SP_Intranet_Content_01  INSERT       07/21 22:47:33  Internet Information Services
@@ -179,7 +179,7 @@ queuing up. Starting 22:56:22 and ending 23:35:02 (with nine repeats),
 according to the Log File Viewer, SPID 906 was killed, causing sp_who2
 to report an update to SPID 906:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 SPID  Status    HostName   BlkBy  DBName                  Command          LastBatch       ProgramName
 906   <font color="red">ROLLBACK</font>  WFE4              SP_Intranet_Content_01  <font color="red">KILLED/ROLLBACK</font>  07/21 22:45:38  .Net SqlClient Data Provider
 </pre>
@@ -194,7 +194,7 @@ operations occur. To be sure we're actually dealing with AuditData, we
 query dm_tran_locks for details about the locks being held and
 requested:
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 select * from sys.dm_tran_locks
 
 Cleaned up output:
