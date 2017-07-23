@@ -97,7 +97,7 @@ proc_AddAuditEntry stored procedure inserts its arguments into the
 AuditData table almost verbatim (only DocLocation gets sometimes gets
 rewritten based on from Location):</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 INSERT INTO AuditData (SiteId, ItemId, ItemType, UserId, MachineName, MachineIp, 
                        DocLocation, LocationType, <font color="red">Occurred</font>, Event, 
                        EventName, EventSource, SourceName, EventData)
@@ -114,7 +114,7 @@ has been enabled since 2010 without truncating the table. The table
 now holds a very large amount of data, including two large indices:
 AuditData_OnSiteOccurredEvent and AuditData_OnSiteItem:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 sp_spaceused AuditData
 
 name       rows         reserved        data             index_size     unused
@@ -125,7 +125,7 @@ AuditData  500,797,831  179,610,816 KB  144,268,664 KB   34,772,344 KB	569,808 K
 AuditData table, we summarized hourly inserts across two days. Keep in
 mind that the Occurred field used for filtering is in UTC:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 select count(*) 
 from AuditData (nolock)
 where Occurred >= '2017-07-21 00:00' and 
@@ -226,7 +226,7 @@ and 00:52:46, the Log File Viewer displays messages like the one
 below, indicating that the I/O subsystem is overloaded, likely due to
 the large size of the table and indices:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 SQL Server has encountered 1699 occurrence(s) of I/O requests taking
 longer than 15 seconds to complete on file
 [D:\MSSQL\DATA\SP_Intranet_Content_01.mdf:MSSQL_DBCC116] in database
@@ -245,7 +245,7 @@ looks like during the downtime (On the following day of July 22, the
 Timer Job status page lists that same job Status: Succeeded and
 Progress: 100%):</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Job Title            Server        Status  Progress  Started
 Database Statistics  WFE4     Initialized  0%        <font color="red">7/21/2017 10:45 PM</font>
 </pre>
@@ -263,7 +263,7 @@ unreliable when run in parallel with a database backup</a>. The stored
 procedure contains lines such as the following for each of
 SharePoint's main tables:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 UPDATE STATISTICS AuditData WITH RESAMPLE
 </pre>
 
