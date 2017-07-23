@@ -10,7 +10,8 @@ date: 2017-07-19 12:00 UTC
 Part 1: <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">Establishing context with HTTP heartbeat pings</a><br>
 Part 2: <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-event-log-iis-log-sharepoint-log-with-powershell">Analyzing Event Log, IIS log, and SharePoint log with PowerShell</a><br>
 Part 3: <a href="/blog/2017/07/18/debugging-recurring-web-farm-outages-collecting-and-analyzing-the-memory-dump-with-debugdiag">Collecting and analyzing a memory dump with DebugDiag</a><br>
-Part 4: Analyzing the memory dump with WinDbg
+Part 4: Analyzing the memory dump with WinDbg<br>
+Part 5: <a href="/blog/2017/07/23/debugging-recurring-web-farm-outages-sql-server-heartbeat-pings-and-lock-contention-analysis-with-build-in-tools">SQL Server heartbeat pings and lock contention analysis with build-in tools</a>
 </p>
 
 <p>In
@@ -365,7 +366,12 @@ operation which happens before actual content is fetched.</p>
 
 <p>The culprit causing recurring platform outages appear to be MS SQL
 Server not responding to requests. It's a bit odd that no timeout
-occurs with the OLE DB driver. Without such timeout, SharePoint code
-is stuck forever waiting for a reply.</p>
+occurs with the OLE DB driver. That might be entirely by design
+because audit logging must succeed in order to proceed.</p>
+
+<p>In
+the <a href="/blog/2017/07/23/debugging-recurring-web-farm-outages-sql-server-heartbeat-pings-and-lock-contention-analysis-with-build-in-tools">next</a>
+post we dive into MS SQL Server and investigate the cause of hangs
+observed within the application layer.</p>
 
 </div>
