@@ -8,7 +8,7 @@ date: 2017-07-23 12:00 UTC
 
 <p>
 Part 1: <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">Establishing context with HTTP heartbeat pings</a><br>
-Part 2: <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-event-log-iis-log-sharepoint-log-with-powershell">Analyzing Event Log, IIS log, and SharePoint log with PowerShell</a><br>
+Part 2: <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-windows-event-log-iis-log-sharepoint-log-with-powershell">Analyzing Windows Event Log, IIS log, and SharePoint log with PowerShell</a><br>
 Part 3: <a href="/blog/2017/07/18/debugging-recurring-web-farm-outages-collecting-and-analyzing-the-memory-dump-with-debugdiag">Collecting and analyzing a memory dump with DebugDiag</a><br>
 Part 4: <a href="/blog/2017/07/19/debugging-recurring-web-farm-outages-analyzing-the-memory-dump-with-windbg">Analyzing the memory dump with WinDbg</a><br>
 Part 5: SQL Server heartbeat pings and lock contention analysis with build-in tools
@@ -162,6 +162,9 @@ period of July 21-22 on which HTTP heartbeats reported SharePoint down
 from 22:47:38 to 00:20:43:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+sp_who2 'active'
+
+Cleaned up output:
 SPID  Status     HostName   BlkBy   DBName                  Command      LastBatch       ProgramName
  <font color="red">906</font>  RUNNABLE   WFE4               SP_Intranet_Content_01  ALTER INDEX  07/21 22:45:38  .Net SqlClient Data Provider
 <font color="red">1011</font>  SUSPENDED  ADMIN       <font color="red"> 906</font>   SP_Intranet_Content_01  INSERT       07/21 22:47:33  Internet Information Services
@@ -171,13 +174,13 @@ SPID  Status     HostName   BlkBy   DBName                  Command      LastBat
 ...
 </pre>
 
-<p>"sp_who2 'active'" shows that at 22:45:38 an alter index command
-was issued from a Web front-end server 4. The Alter index causes
-execution of the subsequent insert to blocks (as indicated by value in
-the BlkBy column). Later inserts block on the first insert, and keeps
-queuing up. Starting 22:56:22 and ending 23:35:02 (with nine repeats),
-according to the Log File Viewer, SPID 906 was killed, causing sp_who2
-to report an update to SPID 906:</p>
+<p>At 22:45:38 an alter index command was issued from a Web front-end
+server 4. The Alter index causes execution of the subsequent insert to
+blocks (as indicated by value in the BlkBy column). Later inserts
+block on the first insert, and keeps queuing up. Starting 22:56:22 and
+ending 23:35:02 (with nine repeats), according to the Log File Viewer,
+SPID 906 was killed, causing sp_who2 to report an update to SPID
+906:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 SPID  Status    HostName   BlkBy  DBName                  Command          LastBatch       ProgramName
@@ -275,7 +278,7 @@ investigate).</p>
 
 <h4>Conclusion</h4>
 
-<p>Perhaps not too surprising, AuditData needs trimming. The Stsadm
+<p>Perhaps not too surprising, AuditData needs trimming. The stsadm
 command provides
 the <a href="https://technet.microsoft.com/en-us/library/cc706879.aspx">Trimauditlog</a>
 operation for that purpose, but it should be used incrementally. The
