@@ -44,7 +44,7 @@ copied across machines.</p>
 <font color="green">green</font>. The parts of the output worth
 highlighting are in <font color="red">red</font>.</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Microsoft (R) Windows Debugger Version 10.0.15063.137 AMD64
 Copyright (c) Microsoft Corporation. All rights reserved.
 
@@ -100,7 +100,7 @@ debugger extension. While the SOS !locks command requires manual
 interpretation, the SOSEX !dlk command aims to detect and present
 deadlocks within managed resources:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">.load C:\dumps\sosex_64\sosex</font>
 0:000> <font color="green">!dlk</font>
 Examining SyncBlocks...
@@ -127,7 +127,7 @@ were blocked at the time of the dump. More threads are running inside
 w3wp; in fact the ~ command lists 58 threads. Those just aren't
 managed thread pool threads:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!ThreadPool</font>
 CPU utilization 4%
 Worker Thread: Total: 9 <font color="red">Running: 8</font> Idle: 1 MaxLimit: 400 MinLimit: 4
@@ -156,7 +156,7 @@ code, and the native stack may reveal clues as to why a thread is
 blocked. Since the !DumpStack command doesn't include stack frame
 numbers we manually include those for easier reference:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:027> <font color="green">!DumpStack</font>
 OS Thread Id: 0x380 (27)
    Child-SP         RetAddr          Call Site
@@ -244,7 +244,7 @@ technique could be applied to HttpContext at frame 32. Its HttpContext
 argument points to 0x000000014da07450 which we should recognize from
 the DebugDiag report:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:027> <font color="green">!CLRStack -a</font>
 ...
 000000000b40e3a0 000007fee4bbb67c System.Web.HttpRuntime.ProcessRequestInternal(System.Web.HttpWorkerRequest)
@@ -307,7 +307,7 @@ the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/
 command. It holds the values of the CPU registers at that point in
 time:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:027> <font color="green">.frame /r 7</font>
 07 00000000`0b409c40 000007fe`e2e15617 sqloledb!CStmt::ExecDirect+0xa5b
 rax=000000014dde5fe0 rbx=00000000182edf30 rcx=000000014dde7020
@@ -329,7 +329,7 @@ get at the SQL statement. Some amount of guesswork is required as to
 which register holds the pointer to the SQL statement. It turns out to
 be CPU register r13 which we can deference:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:027> <font color="green">du 000000001322a1b0 L1000</font>
 
 Cleaned up output:    

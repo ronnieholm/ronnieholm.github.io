@@ -54,7 +54,7 @@ using Windows Scheduled Tasks, but this approach is about as
 non-intrusive as it gets. While it isn't breakpoint based, for our
 purpose, dumping on a schedule is good enough.</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 $dumpAt = (Get-Date -Year 2017 -Month 7 -Day 17 -Hour 23 -Minute 15 -Second 00)
 sleep -Seconds (New-TimeSpan -end $dumpAt).TotalSeconds
 $pids = C:\Windows\system32\inetsrv\appcmd.exe list wps /apppool.name:"SP_Intranet_AppPool" /text:WP.NAME
@@ -90,7 +90,7 @@ completed one. The heartbeat pings are the GET requests to
 /org/it/pages/default.aspx. From the original report, we removed the
 ReturnCode column containing 200 and Verb column containing GET:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 HttpContext   Timeout   Completed   RunningSince   ThreadId   RequestPath+QueryString 
 1020c2550     110 Sec   Yes         ---                       /favicon.ico  
 105cc7988     360 Sec   Yes         ---                       /_layouts/1030/styles/core.css rev=...
@@ -138,7 +138,7 @@ leak. The memory locations provided come in handy once we load the
 dump into WinDbg. They allow us to easily access additional properties
 of each request:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Address            SPRequest   Auto-Dispose   Auth     Thread   Url [Title]
 0000000112e6d400   Own         Thread         (null)   26       (null) []
 000000014ddda9a8   Own         Thread         (null)   27       (null) []
@@ -166,7 +166,7 @@ authentication headers mentioned in the previous post. The
 172.27.18.210 IP is my reference laptop running the heartbeat tool and
 172.27.18.8 is Web front-end server 2:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Client connection from 172.27.18.210:58666 to 172.27.18.8:80 
 Host Header            intranet.acme.dk:80 
 GET request for        /org/it/pages/default.aspx

@@ -33,7 +33,7 @@ browsing the logs from around July 7, 22:45 and until July 8,
 07:00. The following entries originate from Web front-end server
 1. Similar entries not shown exist across servers:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 07-07-2017 23:21:57 - Application log
 ISAPI 'C:\Windows\Microsoft.NET\Framework64\v2.0.50727\aspnet_isapi.dll'
 reported itself as unhealthy for the following reason: 'Deadlock detected'.
@@ -48,7 +48,7 @@ is restarted. With PowerShell we search the Event Log for similar
 occurrences both inside and outside the downtime interval to make sure
 the messages are related to the downtime.</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Get-EventLog -LogName Application -Message '*unhealthy*' `
   -After $(Get-Date -Year 2017 -Month 7 -Day 7 -Hour 22 -Minute 45) `
   -Before $(Get-Date -Year 2017 -Month 7 -Day 8 -Hour 07 -Minute 00) `
@@ -63,7 +63,7 @@ Get-EventLog -Logname System -Message '*exceeded time limits*' `
 <p>Running this PowerShell script against the Event Log on Web
 Front-end server 1, we get a list of matching events.</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Deadlock -> Restart  
 23:21:57 -> 23:25:24
 00:10:25 -> 00:13:55
@@ -139,7 +139,7 @@ directly from the filesystem.</p>
 is two hours behind. It's in UTC time while the heartbeats log is in
 local time:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Heartbeats log
 5170 09-07-2017 18:30:01 OK
 5171 09-07-2017 18:30:31 OK
@@ -171,7 +171,7 @@ between the HTTP 401 and the HTTP 200. As we get closer to timeout
 occurring, the server appears to become slower at processing
 requests:</p>
 
-<pre>
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Heartbeats log
 5675 09-07-2017 22:46:03 OK
 5676 09-07-2017 22:46:40 The operation has timed out

@@ -178,9 +178,9 @@ SPID  Status     HostName   BlkBy   DBName                  Command      LastBat
 server 4. The Alter index causes execution of the subsequent insert to
 blocks (as indicated by value in the BlkBy column). Later inserts
 block on the first insert, and keeps queuing up. Starting 22:56:22 and
-ending 23:35:02 (with nine repeats), according to the Log File Viewer,
-SPID 906 was killed, causing sp_who2 to report an update to SPID
-906:</p>
+ending 23:35:02 (repeats nine times), according to the Log File
+Viewer, SPID 906 was killed, causing sp_who2 to report an update to
+SPID 906:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 SPID  Status    HostName   BlkBy  DBName                  Command          LastBatch       ProgramName
@@ -192,7 +192,7 @@ rollback is complete, and the lock on alter index released, queued
 inserts are retroactively saved to AuditData. That explains why even
 though SharePoint is down, audit log still shows activity.</p>
 
-<p>In principle, from sp_who2 we can't tell on what table the
+<p>In principle, from sp_who2 we cannot conclude on which table the
 operations occur. To be sure we're actually dealing with AuditData, we
 query dm_tran_locks for details about the locks being held and
 requested:
@@ -210,7 +210,7 @@ request_session_id  resource_subtype  resource_associated_entity_id  request_mod
 
 select * from sys.objects where object_id = <font color="red">1826105546</font>
 
-Cleaned up output
+Cleaned up output:
 name       object_id   type  type_desc   create_date
 AuditData  <font color="red">1826105546</font>  U     USER_TABLE  2010-05-12 15:45:05.160
 </pre>
@@ -273,8 +273,8 @@ update statistics AuditData with resample
 <p>The Database Statistics timer job logs operational status code to
 SharePoint's 12 hive log. All servers in farm are configured to store
 log files under E:\SharePoint\Logs. Yet, WFE4 has no 12 hive log files
-more recent than February 19, 2015 (that's for another time to
-investigate).</p>
+more recent than February 19, 2015. That's for another time to
+investigate.</p>
 
 <h4>Conclusion</h4>
 
