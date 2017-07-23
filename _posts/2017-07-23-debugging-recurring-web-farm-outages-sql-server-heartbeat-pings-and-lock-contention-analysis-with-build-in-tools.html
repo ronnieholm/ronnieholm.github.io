@@ -36,7 +36,7 @@ the <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-
 heartbeat ping tool</a>, in order to measure availability, we want to
 issue periodic requests to SQL Server. That way we can tell if the
 issue is local to proc_AddAuditEntry and if the database (or server)
-is experiencing symptions of instability.</p>
+is experiencing symptoms of instability.</p>
 
 <p>The HTTP heartbeat and SQL Server heartbeat tools are structurally
 equivalent. The latter connects to SQL server and executes a fixed
@@ -95,7 +95,7 @@ unavailable.</p>
 <p>The finding of SharePoint down and SQL Server up points in the
 direction of contention around writes to the audit log. What
 proc_AddAuditEntry does is technically straightforward. With the
-exception of DocLocation, the procedure insert its arguments into the
+exception of DocLocation, the procedure inserts its arguments into the
 AuditData table:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
@@ -109,7 +109,7 @@ INSERT INTO AuditData (SiteId, ItemId, ItemType, UserId, MachineName, MachineIp,
 
 <p>The audit log has the potential
 for <a href="https://blogs.msdn.microsoft.com/subhajitc/2009/05/20/tip-the-untold-story-of-audit-logs-in-sharepoint">high-frequency
-inserts and ripid growth</a>. Especially on an intranet which has had
+inserts and rapid growth</a>. Especially on an intranet which has had
 full auditing enabled since 2010 and where the audit log has never
 been trimmed. Here the AuditData table itself holds a very large
 amount of data. Add to that the storage required for its two indices:
@@ -149,8 +149,8 @@ July 20                       July 21
 </pre>
 
 <p>For the whole hour of 23-00 local time of each day, we know that
-SharePoint is down. In UTC this translates to between 21-22. Clearly,
-a correlation exists between inserts on AuditData and downtimes.</p>
+SharePoint is down, translating to between 21 and 22 UTC. Clearly, a
+correlation exists between inserts on AuditData and downtimes.</p>
 
 <h4>Investigating lock contention on AuditData</h4>
 
@@ -183,7 +183,7 @@ SPID  Status     HostName   BlkBy   DBName                  Command      LastBat
 server 4. It causes the following insert to blocks, indicated by SPID
 906 in the BlkBy column. Later inserts block on the first insert, and
 inserts keep queuing up. Starting 22:56:22 and ending 23:35:02, on
-nine occations, according to the SQL Server Log File Viewer, SPID 906
+nine occasions, according to the SQL Server Log File Viewer, SPID 906
 was killed by the management process. When it first happened, sp_who2
 changed to report SPID 906 as follows:</p>
 
@@ -248,7 +248,7 @@ longer than 15 seconds to complete</font> on file
 <p>Let's have a look at WFE4, the originating host. With the client
 listed as ".Net SqlClient Data Provider", it's probably one of
 SharePoint's timer jobs. In Central Administration, under Timer Job
-Status, one job stand out. Below is what its status looks like during
+Status, one job stands out. Below is what its status looks like during
 the downtime. It's a bit odd that on the following day of July 22, the
 Timer Job status page lists that very same job as succeeded and
 progress being 100%. Perhaps the timer job attempts a number of
@@ -265,7 +265,7 @@ of the Database Statistics job</a> is to
 query statistics</a> for main tables inside the Intranet content
 database. On SQL Server 2008 Enterprise Edition, which the farm is
 running, the job rebuilds <i>most</i> (for some unknown definition of
-most) indexes online. The Database statistics timer job works by
+most) indices online. The Database statistics timer job works by
 calling the proc_UpdateStatistics stored procedure which, according to
 a support article
 is <a href="https://support.microsoft.com/en-us/help/3103194/outdated-database-statistics-decrease-sharepoint-server-performance--c">
@@ -292,7 +292,7 @@ operation for that purpose, but it must be used incrementally. The
 operation of trimming acquires locks which for longer runs take down
 SharePoint. Only for SharePoint 2010 and up, does Central
 Administration allow for the specification of the number of days to
-retain audit log entries and a location to store entries into before
+retain audit log entries and a location to store entries into prior to
 trimming.</p>
 
 </div>
