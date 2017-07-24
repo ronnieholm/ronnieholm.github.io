@@ -45,7 +45,14 @@ executes the same query using both ADO.NET and OLE DB, just in case
 there's an issue only facing OLE DB:</p>
 
 <pre class="prettyprint lang-cs" style="overflow: auto; word-wrap: normal; white-space: pre;">
-namespace SQLServerHeartbeat {
+using System;
+using System.Data.OleDb;
+using System.Data.SqlClient;
+using System.Threading;
+
+// .\SqlServerHeartbeat.exe 5
+
+namespace SqlServerHeartbeat {
     class Program {
         static void Main(string[] args) {
             var run = 0;
@@ -86,11 +93,11 @@ namespace SQLServerHeartbeat {
 
 <p>Once setup to run on the reference laptop, the SQL Server, and Web
 front-end Server 2, we awaited the HTTP heartbeat tool to report
-SharePoint as down. That happened between July 20, 22:47:04 and July
-21, 00:18:06. SQL Server heartbeat kept going for entire duration,
-though. This confirms an earlier analysis of SharePoint 12 hive log
-files recording database activity when HTTP-based SharePoint is
-unavailable.</p>
+SharePoint as down. That happened in between July 20, 22:47:04 and
+July 21, 00:18:06. SQL Server heartbeat kept going for entire
+duration, though. This confirms an earlier analysis of SharePoint 12
+hive log files recording database activity when HTTP-based SharePoint
+is unavailable.</p>
 
 <p>The finding of SharePoint down and SQL Server up points in the
 direction of contention around writes to the audit log. What
@@ -119,7 +126,7 @@ AuditData_OnSiteOccurredEvent and AuditData_OnSiteItem:</p>
 <font color="green">sp_spaceused AuditData</font>
 
 name       rows         reserved        data             index_size     unused
-AuditData  <font color="red">500,797,831</font>  179,610,816 KB  <font color="red">144,268,664 KB</font>   34,772,344 KB  569,808 KB
+AuditData  <font color="red">500,797,831</font>  179,610,816 KB  <font color="red">144,268,664 KB</font>   <font color="red">34,772,344 KB</font>  569,808 KB
 </pre>
 
 <p>To better get a feeling for the normal activity pattern around the
@@ -169,14 +176,13 @@ at SharePoint downtime between July 21, 22:47:38 and July 22,
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 <font color="green">sp_who2 'active'</font>
 
-Currated output:
+Cleaned up output:
 SPID  Status     HostName   BlkBy   DBName                  Command      LastBatch       ProgramName
  <font color="red">906</font>  RUNNABLE   WFE4               SP_Intranet_Content_01  ALTER INDEX  07/21 22:45:38  .Net SqlClient Data Provider
 <font color="red">1011</font>  SUSPENDED  ADMIN       <font color="red"> 906</font>   SP_Intranet_Content_01  INSERT       07/21 22:47:33  Internet Information Services
  348  SUSPENDED  WFE1        <font color="red">1011</font>   SP_Intranet_Content_01  INSERT       07/21 22:47:38  Internet Information Services
  353  SUSPENDED  WFE1        <font color="red">1011</font>   SP_Intranet_Content_01  INSERT       07/21 22:47:43  Internet Information Services
  197  SUSPENDED  WFE2        <font color="red">1011</font>   SP_Intranet_Content_01  INSERT       07/21 22:47:43  Internet Information Services
-...
 </pre>
 
 <p>At 22:45:38 an alter index command comes in from Web front-end
@@ -196,7 +202,9 @@ SPID  Status    HostName   BlkBy  DBName                  Command          LastB
 906. Once the rollback is complete, and the lock on alter index is
 released, queued inserts are retroactively written to AuditData. That
 explains why even though SharePoint is down, (some) audit log still
-show up.</p>
+show up. Under these circumstances, SharePoint would add false audit
+log entries; the HTTP client originally asking for the page is no
+longer waiting.</p>
 
 <p>From the output of sp_who2 alone we cannot be certain that what
 we're looking at are operations against AuditData. To confirm, we need
@@ -206,7 +214,7 @@ requested:
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 <font color="green">select * from sys.dm_tran_locks</font>
 
-Currated output:
+Cleaned up output:
 request_session_id  resource_subtype  resource_associated_entity_id  request_mode  request_type  request_status
  906                INDEX_OPERATION   <font color="red">1826105546</font>                     Sch-M         LOCK          GRANT
 1011                                  <font color="red">1826105546</font>                     IX            LOCK          WAIT
@@ -216,7 +224,7 @@ request_session_id  resource_subtype  resource_associated_entity_id  request_mod
 
 <font color="green">select * from sys.objects where object_id = <font color="red">1826105546</font></font>
 
-Currated output:
+Cleaned up output:
 name       object_id   type  type_desc   create_date
 AuditData  <font color="red">1826105546</font>  U     USER_TABLE  2010-05-12 15:45:05.160
 </pre>
@@ -285,14 +293,16 @@ location. That issue is for another time to investigate.</p>
 
 <h4>Conclusion</h4>
 
-<p>Perhaps unsurprisingly, AuditData needs trimming. The stsadm
-command provides
+<p>Perhaps unsurprising by now, the AuditData table needs trimming,
+and stsadm command comes with
 the <a href="https://technet.microsoft.com/en-us/library/cc706879.aspx">Trimauditlog</a>
-operation for that purpose, but it must be used incrementally. The
-operation of trimming acquires locks which for longer runs take down
-SharePoint. Only for SharePoint 2010 and up, does Central
-Administration allow for the specification of the number of days to
-retain audit log entries and a location to store entries into prior to
-trimming.</p>
+operation for that purpose. It must be used judiciously and
+incrementally as the very operation of trimming acquires locks which
+for longer runs can take down SharePoint. Another side effect of
+trimming is transaction log bloat.</p>
+
+<p>Only with SharePoint 2010 and up does Central Administration allow
+for the specification of a number of days to retain audit log entries
+and a location to store entries into prior to trimming.</p>
 
 </div>
