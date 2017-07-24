@@ -340,14 +340,14 @@ EXEC <font color="red">proc_AddAuditEntry</font>
   7245                                   /* UserId */, 
   NULL                                   /* MachineName */, 
   NULL                                   /* MachineIp */,
-  N'org/it/pages'                        /* Location */, 
+  N'org/it/pages/default.aspx'           /* Location */, 
   0                                      /* LocationType */, 
   '20170713 20:49:50'                    /* Occurred */,
   3                                      /* Event */, 
   NULL                                   /* EventName */, 
   0                                      /* EventSource */, 
   NULL                                   /* SourceName */, 
-  NULL                                   /* EventData */
+  N'<Version>...</Version>'              /* EventData */
 </pre>
 
 <p>OLE DB is calling a stored procedure which adds a row to the audit
