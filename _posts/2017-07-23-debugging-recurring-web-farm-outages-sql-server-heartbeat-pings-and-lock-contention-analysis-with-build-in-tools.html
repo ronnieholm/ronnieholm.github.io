@@ -232,7 +232,7 @@ AuditData  <font color="red">1826105546</font>  U     USER_TABLE  2010-05-12 15:
 <p>The dm_tran_locks output confirms that SPID 906 is granted a lock
 because of an index_operation and that other requests are waiting for
 the lock to be released. The request_mode
-(<a href="https://technet.microsoft.com/en-us/library/ms175519(v=sql.105).aspx">request
+(<a href="https://technet.microsoft.com/en-us/library/ms175519.aspx">request
 lock mode</a> in full) of Sch-M is short for schema modification. A
 lock of type Sch-M prevents concurrent access to the table, meaning
 that Sch-M blocks inserts.</p>
@@ -285,11 +285,9 @@ table:</p>
 update statistics AuditData with resample
 </pre>
 
-<p>The support article mentions the operational status codes logged by
-Database Statistics to SharePoint's 12 hive log. All servers in farm
-are configured to store log files under E:\SharePoint\Logs. Yet, WFE4
-stores no 12 hive log files more recent than February 19, 2015 at that
-location. That issue is for another time to investigate.</p>
+<p>The support article mentions that operational status codes are
+logged by the Database Statistics job to SharePoint's 12 hive log. Yet
+the log on WFE4 contains no matching entries.</p>
 
 <h4>Conclusion</h4>
 
