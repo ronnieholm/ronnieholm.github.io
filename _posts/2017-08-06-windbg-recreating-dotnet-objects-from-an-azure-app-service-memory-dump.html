@@ -45,7 +45,7 @@ operate on single, shared, in-process message queue. Once a request
 comes in one of a worker threads, it's validated, enriched, and turned
 into a .NET object and put on the queue. Once the queue reaches a
 configured length, a consumer processes its messages and, writing
-visists to a MS SQL Azure instance:</p>
+visits to a MS SQL Azure instance:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
   Request 1   \
@@ -122,8 +122,8 @@ CLR DLL status: Loaded DLL C:\Program Files (x86)\Windows Kits\10\Debuggers\x86\
 <p>There's a couple of ways to go about locating visits inside the
 dump. One way is filtering the heap for instances of the Visit
 type. Problem with this approach is that the heap may contain objects
-eligible for garbage collection, i.e., vists which have already been
-written to the database. While Analytics is build to handle replays
+eligible for garbage collection, i.e., visits which have already been
+written to the database. While Analytics is built to handle replays
 duplicate of visits, better be more specific if possible. Another way
 is browsing the Analytics source code, looking for a root of the visit
 objects. From source, we observe that the producers/consumer mechanism
@@ -186,7 +186,7 @@ Fields:
 
 <p>A field of interest
 is <a href="https://github.com/fsharp/fsharp/blob/499526a5e37fc15ff5a6a9abcd63996037e3c8f1/src/fsharp/FSharp.Core/control.fs#L2293">mailbox</a>. Because
-the field is a reference type inside a object, Value denotes another
+the field is a reference type inside an object, Value denotes another
 memory location where that object resides. mailbox is another generic
 type, passed the type argument of the parent:</p>
 
@@ -235,8 +235,8 @@ Fields:
 <p>Besides an array of objects, the Queue type appears to keep track
 of the index of the first and last element in queue and its
 size. Let's peek inside the regular array object, storing
-VisitorMessage. object It has a current capacity of 524,288 items, but
-we only use 422,813:</p>
+VisitorMessage. It has a current capacity of 524,288 items, but we
+only use 422,813:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 037371e0</font>
@@ -371,6 +371,7 @@ addresses.</p>
 
 <p>Using the <a href="https://github.com/Microsoft/clrmd">Microsoft
 Diagnostics Runtime</a>, ClrMD in short, next we'll automate heap
-traversal and extraction of visits without any text parsing.</p>
+traversal, extraction, and recreation of visits foregoing text
+parsing.</p>
    
 </div>
