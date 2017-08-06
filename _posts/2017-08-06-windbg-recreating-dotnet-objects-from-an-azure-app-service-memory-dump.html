@@ -257,7 +257,7 @@ message type as a concrete subtype. Each type of message may carry
 addition state, such as the actual visit.</p>
 
 <p>To see this hierarchy in action, we dump the first element of the
-array. It's item field holds the additional state, namely the Visit
+array. Its item field holds the additional state, namely the Visit
 object:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
@@ -366,8 +366,7 @@ to extract and pretty print simple .NET types such as String, Int, and
 Float. For compound types, such as Guid, FSharpOption, IPAddress, and
 DateTime, turning text output into .NET objects is a lot of work. We'd
 have to recursively traverse each compound type inside every one of
-422,813 Visit object, parsing the text and substituting the
-addresses.</p>
+422,813 Visit object, parsing text and substituting addresses.</p>
 
 <p>Using the <a href="https://github.com/Microsoft/clrmd">Microsoft
 Diagnostics Runtime</a>, ClrMD, next we'll automate heap traversal,
