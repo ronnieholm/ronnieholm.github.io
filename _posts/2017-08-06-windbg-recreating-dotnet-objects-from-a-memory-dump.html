@@ -1,0 +1,375 @@
+---
+layout: post
+title: "WinDbg: Recreating .NET objects from a memory dump"
+date: 2017-08-06 12:00 UTC
+---
+<div id="post">
+
+<p>
+Part 1: WinDbg: Recreating .NET objects from a memory dump<br>
+Part 2: ClrMD: Recreating .NET objects from a memory dump (coming)
+</p>
+  
+<p>This post describes how to use WinDbg to extract in-memory .NET
+objects of a certain type from a memory dump. As the example, we
+analyze and attempt to extract objects from a dump of an Azure App
+Service, an Azure deployed web application.</p>
+
+<p>Akin to Google Analytics, the app records visits across sites, but
+for some reason has been running for 21 days without being able to
+hand-off visits to a database. Visits are stored in-process and
+restarting the app causes visits to be lost. Thus we analyze the dump
+port-mortem, attempting to extract relevant objects.</p>
+
+<h4>Memory dumping an Azure App Service</h4>
+
+<p>Like with a process running on local host, the Azure
+app's <a href="https://github.com/projectkudu/kudu">Kudu</a> instance
+supports <a href="http://bugfree.dk/blog/2016/10/24/windbg-postmortem-debugging-across-installed-dotnet-clr-versions">dumping
+and <a href="https://blogs.msdn.microsoft.com/waws/2015/07/01/debugging-a-w3wp-memory-dump-of-a-slow-performing-asp-net-azure-web-app/">loading</a>
+a process into WinDbg for post-mortem analysis. Once the dump has been
+acquired, however, the tools and techniques are Azure agnostic and
+apply to any process running .NET code. Our focus on Azure is solely
+because that's where the issue occurred.</p>
+
+<h4>Architectural overview of the dumped web application</h4>
+
+<p>The dump we wish to analyze is of
+the <a href="https://github.com/ronnieholm/Bugfree.Spo.Analytics">Bugfree.Spo.Analytics</a>
+application. The way Analytics works is that once a user visits a
+site, each page load assembles information about the user and the page
+and submits it as a JSON document to the Analytics endpoint.</p>
+
+<p>On the server side, multiple producers and a single consumer
+operate on single message queue stored in memory. Once the request
+comes in one of the worker threads, it's validated, enriched, and
+turned into a .NET object on the queue. Once the queue reaches a
+configured length, a consumer processes messages of the queue and
+write those to a MS SQL Azure instance:</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+  Request 1   \
+  Request 2   -\
+  ...          -> Thread pool producer threads
+  ...         -/              |
+             -/       Process and post
+            -/                |
+  Request N /	              v
+                  Visitor mailbox processor with build-in queue and single thread pool consumer
+                              |
+                      Process and save
+                              |
+                              v
+                      MS SQL Azure instance
+</pre>
+
+<p>In our case, messages are produced but not consumed. The queue has
+grown to contain 25 days of traffic, some 441k objects. Visit data
+isn't business critical data, per se, yet a 21 day gap wouldn't be
+ideal. Restarting the web process would mean losing all those visit
+metadata. Instead we're going to attempt to extract from memory queued
+objects and replay those in a new process.</p>
+
+<h4>Locating visit objects</h4>
+
+<p>As usual with a memory dump,
+we <a href="http://bugfree.dk/blog/2016/10/24/windbg-postmortem-debugging-across-installed-dotnet-clr-versions">load</a>
+the dump into WinDbg, ensuring that mscordacwks.dll and sos.dll are
+available to the debugger. From the output below we see that WinDbg
+ships with correct versions, but that might now have been the
+case:</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+Microsoft (R) Windows Debugger Version 10.0.15063.137 X86
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+
+Loading Dump File [C:\AzureDump\Bugfree.Spo.Analytics.Cli-d3c510-07-25-13-08-00.dmp]
+User Mini Dump File with Full Memory: Only application data is available
+
+Symbol search path is: srv*
+Executable search path is: 
+Windows 8 Version 9200 UP Free x86 compatible
+Product: Server, suite: TerminalServer DataCenter SingleUserTS
+6.2.9200.16384 (win8_rtm.120725-1247)
+Machine Name:
+Debug session time: Tue Jul 25 15:07:22.000 2017 (UTC + 2:00)
+System Uptime: 28 days 13:46:50.588
+<font color="red">Process Uptime: 24 days 20:40:30.000</font color="red">
+................................................................
+...
+Loading unloaded module list
+..
+eax=00000000 ebx=0116e610 ecx=00000000 edx=00000000 esi=0116e3a0 edi=00000001
+eip=7781081c esp=0116e278 ebp=0116e3f8 iopl=0         nv up ei pl nz na pe nc
+cs=0023  ss=002b  ds=002b  es=002b  fs=0053  gs=002b             efl=00000206
+ntdll!NtWaitForMultipleObjects+0xc:
+7781081c c21400          ret     14h
+
+0:000> <font color="green">.sympath+ C:\AzureDump</font>
+Symbol search path is: srv*;C:\AzureDump
+Expanded Symbol search path is: cache*;SRV*https://msdl.microsoft.com/download/symbols;c:\azuredump
+
+************* Symbol Path validation summary **************
+Response                         Time (ms)     Location
+Deferred                                       srv*
+OK                                             C:\AzureDump
+
+0:000> <font color="green">.cordll -ve -u -l</font>
+CLRDLL: Unable to get version info for 'D:\Windows\Microsoft.NET\Framework\v4.0.30319\mscordacwks.dll', Win32 error 0n87
+<font color="red">Automatically loaded SOS Extension
+CLRDLL: Loaded DLL C:\Program Files (x86)\Windows Kits\10\Debuggers\x86\sym\mscordacwks_x86_x86_4.7.2053.00.dll\58FA6BB36e6000\mscordacwks_x86_x86_4.7.2053.00.dll
+CLR DLL status: Loaded DLL C:\Program Files (x86)\Windows Kits\10\Debuggers\x86\sym\mscordacwks_x86_x86_4.7.2053.00.dll\58FA6BB36e6000\mscordacwks_x86_x86_4.7.2053.00.dll</font>
+</pre>
+
+<p>Process uptime is reported as close to 25 days. And it turns out
+that for 21 of those days the consumer hasn't been able to establish a
+database connection.</p>
+
+<p>Now, let's attempt to locate visit messages inside the
+dump. There's a couple of ways to go about this. One is filtering the
+heap for all instances of the Visit type. Problem with this approach
+is that the heap may contain objects eligible for garbage collection,
+i.e., objects which have already been written to the database. Another
+approach is browsing the Analytics source code for a root of the visit
+objects. From source, we know that the producer/consumer mechanism is
+encapsulated in the .NET MailboxProcessor</a> type:</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+0:000> <font color="green">!DumpHeap -stat -type MailboxProcessor</font>
+Statistics:
+      MT    Count    TotalSize Class Name
+08a2db5c        1           32 Microsoft.FSharp.Control.FSharpMailboxProcessor`1[[Bugfree.Spo.Analytics.Cli.Agents+LoggerMessage, Bugfree.Spo.Analytics.Cli]]
+<font color="red">08a2d584</font>        1           32 Microsoft.FSharp.Control.FSharpMailboxProcessor`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages, Bugfree.Spo.Analytics.Cli]]
+Total 2 objects
+</pre>
+
+<p>From
+<a href="https://msdn.microsoft.com/en-us/visualfsharpdocs/conceptual/control.mailboxprocessor%5B'msg%5D-class-%5Bfsharp%5D">documentation</a>
+and
+<a href="https://github.com/fsharp/fsharp/blob/499526a5e37fc15ff5a6a9abcd63996037e3c8f1/src/fsharp/FSharp.Core/control.fs#L2520">F#
+library source</a> we see that the type is aliased to
+FSharpMailboxProcessor in IL and that it's generic with respect to the
+object stored on its queue. The "`1" part is CLR notation for the
+first instantiation of a generic type with type argument and assembly
+provided in brackets. The "+" in the type name is CLR notation for an
+inner class.</p>
+
+<p>From the value of the MT (Method Table), we locate all objects on
+the managed heap of this type. The queueing mechanism is a singleton
+object which is why only once instance shows up:</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+0:000> <font color="green">!DumpHeap /d -mt 08a2d584</font>
+ Address       MT     Size
+<font color="red">0252c384</font> 08a2d584       32     
+</pre>
+
+<p>Address of object in memory in hand, we start dig into its fields
+for where the visits are stored:</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+0:000> <font color="green">!DumpObj /d 0252c384</font>
+Name:        <font color="red">Microsoft.FSharp.Control.FSharpMailboxProcessor</font>`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages, Bugfree.Spo.Analytics.Cli]]
+MethodTable: 08a2d584
+EEClass:     08a0ff30
+Size:        32(0x20) bytes
+File:        D:\home\site\wwwroot\FSharp.Core.dll
+Fields:
+      MT    Field   Offset                 Type VT     Attr    Value Name
+00000000  40001ff        4                       0 instance 0252c378 initial
+048a5570  4000200       18 ...CancellationToken  1 instance 0252c39c cancellationToken@2521
+0855a350  4000201        8 ...Canon, mscorlib]]  0 instance <font color="red">0252c3a4 mailbox</font>
+012dc8f0  4000202       10         System.Int32  1 instance       -1 defaultTimeout
+012da988  4000203       14       System.Boolean  1 instance        1 started
+0855a0b8  4000204        c ...ption, mscorlib]]  0 instance 0252c3f4 errorEvent
+</pre>
+
+<p>A field of interest
+is <a href="https://github.com/fsharp/fsharp/blob/499526a5e37fc15ff5a6a9abcd63996037e3c8f1/src/fsharp/FSharp.Core/control.fs#L2293">mailbox</a>. Following
+the pointer to it in the Value column leads us to another generic
+type, instantiated by the same type argument as the parent:</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+0:000> <font color="green">!DumpObj /d 0252c3a4</font>
+Name:        <font color="red">Microsoft.FSharp.Control.Mailbox</font>`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages, Bugfree.Spo.Analytics.Cli]]
+MethodTable: 0855bec8
+EEClass:     08a3073c
+Size:        32(0x20) bytes
+File:        D:\home\site\wwwroot\FSharp.Core.dll
+Fields:
+      MT    Field   Offset                 Type VT     Attr    Value Name
+05491110  40001f8        4 ...Canon, mscorlib]]  0 instance 00000000 inboxStore
+0855b748  40001f9        8 ...Canon, mscorlib]]  0 instance <font color="red">0252c3c4 arrivals</font>
+0855b748  40001fa        c ...Canon, mscorlib]]  0 instance 0252c3c4 syncRoot
+0855af04  40001fb       10 ...ore]], mscorlib]]  0 instance 00000000 savedCont
+082472fc  40001fc       14 ...ng.AutoResetEvent  0 instance 00000000 pulse
+0855b290  40001fd       18 ...olean, mscorlib]]  0 instance 0252c3e8 waitOneNoTimeout
+</pre>
+
+<p>Looking at the fields, the arrivals field looks
+promising. Following the pointer, we arrive at a
+ <a href="https://github.com/fsharp/fsharp/blob/499526a5e37fc15ff5a6a9abcd63996037e3c8f1/src/fsharp/FSharp.Core/control.fs#L330">Queue</a>
+type defined in the F# standard library -- a thin wrapper around an
+array. The type argument to queue (and the type of its contained
+array) is perhaps not surprising the same as its parent:</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+0:000> <font color="green">!DumpObj /d 0252c3c4</font>
+Name:        <font color="red">Microsoft.FSharp.Control.Queue</font>`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages, Bugfree.Spo.Analytics.Cli]]
+MethodTable: 0855bf60
+EEClass:     08a310d4
+Size:        24(0x18) bytes
+File:        D:\home\site\wwwroot\FSharp.Core.dll
+Fields:
+      MT    Field   Offset                 Type VT     Attr    Value Name
+048a17a8  40001db        4     System.__Canon[]  0 instance <font color="red">037371e0 array</font>
+012dc8f0  40001dc        8         System.Int32  1 instance        0 head
+012dc8f0  40001dd        c         System.Int32  1 instance   422813 size
+012dc8f0  40001de       10         System.Int32  1 instance   422813 tail
+</pre>
+
+<p>Besides storying a array of objects, the queue has fields pointing
+the index of the first and last element in queue, and its size. Let's
+peek inside the array field:</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+0:000> <font color="green">!DumpObj /d 037371e0</font>
+Name:        <font color="red">Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages[]</font>
+MethodTable: 0855bfcc
+EEClass:     012da164
+Size:        2097164(0x20000c) bytes
+Array:       Rank 1, <font color="red">Number of elements 524288</font>, Type CLASS (Print Array)
+Fields:
+None
+</pre>
+
+<p>Finally, we've arrived at a regular .NET array type storing
+VisitorMessages. The array has a capacity of 524,288 items, but we
+only store 422,813.</p>
+
+<p>We might have expected the array to store Visits, but the way
+MailboxProcessor works is that we can send it different types of
+messages -- think inheritance hierarchy with VisitorMessage as the
+parent type and each message type as a subtype. Each type of message
+may carry addition state, such as the actual visit.</p>
+
+<p>To see this in action, we can dig into the first element of the
+array, and into that element's item field of type Visit to finally get
+at a Visit object.</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+0:000> <font color="green">!DumpArray -start 0 -length 1 /d 037371e0</font>
+Name:        Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages[]
+MethodTable: 0855bfcc
+EEClass:     012da164
+Size:        2097164(0x20000c) bytes
+Array:       Rank 1, Number of elements 524288, Type CLASS
+Element Methodtable: 08a2d2ac
+<font color="red">[0] 02663808</font>
+
+0:000> <font color="green">!DumpObj /d 02663808</font>
+Name:        <font color="red">Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages</font>
+MethodTable: 08a2d2ac
+EEClass:     08a0fec8
+Size:        12(0xc) bytes
+File:        D:\home\site\wwwroot\Bugfree.Spo.Analytics.Cli.exe
+Fields:
+      MT    Field   Offset                 Type VT     Attr    Value Name
+08a2d938  40000b2        4 ....Cli.Domain+Visit  0 instance <font color="red">026637d0 item</font>
+
+0:000> <font color="green">!DumpObj /d 026637d0</font>
+<font color="red">Name:        Bugfree.Spo.Analytics.Cli.Domain+Visit</font>
+MethodTable: 08a2d938
+EEClass:     0852014c
+Size:        56(0x38) bytes
+File:        D:\home\site\wwwroot\Bugfree.Spo.Analytics.Cli.exe
+Fields:
+      MT    Field   Offset                 Type VT     Attr    Value Name
+048aa9a4  40000fc       1c          System.Guid  1 instance 026637ec CorrelationId@
+05547ab4  40000fd       2c      System.DateTime  1 instance 026637fc Timestamp@
+012dfccc  40000fe        4        System.String  0 instance 02663530 LoginName@
+012dfccc  40000ff        8        System.String  0 instance 02663700 SiteCollectionUrl@
+012dfccc  4000100        c        System.String  0 instance 026635b4 VisitUrl@
+054b6a94  4000101       10 ...Int32, mscorlib]]  0 instance 02663774 PageLoadTime@
+0641c510  4000102       14 System.Net.IPAddress  0 instance 02663780 IP@
+054b5248  4000103       18 ...tring, mscorlib]]  0 instance 026637c4 UserAgent@
+</pre>
+
+<p>For every Visit object in the array, we wish to dump the values of
+CorrelationId, Timestamp, LoginName, and so on (the "@" in the name
+denotes a property backing field).</p>
+
+<p>Dumping objects with WinDbg makes is very clear that we're
+traversing a (potentially cyclic) graph of objects. In this case the
+objects form a hierarchy, rooted in a singleton MailboxProcessor
+instance which looks the following:</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+Bugfree.Spo.Analytics.Cli.Agents+visitor@49 (Microsoft.FSharp.Control.FSharpMailboxProcessor of type T)
+  mailbox (Microsoft.FSharp.Control.Mailbox of type T)
+    arrivals (Microsoft.FSharp.Control.Queue of type T)
+      array (Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages[])
+        message1 (Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages)
+          item (Bugfree.Spo.Analytics.Cli.Domain+Visit)
+            CorrelationId (System.Guid)
+              _a (System.Int32)
+              _b (System.Int16)
+              _c (System.Int16)
+              _d (System.Byte)
+              ...
+              _k (System.Byte)
+            Timestamp
+              dateDate (System.UInt64)
+              ...
+            LoginName (System.String)
+            SiteCollectionUrl (System.String)
+            VisitUrl (System.String)
+            PageLoadTime (Microsoft.FSharp.Core.FSharpOption of Type T)
+              value (System.Int32)
+            IP (System.Net.IPAddress)
+              m_Address (System.Int64)
+              ...
+            UserAgent (Microsoft.FSharp.Core.FSharpOption`1[[System.String, mscorlib]])
+              value (System.String)
+        message2
+        ...
+        messageN
+</pre>
+
+<p>Because each Visit object is rooted by the array rooted by
+arrivals, and so on, the garbage collector cannot collect those
+objects. Incidentally, the number of Visit objects in the array and
+the number of Visit objects on the heap match:</p>
+
+<pre style="overflow: auto; word-wrap: normal; white-space: pre;">
+0:000> <font color="green">!DumpHeap -stat -type Bugfree.Spo.Analytics.Cli.Domain+Visit</font>
+Statistics:
+      MT    Count    TotalSize Class Name
+08a62f2c        1           16 Microsoft.FSharp.Collections.FSharpList`1[[Bugfree.Spo.Analytics.Cli.Domain+Visit, Bugfree.Spo.Analytics.Cli]]
+08a2d938   <font color="red">422813     23677528 Bugfree.Spo.Analytics.Cli.Domain+Visit</font>
+Total 422814 objects
+</pre>
+
+<p>Rather than having traverse the graph as we've done here, dumping
+all instances of the Visit objects is simpler and yields the same
+result. But without the above analysis we wouldn't have known.</p>
+
+<h4>Conclusion</h4>
+
+<p>While WinDbg provides easy graph traversal commands, WinDbg only
+knows how to extract and pretty print intrinsic .NET types such as
+String, Int, and Float. For compound types, such as Guid,
+FSharpOption, IPAddress, and DateTime, turning text output back into
+.NET objects is a lot of work. We'd need to recursively traverse each
+item in the array.</p>
+
+<p>The above drill-down process is very tedious and not something we'd
+want to go through for 422,813 objects. Luckily, we don't have to now
+that we've learned how the relevant objects are composed.</p>
+
+<p>Using the <a href="https://github.com/Microsoft/clrmd">Microsoft
+Diagnostics Runtime</a>, ClrMD in short, next we'll automate heap
+traversal and extract properties of each visit.</p>
+   
+</div>
