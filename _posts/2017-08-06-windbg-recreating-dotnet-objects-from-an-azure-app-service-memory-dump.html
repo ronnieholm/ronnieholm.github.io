@@ -16,7 +16,7 @@ analyze and attempt to extract objects from a dump of an Azure App
 Service, an Azure deployed web application.</p>
 
 <p>Akin to Google Analytics, the app records visits across sites, but
-for some reason has been running for 21 days without being able to
+for some reason has been running for three weeks without being able to
 hand-off visits to a database. Visits are stored in-process and
 restarting the app causes visits to be lost. Thus we analyze the dump
 port-mortem, attempting to extract relevant objects.</p>
@@ -25,14 +25,14 @@ port-mortem, attempting to extract relevant objects.</p>
 
 <p>Like with a process running on local host, the Azure
 app's <a href="https://github.com/projectkudu/kudu">Kudu</a> instance
-supports <a href="http://bugfree.dk/blog/2016/10/24/windbg-postmortem-debugging-across-installed-dotnet-clr-versions">dumping
+supports <a href="http://bugfree.dk/blog/2016/10/24/windbg-postmortem-debugging-across-installed-dotnet-clr-versions">dumping</a>
 and <a href="https://blogs.msdn.microsoft.com/waws/2015/07/01/debugging-a-w3wp-memory-dump-of-a-slow-performing-asp-net-azure-web-app/">loading</a>
 a process into WinDbg for post-mortem analysis. Once the dump has been
 acquired, however, the tools and techniques are Azure agnostic and
 apply to any process running .NET code. Our focus on Azure is solely
 because that's where the issue occurred.</p>
 
-<h4>Architectural overview of the dumped web application</h4>
+<h4>Architectural overview of the dumped process</h4>
 
 <p>The dump we wish to analyze is of
 the <a href="https://github.com/ronnieholm/Bugfree.Spo.Analytics">Bugfree.Spo.Analytics</a>
@@ -50,12 +50,12 @@ write those to a MS SQL Azure instance:</p>
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
   Request 1   \
   Request 2   -\
-  ...          -> Thread pool producer threads
+  ...          -> Thread pool producers
   ...         -/              |
-             -/       Process and post
-            -/                |
+  ...        -/       Process and post
+  ...       -/                |
   Request N /	              v
-                  Visitor mailbox processor with build-in queue and single thread pool consumer
+                  Mailbox processor with build-in queue and thread pool consumer
                               |
                       Process and save
                               |
@@ -64,13 +64,13 @@ write those to a MS SQL Azure instance:</p>
 </pre>
 
 <p>In our case, messages are produced but not consumed. The queue has
-grown to contain 25 days of traffic, some 441k objects. Visit data
-isn't business critical data, per se, yet a 21 day gap wouldn't be
-ideal. Restarting the web process would mean losing all those visit
-metadata. Instead we're going to attempt to extract from memory queued
-objects and replay those in a new process.</p>
+grown to contain three weeks of traffic, some 423k objects. Visit data
+isn't business critical data, per se, but a three week gap is worth
+avoiding if not too time-consuming. Restarting the process would mean
+losing visit metadata. Instead we're going to attempt to extract from
+memory queued objects and replay those in a new process.</p>
 
-<h4>Locating visit objects</h4>
+<h4>Locating visit objects inside the mailbox processor</h4>
 
 <p>As usual with a memory dump,
 we <a href="http://bugfree.dk/blog/2016/10/24/windbg-postmortem-debugging-across-installed-dotnet-clr-versions">load</a>
@@ -140,7 +140,7 @@ encapsulated in the .NET MailboxProcessor</a> type:</p>
 Statistics:
       MT    Count    TotalSize Class Name
 08a2db5c        1           32 Microsoft.FSharp.Control.FSharpMailboxProcessor`1[[Bugfree.Spo.Analytics.Cli.Agents+LoggerMessage, Bugfree.Spo.Analytics.Cli]]
-<font color="red">08a2d584</font>        1           32 Microsoft.FSharp.Control.FSharpMailboxProcessor`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages, Bugfree.Spo.Analytics.Cli]]
+<font color="red">08a2d584</font>        1           32 Microsoft.FSharp.Control.FSharpMailboxProcessor`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessage, Bugfree.Spo.Analytics.Cli]]
 Total 2 objects
 </pre>
 
@@ -170,7 +170,7 @@ for where the visits are stored:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 0252c384</font>
-Name:        <font color="red">Microsoft.FSharp.Control.FSharpMailboxProcessor</font>`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages, Bugfree.Spo.Analytics.Cli]]
+Name:        <font color="red">Microsoft.FSharp.Control.FSharpMailboxProcessor</font>`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessage, Bugfree.Spo.Analytics.Cli]]
 MethodTable: 08a2d584
 EEClass:     08a0ff30
 Size:        32(0x20) bytes
@@ -192,7 +192,7 @@ type, instantiated by the same type argument as the parent:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 0252c3a4</font>
-Name:        <font color="red">Microsoft.FSharp.Control.Mailbox</font>`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages, Bugfree.Spo.Analytics.Cli]]
+Name:        <font color="red">Microsoft.FSharp.Control.Mailbox</font>`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessage, Bugfree.Spo.Analytics.Cli]]
 MethodTable: 0855bec8
 EEClass:     08a3073c
 Size:        32(0x20) bytes
@@ -216,7 +216,7 @@ array) is perhaps not surprising the same as its parent:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 0252c3c4</font>
-Name:        <font color="red">Microsoft.FSharp.Control.Queue</font>`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages, Bugfree.Spo.Analytics.Cli]]
+Name:        <font color="red">Microsoft.FSharp.Control.Queue</font>`1[[Bugfree.Spo.Analytics.Cli.Agents+VisitorMessage, Bugfree.Spo.Analytics.Cli]]
 MethodTable: 0855bf60
 EEClass:     08a310d4
 Size:        24(0x18) bytes
@@ -235,7 +235,7 @@ peek inside the array field:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 037371e0</font>
-Name:        <font color="red">Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages[]</font>
+Name:        <font color="red">Bugfree.Spo.Analytics.Cli.Agents+VisitorMessage[]</font>
 MethodTable: 0855bfcc
 EEClass:     012da164
 Size:        2097164(0x20000c) bytes
@@ -245,7 +245,7 @@ None
 </pre>
 
 <p>Finally, we've arrived at a regular .NET array type storing
-VisitorMessages. The array has a capacity of 524,288 items, but we
+VisitorMessage. The array has a capacity of 524,288 items, but we
 only store 422,813.</p>
 
 <p>We might have expected the array to store Visits, but the way
@@ -260,7 +260,7 @@ at a Visit object.</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpArray -start 0 -length 1 /d 037371e0</font>
-Name:        Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages[]
+Name:        Bugfree.Spo.Analytics.Cli.Agents+VisitorMessage[]
 MethodTable: 0855bfcc
 EEClass:     012da164
 Size:        2097164(0x20000c) bytes
@@ -269,7 +269,7 @@ Element Methodtable: 08a2d2ac
 <font color="red">[0] 02663808</font>
 
 0:000> <font color="green">!DumpObj /d 02663808</font>
-Name:        <font color="red">Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages</font>
+Name:        <font color="red">Bugfree.Spo.Analytics.Cli.Agents+VisitorMessage</font>
 MethodTable: 08a2d2ac
 EEClass:     08a0fec8
 Size:        12(0xc) bytes
@@ -306,11 +306,11 @@ objects form a hierarchy, rooted in a singleton MailboxProcessor
 instance which looks the following:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
-Bugfree.Spo.Analytics.Cli.Agents+visitor@49 (Microsoft.FSharp.Control.FSharpMailboxProcessor of type T)
-  mailbox (Microsoft.FSharp.Control.Mailbox of type T)
-    arrivals (Microsoft.FSharp.Control.Queue of type T)
-      array (Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages[])
-        message1 (Bugfree.Spo.Analytics.Cli.Agents+VisitorMessages)
+Bugfree.Spo.Analytics.Cli.Agents+visitor (Microsoft.FSharp.Control.FSharpMailboxProcessor)
+  mailbox (Microsoft.FSharp.Control.Mailbox)
+    arrivals (Microsoft.FSharp.Control.Queue)
+      array (Bugfree.Spo.Analytics.Cli.Agents+VisitorMessage[])
+        message1 (Bugfree.Spo.Analytics.Cli.Agents+VisitorMessage)
           item (Bugfree.Spo.Analytics.Cli.Domain+Visit)
             CorrelationId (System.Guid)
               _a (System.Int32)
@@ -325,12 +325,12 @@ Bugfree.Spo.Analytics.Cli.Agents+visitor@49 (Microsoft.FSharp.Control.FSharpMail
             LoginName (System.String)
             SiteCollectionUrl (System.String)
             VisitUrl (System.String)
-            PageLoadTime (Microsoft.FSharp.Core.FSharpOption of Type T)
+            PageLoadTime (Microsoft.FSharp.Core.FSharpOption)
               value (System.Int32)
             IP (System.Net.IPAddress)
               m_Address (System.Int64)
               ...
-            UserAgent (Microsoft.FSharp.Core.FSharpOption`1[[System.String, mscorlib]])
+            UserAgent (Microsoft.FSharp.Core.FSharpOption)
               value (System.String)
         message2
         ...
@@ -347,7 +347,7 @@ the number of Visit objects on the heap match:</p>
 Statistics:
       MT    Count    TotalSize Class Name
 08a62f2c        1           16 Microsoft.FSharp.Collections.FSharpList`1[[Bugfree.Spo.Analytics.Cli.Domain+Visit, Bugfree.Spo.Analytics.Cli]]
-08a2d938   <font color="red">422813     23677528 Bugfree.Spo.Analytics.Cli.Domain+Visit</font>
+08a2d938   <font color="red">422813</font>     23677528 Bugfree.Spo.Analytics.Cli.Domain+Visit
 Total 422814 objects
 </pre>
 
