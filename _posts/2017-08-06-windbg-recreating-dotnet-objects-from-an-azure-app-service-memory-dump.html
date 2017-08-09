@@ -197,8 +197,11 @@ Fields:
 field looks promising. Because the field is a reference type inside
 another type, Value is the memory location of the object. And because
 the type of the mailbox field is generic, its type is listed as
-System.__Canon. That's a CLR placeholder type substituted for an
-actual reference type at runtime as seen below:</p>
+System.__Canon. This type is a CLR placeholder related to
+<a href="https://alexandrnikitin.github.io/blog/dotnet-generics-under-the-hood">how
+.NET generics is implemented under the hood</a>. Suffice it to say
+that System.__Canon is substituted for an actual reference type at
+runtime as seen from the Name below:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 0252c3a4</font>
