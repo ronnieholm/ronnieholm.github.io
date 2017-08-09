@@ -45,7 +45,7 @@ the wrong memory locations. It doesn't raise and an exception or
 returns null, but may try to interpret random memory content as a
 Guid, returning nonsensical values.</p>
 
-<h4>ClrMD with ClrMD Extensions</h4>
+<h4>ClrMD with Extensions</h4>
 
 <p><a href="https://github.com/JeffCyr/ClrMD.Extensions">ClrMD.Extensions</a>
 builds on top of ClrMD and makes querying workable. It comes with an
@@ -71,7 +71,7 @@ sharing configuration settings with the web application. That way,
 it'll process and write visits to the MS SQL Azure instance as if
 those visits just occurred:</p>
 
-<pre>
+<pre class="prettyprint lang-cs" style="overflow: auto; word-wrap: normal; white-space: pre;">
 using System;
 using System.Net;
 using System.Linq;
