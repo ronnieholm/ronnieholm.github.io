@@ -1,0 +1,149 @@
+---
+layout: post
+title: "ClrMD: Recreating .NET objects from an Azure App Service memory dump"
+date: 2017-08-09 12:00 UTC
+---
+<div id="post">
+
+<p>
+Part 1: <a href="/blog/2017/08/06/windbg-recreating-dotnet-objects-from-an-azure-app-service-memory-dump">WinDbg: Recreating .NET objects from an Azure App Service memory dump</a><br>
+Part 2: ClrMD: Recreating .NET objects from an Azure App Service memory dump</a>
+</p>
+  
+<p>In
+the <a href="/blog/2017/08/06/windbg-recreating-dotnet-objects-from-an-azure-app-service-memory-dump">previous</a>
+post, we concluded that while WinDbg in well-suited for traversing an
+object graph, scripting WinDbg involves parsing text output. In this
+post, we look at ClrMD, a Microsoft framework for loading and
+inspecting .NET memory dumps. ClrMD allows us to load a dump file and
+query it in much the same way as ADO.NET allows opening and querying a
+MS SQL database file.</p>
+
+<h4>WinDbg vs ClrMD</h4>
+
+<p>What ClrMD provides is a .NET API for analyzing the .NET part of a
+dump file. Instead of returning text, ClrMD returns meta-types
+representing parts of the dump. With ClrMD, the dump file becomes an
+opaque data structure which we may query and extract information from
+using regular programming language constructs. It's like the
+difference between using cmd and PowerShell, where PowerShell returns
+objects over strings.</p>
+
+<p>Our first couple of attempts involved reading values of a Visit
+object using ClrMD, but the API is painful to use and get working
+consistently. Querying field values require knowledge about whether
+the field is a struct or class and how information is stored inside
+it. Like with WinDbg, only simple types may be directly
+extracted. With Guid, DateTime, IPAddress, and FSharpOption, we must
+extract internal field values and call an appropriate constructor. For
+a Guid type, this amounts to querying values of instance fields _a
+through _k.</p>
+
+<p>Oftentimes ClrMD error messages are hard to interpret or null
+values are simply returned. Worse, it's all too easy to end up reading
+the wrong memory locations. It doesn't raise and an exception or
+returns null, but may try to interpret random memory content as a
+Guid, returning nonsensical values.</p>
+
+<h4>ClrMD with ClrMD Extensions</h4>
+
+<p><a href="https://github.com/JeffCyr/ClrMD.Extensions">ClrMD.Extensions</a>
+builds on top of ClrMD and makes querying workable. It comes with an
+intuitive API that works very well, and which understands can directly
+return Guid, IPAddress, DateTime, and similar build-in types without
+resorting to extract their internal field values. Using
+ClrMD.Extensions, we'll write only a fraction of the code required for
+ClrMD.</p>
+
+<p>One downside to using ClrMD extensions is that they don't ship as a
+NuGet package. We cloned its GitHub repository, built the code
+ourselves, and referenced the ClrMD.Extensions and
+Microsoft.Diagnostics.Runtime DLLs from the bin/debug folder.</p>
+
+<h4>The code</h4>
+
+<p>Here's all it takes
+(Code <a href="https://github.com/ronnieholm/Bugfree.Spo.Analytics/tree/master/src/Bugfree.Spo.Analytics.ProcessMemoryDump">available</a>
+on Github) for querying the dump, extracting values, creating Visit
+objects for these values, and replaying visits by posting to the
+message queue. The code is part of a separate console application,
+sharing configuration settings with the web application. That way,
+it'll process and write visits to the MS SQL Azure instance as if
+those visits just occurred:</p>
+
+<pre>
+using System;
+using System.Net;
+using System.Linq;
+using System.Threading;
+using System.Collections.Generic;
+using Microsoft.FSharp.Core;
+using ClrMD.Extensions;
+using static Bugfree.Spo.Analytics.Cli.Domain;
+using static Bugfree.Spo.Analytics.Cli.Agents;
+
+namespace Bugfree.Spo.Analytics.MemoryDumpProcessor {
+    class Program {
+        static void Main() {
+            var visits = new List<Visit>();
+            using (ClrMDSession session = ClrMDSession.LoadCrashDump(@"C:\AzureDump\Bugfree.Spo.Analytics.Cli-d3c510-07-25-13-08-00.dmp")) {
+                foreach (ClrObject o in session.EnumerateClrObjects("Bugfree.Spo.Analytics.Cli.Domain+Visit")) {
+                    var pageLoadTime = (int?)o["PageLoadTime@"]["value"].SimpleValue ?? null;
+                    var userAgent = (string)o["UserAgent@"]["value"].SimpleValue ?? null;
+                    var v = new Visit(
+                        (Guid)o["CorrelationId@"],
+                        (DateTime)o["Timestamp@"],
+                        (string)o["LoginName@"],
+                        (string)o["SiteCollectionUrl@"],
+                        (string)o["VisitUrl@"], 
+                        pageLoadTime == null ? FSharpOption<int>.None : new FSharpOption<int>(pageLoadTime.Value),
+                        (IPAddress)o["IP@"],
+                        userAgent == null ? FSharpOption<string>.None : new FSharpOption<string>(userAgent));
+                    visits.Add(v);
+                }
+
+                // Enumerating the heap doesn't preserve allocation order. Hence we impose an
+                // order using the visit's timestamp. This allows for each visit inspection.
+                foreach (var v in visits.OrderBy(v => v.Timestamp)) {
+                    visitor.Post(VisitorMessage.NewVisit(v));
+                }
+
+                // Visitor mailbox processor processes messages/visits on a separate thread. 
+                // We must wait for the thread to finish processing before terminating the 
+                // program.
+                while (true) {
+                    var l = visitor.CurrentQueueLength;
+                    Console.WriteLine($"Queue length: {l}");
+                    Thread.Sleep(5000);
+
+                    if (l == 0) {
+                        break;
+                    }
+                }
+
+                Console.ReadKey();
+            }
+        }
+    }
+}
+</pre>
+
+<p>This code only scratched the surface of what's possible with ClrMD
+and the extensions. With ClrMD we have access to mostly the same data
+as SOS, allowing for scripting. Walking the heap, we could count
+instances of each type, inspect the finalization queue, determine
+which objects roots another object, and so on. In fact, tools such
+as <a href="https://blogs.msdn.microsoft.com/debugdiag">DebugDiag</a>
+and
+<a href="https://github.com/Microsoft/perfview">PerfView</a> make use
+of ClrMD under the hood.</p>
+
+<h4>Conclusion</h4>
+
+<p>With the WinDbg output and object graph in mind, the code should be
+fairly easy to follow. With it, we were able to replay 423k visits,
+having each visit go through the same pipeline as current visits. In
+an odd way, we used the memory dump as a message queue persistence
+mechanism.</p>
+   
+</div>
