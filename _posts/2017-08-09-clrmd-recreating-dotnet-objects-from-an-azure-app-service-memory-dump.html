@@ -66,9 +66,9 @@ Microsoft.Diagnostics.Runtime DLLs from its bin/debug folder.</p>
 <p>The following code is part of a console application and all it
 takes
 (code <a href="https://github.com/ronnieholm/Bugfree.Spo.Analytics/tree/master/src/Bugfree.Spo.Analytics.ProcessMemoryDump">available</a>
-on Github) to query the dump, extract visit values, create Visit
-objects from these values, and replaying visits by posting those to
-the message queue:</p>
+on Github with the analytics web application) to query the dump,
+extract visit values, create Visit objects from these values, and
+replaying visits by posting those to the message queue:</p>
 
 <pre class="prettyprint lang-cs" style="overflow: auto; word-wrap: normal; white-space: pre;">
 using System;
@@ -102,7 +102,7 @@ namespace Bugfree.Spo.Analytics.MemoryDumpProcessor {
                 }
 
                 // Enumerating the heap doesn't preserve allocation order. Hence we impose an
-                // order using the visit's timestamp. This allows for each visit inspection.
+                // order using the visit's timestamp for easier inspection.
                 foreach (var v in visits.OrderBy(v => v.Timestamp)) {
                     visitor.Post(VisitorMessage.NewVisit(v));
                 }
@@ -145,8 +145,9 @@ be fairly easy to follow. By having the console application share
 configuration settings with the running web application, it's able to
 behave as the web application with respect to replaying visits. With
 the console application, we were able to replay the 423k visits,
-having each visit go through the same pipeline as current visits. In a
-way, we've used the memory dump as a message queue persistence
+having each visit go through the same pipeline as current visits.</p>
+
+<p>In a way, we've used the memory dump as a message queue persistence
 mechanism.</p>
    
 </div>
