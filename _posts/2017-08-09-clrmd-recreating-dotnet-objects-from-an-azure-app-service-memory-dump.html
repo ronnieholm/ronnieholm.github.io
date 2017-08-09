@@ -41,12 +41,14 @@ values and call the appropriate constructor. For the Guid type, this
 amounts to querying the values of instance fields _a through _k and
 passing those to the Guid constructor.</p>
 
-<p>ClrMD's error handling make the library hard to use. Sometimes null
-values are returned when they're unexpected and it's all too easy
+<p>ClrMD's API and error handling make the library unnecessarily hard
+to use. Sometimes null values are returned when they're unexpected and
+it's all too easy
 to <a href="https://stackoverflow.com/questions/22150259/how-to-properly-work-with-non-primitive-clrinstancefield-values-using-clrmd">read
-the wrong memory location or misinterpreting the result</a>. For
-instance, interpreting random memory content as, say, a DateTime,
-resulting in a random date.</p>
+the wrong memory location or misinterpreting the result</a>. It's easy
+to accidentally interprete random memory content as some type. The
+result is a technically correct Guid, DateTime, or IP address, but
+initialized from random values.</p>
 
 <h4>ClrMD.Extensions</h4>
 
@@ -57,7 +59,7 @@ directly returning the value of Guid, IPAddress, DateTime, and similar
 types. With the extensions, we also write only a fraction of the code
 otherwise required.</p>
 
-<p>The only immidiate downside to ClrMD.Extensions is that they don't
+<p>The only immediate downside to ClrMD.Extensions is that they don't
 ship as a NuGet package. One must clone the GitHub repository, built
 the code, and reference the ClrMD.Extensions and
 Microsoft.Diagnostics.Runtime DLLs from its bin/debug folder.</p>
