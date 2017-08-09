@@ -153,13 +153,13 @@ and
 <a href="https://github.com/fsharp/fsharp/blob/499526a5e37fc15ff5a6a9abcd63996037e3c8f1/src/fsharp/FSharp.Core/control.fs#L2520">F#
 library source</a>, it's clear that the type is compiled as
 FSharpMailboxProcessor and that it's generic in the type of object it
-stores. The "`1" part is CLR notation for the first instantiation of a
-generic type whose type and assembly is provided in brackets. The "+"
-in the type name is CLR notation for an inner class. From a C#
-perspective, having a type called Agents with an inner class of
-VisitorMessage may seem odd. It's an artifact of how the F# compiler
-maps language constructs to IL and not how the code was actually
-written.</p>
+stores. The "`1" part is CLR notation for arity of the generic type --
+the number of it's type arguments -- whose type and assembly is
+provided in brackets. The "+" in the type name is CLR notation for an
+inner class. From a C# perspective, having a type called Agents with
+an inner class of VisitorMessage may seem odd. It's an artifact of how
+the F# compiler maps language constructs to IL and not how the code
+was actually written.</p>
 
 <p>From the value of the MT (Method Table) column, we can locate
 objects of that type on the managed heap. As the queueing mechanism is
@@ -174,7 +174,7 @@ shows up:</p>
 
 <p>The address column points to the location of the object within the
 process' 32-bit virtual address space. We could inspect the object's
-dumping raw memory, but SOS provides a command for the purpose:</p>
+dumping raw memory, but SOS comes with a command for that purpose:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 0252c384</font>
@@ -187,7 +187,7 @@ Fields:
       MT    Field   Offset                 Type VT     Attr    Value Name
 00000000  40001ff        4                       0 instance 0252c378 initial
 048a5570  4000200       18 ...CancellationToken  1 instance 0252c39c cancellationToken@2521
-0855a350  4000201        8 ...Canon, mscorlib]]  0 instance <font color="red">0252c3a4 mailbox</font>
+0855a350  4000201        8 <font color="red">...Canon, mscorlib]]</font>  0 instance <font color="red">0252c3a4 mailbox</font>
 012dc8f0  4000202       10         System.Int32  1 instance       -1 defaultTimeout
 012da988  4000203       14       System.Boolean  1 instance        1 started
 0855a0b8  4000204        c ...ption, mscorlib]]  0 instance 0252c3f4 errorEvent
@@ -195,8 +195,10 @@ Fields:
 
 <p>The <a href="https://github.com/fsharp/fsharp/blob/499526a5e37fc15ff5a6a9abcd63996037e3c8f1/src/fsharp/FSharp.Core/control.fs#L2293">mailbox</a>
 field looks promising. Because the field is a reference type inside
-another type, Value is yet another memory location where an object
-resides. The mailbox field is of another generic type:</p>
+another type, Value is the memory location of the object. And because
+the type of the mailbox field is generic, its type is listed as
+System.__Canon. That's a CLR placeholder type substituted for an
+actual reference type at runtime as seen below:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 0252c3a4</font>
