@@ -38,7 +38,7 @@ field is a primitive or complex type. Like with WinDbg, ClrMD
 understands only primitive types. With Guid, DateTime, IPAddress, and
 FSharpOption, we must query internal field values and call the
 appropriate constructor. For the Guid type, this amounts to querying
-the values of fields _a through _k and passing those to the Guid
+values of internal fields _a through _k and passing those to the Guid
 constructor.</p>
 
 <p>Sometimes ClrMD's API return null values when they're unexpected
