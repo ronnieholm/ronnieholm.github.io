@@ -17,34 +17,31 @@ Part 5: <a href="/blog/2017/07/23/debugging-recurring-web-farm-outages-sql-serve
 <p>A client has reported that their web farm running SharePoint 2007
 (effectively ASP.NET, MS SQL Server, and associated services) has been
 going offline each night for the past couple of months. In this post
-I'll document the steps that went into troubleshooting the issue. As
-it's a fairly long process, it'll take a few posts to arrive at the
-root cause. We'll start by collecting precise timing data on the
-farm's uptime and downtime and then correlate these measurements with
-server logs. From there we'll switch to using DebugDiag and WinDbg to
-narrow down the cause.</p>
+we'll document the steps taken to troubleshoot the issue. As it's a
+fairly long process, it'll take a few posts to arrive at the root
+cause. We'll start by collecting precise timing data on the farm's
+uptime and downtime and correlate these measurements with server
+logs.</p>
 
 <h4>Collecting uptime/downtime measurements</h4>
 
 <p>First order of business is talking to the affected internal
-users. They consistently report that when navigating to the intranet,
-Internet Explorer keeps showing a blank page while the loader wheel
-within the tab bar spins for minutes (forever). The page remains
-blank, which indicates that the web server never gets to deliver
-content to the client. Users also report that the farm is down every
-night and gives a rough range of the downtime.</p>
+users. They consistently report that when browsing the intranet,
+Internet Explorer shows a blank page with the tab loader wheel
+spinning for minutes (forever). The page remains blank, indicating
+that the web server never responded to the client. Users also report
+that the farm is down every night at around 23.00, lasting for 90 to
+120 minutes.</p>
 
-<p>I want to collect more accurate timing to see if a pattern emerges:
-how long is the farm down? How many servers in farm are affected? How
-many Internet Information Services (IIS) web applications are
-affected?  Since no existing monitoring system had been in place for
-the past couple of months, I rolled my own simple tool. While it isn't
-enterprise grade monitoring, it's plenty sufficient for the case in
-hand.</p>
+<p>We want to collect more accurate timing to see if a pattern
+emerges: how long is the farm actually down? How many servers in farm
+are affected? How many Internet Information Services (IIS) web
+applications are affected? Since no monitoring system is in place, we
+roll our own. While not enterprise grade, is plenty sufficient for the
+case at hand.</p>
 
-<p>My monitoring tool uses HTTP heartbeat monitoring as a proxy for
-farm uptime and downtime. It's comprised of the following C#
-program:</p>
+<p>Our monitoring tool employs HTTP heartbeat monitoring as a proxy
+for farm uptime and downtime:</p>
 
 <pre class="prettyprint lang-cs" style="overflow: auto; word-wrap: normal; white-space: pre;">
 using System;
@@ -88,23 +85,24 @@ namespace HttpHeartbeat {
 }
 </pre>
 
-<p>Every n'th second, the HttpHeartbeat tool attempts to establish a
-connection with an endpoint and fetch the content of a URL. The tool
-is well-suited for execution in a PowerShell terminal using the tee
-cmdlet. It simultaneously writes output to the console and a file for
-later analysis.</p>
+<p>Every n'th second, HttpHeartbeat attempts to establish a connection
+with an endpoint and fetch its content. The tool is well-suited for
+execution in a PowerShell terminal using the tee cmdlet. It
+simultaneously outputs to the console and a file for later
+analysis.</p>
 
-<p>I setup HttpHeartbeat to run across a host of machines: on a
-reference laptop on the local network and on key servers that are part
-of the farm. These servers typically resolve intranet.acme.dk to
-127.0.0.1 (by way of their hosts file). Thus, running HttpHeartbeat
-directly on a server, fetching a page on the intranet from there,
-causes the request to be processed by the local server's web
-stack. That way I can determine if most or all servers are affected
-and root out issues with the network between the farm and client. When
-the browser is showing an empty page, it may just as well be a network
-issue. As for the reference laptop, its requests pass through a load
-balancer.</p>
+<p>We setup HttpHeartbeat to run across a host of machines: on a
+reference laptop on the local network and on key servers in the
+farm. These servers typically resolve intranet.acme.dk to 127.0.0.1
+(by way of their hosts file). Thus, running HttpHeartbeat against
+intranet.acme.dk on these servers, the request is processed by the
+local server's web stack. That way we can determine if most or all
+servers are affected and rule out issues with the network between the
+client and farm. As for the reference laptop, its requests pass
+through a load balancer.</p>
+
+<p>Here's the aggregated output from running the tool, showing
+downtime per server:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Reference laptop:
@@ -142,22 +140,19 @@ Management application server:
     No further heartbeats collected as user was logged out
 </pre>
 
-<p>The output reveals an interesting pattern. The reference laptop and
-every server in the farm running HttpHeartbeat show roughly identical
-uptimes and downtimes. The difference in time can likely be ascribed
-to the 30 second heartbeat detection interval and that it takes some
-time until heartbeat detection reports failure. I've aggregated the
-tool's output above. In the log files, "The operation has timed out"
-is what shows up for almost every heartbeat request within the
-downtime period.</p>
+<p>Running HttpHeartbeat reveals an interesting pattern: the reference
+laptop and every server detect roughly identical uptimes and
+downtimes. The slight difference in time is likely due to the 30
+second heartbeat interval and the time it takes to detect a
+failure. Across the log files, "The operation has timed out" shows up
+for almost every heartbeat request within the downtime period.</p>
 
-<p>Next I setup an additional heartbeat target on the reference
-laptop. I'm fetching a page within the projects web application. I ran
-the heartbeat pings on the reference laptop only, assuming the results
-generalize to servers as well. Pinging another web application (of
-which the servers have about 16 each) in the farm, I want to see if
-the issue is isolated to a single web application or every IIS web
-application.</p>
+<p>Next, we setup an additional heartbeat target on the reference
+laptop, fetching a page within another web application. We ran the
+heartbeat pings on the reference laptop only, assuming the results
+generalize to servers as well. Pinging another web application, of
+which the farm has 16, we want to see if the issue is isolated to a
+single web application or multiple/every IIS web application.</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Reference laptop: 
@@ -166,24 +161,23 @@ Reference laptop:
     13-07-2017 00:55:36 to 13-07-2017 01:02:06
 </pre>
 
-<p>On the first night, because downtime was so brief, I thought it was
-maybe just a glitch. Subsequent nights do reveal a pattern,
-however. The projects web application goes down at a later point in
-time compared to the intranet web application, and it stays down for a
+<p>On the first night, because downtime is so brief, it's hard to tell
+if what we see is actual downtime. Subsequent nights, however, reveal
+a pattern. The projects.acme.dk web application is offline a little
+later than intranet.acme.dk web application, and is offline for
 shorter time as well.</p>
 
 <h4>Conclusion</h4>
 
-<p>When all servers in a farm goes down at roughly the same time, and
-stays down for roughly the same duration of time, it indicates that
-the issue isn't with any particular server. More likely, the downtime
-is due to some shared component that each server requires in order to
-operate: a SharePoint component, Active Directory, MS SQL Server, SAN,
-and so on.</p>
+<p>When all servers in a farm go offline at about the same time, and
+stays down for roughly the same duration, it indicates that the issue
+isn't with a particular server. More likely, the downtime is due to
+some shared component that each server depends on in order to operate:
+Active Directory, MS SQL Server, SAN, and the like.</p>
 
 <p>In
 the <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-windows-event-log-iis-log-sharepoint-log-with-powershell">next</a>
-post I'll dig into the Event Log and other server logs and look for
-underlying causes.</p>
+post we'll dig into the Event Log and other server logs for hints as
+to the underlying cause.</p>
 
 </div>
