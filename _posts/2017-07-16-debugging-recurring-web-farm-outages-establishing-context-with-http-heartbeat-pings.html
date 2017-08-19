@@ -87,9 +87,10 @@ namespace HttpHeartbeat {
 
 <p>Every n'th second, HttpHeartbeat attempts to establish a connection
 with an endpoint and fetch its content. The tool is well-suited for
-execution in a PowerShell terminal using the tee cmdlet. It
-simultaneously outputs to the console and a file for later
-analysis.</p>
+execution in a PowerShell terminal using
+the <a href="https://docs.microsoft.com/en-us/powershell/module/Microsoft.PowerShell.Utility/Tee-Object">tee
+cmdlet</a>. It simultaneously outputs to the console and a file for
+later analysis.</p>
 
 <p>We setup HttpHeartbeat to run across a host of machines: on a
 reference laptop on the local network and on key servers in the
