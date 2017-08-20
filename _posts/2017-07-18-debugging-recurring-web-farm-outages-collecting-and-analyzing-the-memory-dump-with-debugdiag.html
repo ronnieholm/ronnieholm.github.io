@@ -32,7 +32,7 @@ reporting capabilities to analyze the dump.</p>
 https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-121-DebugDiag-Part-1">1</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-122-DebugDiag-Part-2">2</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-123-DebugDiag-Part-3">3</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-124-DebugDiag-Part-4">4</a>)
 is both a capture and reporting utility. The reporting part automates
 manual WinDbg digging around by analyzing a dump using predefined
-rules and heurisics. For dump purposes, we're interested in
+rules and heuristics. For dump purposes, we're interested in
 DebugDiag's ability to capture-on-breakpoint-hit.</p>
 
 <p>Once a dump is
@@ -124,23 +124,22 @@ users access the site, the trend is clear.</p>
 <p>At neither 23:00 nor 23:15 has the runtime raised the unhealthy
 flag. Only heartbeat requests report timeouts and Internet Explorer
 shows a blank page. Also, in the 23:15 dump, the maximum value in
-RunningSince column have increased from 661 to 1,747
+RunningSince column has increased from 661 to 1,747
 seconds. Subtracting 1,747 seconds from 23:15 indicates the request
 was made around 22:46; just about when the heartbeat script started
 detecting downtime.</p>
 
-<p>Matching the number of eight not completed requests, the report
-contains a SharePointAnalysis section with an SPWeb Object List (681
-SPWeb objects found, eight undisposed). Similarly, the SPRequest
-Statistics section lists eight undisposed SPRequest objects (og 741 in
-total). SPWeb and SPRequest are SharePoint .NET classes involved in
-processing requests. The thread IDs of both SPWeb and SPRequest
-objects match up with the threads IDs of the not completed
-requests. It's therefore safe to assume that these undisposed
-resources are currently in use and doesn't represent a memory
-leak. The memory locations provided come in handy once we load the
-dump into WinDbg. They allow us to easily access additional properties
-of each request:</p>
+<p>Matching the eight not completed requests, the SharePointAnalysis
+section of the report lists eights undisposed SPWeb objects (of 681 in
+total). Similarly, the SPRequest Statistics section lists eight
+undisposed SPRequest objects (of 741 in total). SPWeb and SPRequest
+are SharePoint .NET classes involved in processing requests. The
+thread IDs of both SPWeb and SPRequest objects match the threads IDs
+of the not completed requests. It's therefore safe to assume that
+these undisposed resources are in use and isn't a memory leak. The
+memory locations provided come in handy once we load the dump into
+WinDbg. They allow us to easily access additional properties of each
+request:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Address            SPRequest   Auto-Dispose   Auth     Thread   Url [Title]
@@ -165,11 +164,12 @@ SPContext          Thread   Linked Objects
 </pre>
 
 <p>Lastly, the Client Connections section details currently executing
-requests. Below is one of a heartbeat request, including its NTLM
-header detailed in
-the <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-windows-event-log-iis-log-sharepoint-log-with-powershell">previous</a>
-post. The 172.27.18.210 IP is my reference laptop running the
-heartbeat tool and 172.27.18.8 is Web front-end server 2:</p>
+requests. Below is one of the heartbeat requests, including its NTLM
+header
+(see <a href="/blog/2017/07/17/debugging-recurring-web-farm-outages-analyzing-windows-event-log-iis-log-sharepoint-log-with-powershell">previous</a>
+post for details on the authentication handshake). The 172.27.18.210
+IP is my reference laptop running the heartbeat tool and 172.27.18.8
+is Web front-end server 2:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Client connection from 172.27.18.210:58666 to 172.27.18.8:80 
@@ -193,14 +193,14 @@ threads are stuck processing requests. The longer we wait, the more
 threads get blocked, eventually causing w3wp to signal that it's
 unhealthy and in a deadlocked state. The Windows process Activation
 Service then ensures the process is recycled, and the flow repeats a
-number of times until the issue resolve itself.</p>
+number of times until the issue resolves itself.</p>
 
 <p>We still don't know specifically on what the worker threads are
 blocked. DebugDiag's Thread Report section provides stack traces
 listing functions only, indicating that threads are blocked waiting
-for a database operation. We haven't included a stack trace in this
-post because given the thread ID, WinDbg is better suited for digging
-into that side of things.</p>
+for a database operation. We refrained from including a stack trace in
+this post because given the thread ID, WinDbg is better suited for
+digging into that side of things.</p>
 
 <p>In
 the <a href="/blog/2017/07/19/debugging-recurring-web-farm-outages-analyzing-the-memory-dump-with-windbg">next</a>

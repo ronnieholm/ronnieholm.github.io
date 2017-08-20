@@ -17,30 +17,31 @@ Part 5: <a href="/blog/2017/07/23/debugging-recurring-web-farm-outages-sql-serve
 <p>In
 the <a href="/blog/2017/07/18/debugging-recurring-web-farm-outages-collecting-and-analyzing-the-memory-dump-with-debugdiag">previous</a>
 post we used DebugDiag to narrow down the problem. As expected, the
-ASP.NET runtime stops processing requests because worker thread pool
-threads are getting stuck. As more requests come in, more threads get
-stuck, until finally the runtime notices that something is wrong. It
-then signals the w3wp host process which the Windows process
-Activation Service detects and restarts w3wp. This flow repeats itself
-a number of times.</p>
+ASP.NET runtime is unable to finish processing requests because worker
+thread pool threads become blocked. As more requests come in, more
+threads become blocked, until finally the runtime notices that
+something is wrong. The w3wp host process then signals the Windows
+process Activation Service to restart w3wp. This flow repeats itself a
+number of times.</p>
 
-<p>This post investigates on what worker threads get blocked. We do so
-by loading the memory dump captured earlier into WinDbg.</p>
+<p>In this post we look into why worker threads become blocked. We do
+so by loading the memory dump into WinDbg and analyze the callstacks
+of blocked threads, looking for a pattern.</p>
 
 <h4>Loading the dump into WinDbg</h4>
 
 <p>We don't want to analyze the memory dump directly on a production
-server. Instead we move it to another machine and do postmortem
-analysis there. For WinDbg to work reliably within this setup, we must
-follow the steps outlined
+server. Instead we move it to another machine for postmortem
+analysis. For WinDbg to work within this setup, we must follow the
+steps outlined
 in <a href="/blog/2016/10/24/windbg-postmortem-debugging-across-installed-dotnet-clr-versions">postmortem
 debugging across installed .NET CLR versions</a>. These steps are
-required because the dump was captured on a Windows Server 2008 with
+necessary because the dump was captured on a Windows Server 2008 with
 w3wp running a version of .NET 2.0 not necessarily available on the
-target machine. Key files related to the CLR version must therefore be
-copied across machines.</p>
+machine used for debugging. Core files related to the CLR version must
+therefore be copied across machines.</p>
 
-<p>In the WinDbg session below, commands issues are marked in
+<p>In the WinDbg session below, commands issued are in
 <font color="green">green</font>. The parts of the output worth
 highlighting are in <font color="red">red</font>.</p>
 
@@ -88,11 +89,11 @@ CLRDLL: Loaded DLL C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\sym\msco
 CLR DLL status: Loaded DLL C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\sym\mscordacwks_AMD64_AMD64_2.0.50727.8762.dll\58E462F09a0000\mscordacwks_AMD64_AMD64_2.0.50727.8762.dll</font>
 </pre>
 
-<p>(On this target machine, the proper core files were already
-present. Otherwise the loader output above would've included
-c:\dumps.)</p>
+<p>On this debugging machine, the proper core files ship with the
+debugger. Otherwise mscordacwks would've loaded from inside c:\dumps,
+where core files extracted from the Windows 2008 Server reside.</p>
 
-<p>Because the Event Log entry mentions a (potential) deadlock, in
+<p>Because the Event Log entries mention a (potential) deadlock, in
 addition to
 <a href="https://docs.microsoft.com/en-us/dotnet/framework/tools/sos-dll-sos-debugging-extension">sos</a>,
 we load the <a href="http://www.stevestechspot.com/">sosex</a>
@@ -115,17 +116,16 @@ Scanning for threads waiting on CriticalSections...
 <font color="red">No deadlocks detected.</font>
 </pre>
 
-<p>Either the deadlock hasn't manifested itself yet, the deadlock
-doesn't involve managed resources, or it's a false positive Event Log
-message.</p>
+<p>Either the deadlock isn't there, the deadlock doesn't involve
+managed resources, or it's a false positive Event Log message.</p>
 
 <h4>Analyzing blocked threads</h4>
 
 <p>Let's start by looking at high-level thread pool statistics. From
-the DebugDiag report we know that eight worker thread pool threads
-were blocked at the time of the dump. More threads are running inside
-w3wp; in fact the ~ command lists 58 threads. Those just aren't
-managed thread pool threads:</p>
+the DebugDiag report we know that eight worker thread pool threads are
+blocked at the time of the dump. More threads are running inside w3wp;
+in fact the ~ command lists 58 threads. Those just aren't managed
+thread pool threads:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!ThreadPool</font>
@@ -138,26 +138,26 @@ Number of Timers: 17
 Completion Port Thread:Total: 1 Free: 1 MaxFree: 8 CurrentLimit: 0 MaxLimit: 400 MinLimit: 4
 </pre>
 
-<p>If we wanted to see the managed call stacks of those eight threads,
+<p>In order to print the managed call stacks of those eight threads,
 we could issue the ~*e!CLRStack command: for all threads (~*), execute
-(e) command (!CLRStack). But rather than include the stacks here (it's
-a long listing), instead we focus on one thread and generalize the
-analysis. Let's use thread 27 as an example. It's the first thread
-that DebugDiag reported blocked and is servicing our HTTP ping
-request. It's also the one thread blocked for the longest (661
-seconds).</p>
+(e) command (!CLRStack). But rather than include the lengthy output
+here, instead we focus on one thread and generalize from it. Thread
+27, the first thread which DebugDiag reports as blocked is servicing
+our HTTP ping request. It's the one thread blocked for the longest
+(661 seconds).</p>
 
-<p>Instead of listing first the native call stack as
+<p>Instead of listing first the native call stack with
 the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/k--kb--kc--kd--kp--kp--kv--display-stack-backtrace-">k
-command</a> would do, or then the managed call stack as the !CLRStack
-command would, we combined those using the !DumpStack command. We want
-both stacks because SharePoint consists of both native and managed
-code, and the native stack may reveal clues as to why a thread is
-blocked. Since the !DumpStack command doesn't include stack frame
-numbers we manually include those for easier reference:</p>
+command</a>, followed by the managed call stack with the !CLRStack
+command, we combine both using the !DumpStack command. SharePoint
+consists of both native and managed code, and the combined stack may
+reveal a clue as to why a thread is blocked. Since the !DumpStack
+command doesn't include stack frame numbers, we manually add those for
+later reference:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
-0:027> <font color="green">!DumpStack</font>
+0:000> <font color="green">~27s</font>
+0:<font color="red">027</font>> <font color="green">!DumpStack</font>
 OS Thread Id: 0x380 (27)
    Child-SP         RetAddr          Call Site
 <font color="red">00 000000000b409838 000007fefd3af5f1 ntdll!NtWaitForSingleObject+0xa</font>
@@ -218,31 +218,34 @@ OS Thread Id: 0x380 (27)
 55 000000000b40f800 <font color="red">0000000000000000</font> ntdll!RtlUserThreadStart+0x1d
 </pre>
 
-<p>That's quite a mouthful. We'll go through the relevant parts of the
-call stack next.
+<p>That's quite a mouthful. We'll touch on the relevant parts next.
 
 <h4>Interpreting the native and managed call stack</h4>
 
-<p>When the call stack is read bottom up, it shows how (and where) one
-function calls into the next. At frame 55, the user space part of the
-Windows kernel kicks of thread execution by passing control to
-ntdll!RtlUserThreadStart. Notice how RetAddr has all zeroes as its
-RetAddr, indicating it wasn't called from anywhere and should never
-return. The operating system passes RtlUserThreadStart the address of
-a function to run (passed to the Window create thread function), in
-this case the C++/CLR method at frame 52. From there and until 39, the
-thread prepares itself to run managed code. Then at frame 40, the
-thread is assigned the processing of an incoming request and starts
-executing managed code.</p>
+<p>Reading the call stack bottom up, it shows how (and where) one
+function calls the next, leading to the blocked thread. Beginning at
+frame 55, the user space part of the Windows kernel kicks of thread
+execution by passing control to ntdll!RtlUserThreadStart. Notice how
+its RetAddr is all zeros, indicating that it wasn't called from
+anywhere and should never return. The operating system passes
+RtlUserThreadStart the address of a function to run (the function
+passed to the Window create thread function), in this case the C++/CLR
+method at frame 52. From there on and until 41, the thread is setup to
+eventually run managed code. This happens at frame 40 where the thread
+is assigned the processing of an incoming request by executing managed
+code.</p>
 
-<p>Say we're interested in the URL being processed by the thread. We
-can dump the HttpWorkerRequest object passed as an argument in frame
-38. It has a _path property (and a _startTime property which
-presumably DebugDiag uses to compute the value of "RunningSince" in
-its report) which we can write out the value of. The same drill-down
-technique could be applied to HttpContext at frame 32. Its HttpContext
-argument points to 0x000000014da07450 which we should recognize from
-the DebugDiag report:</p>
+<p>Say we want to know the URL being processed by the thread; the one
+shown by DebugDiag. Turns out that it's stored (among other places)
+inside the HttpWorkerRequest object passed as argument in frame
+38. That object has both a _path property and a _startTime property
+which presumably DebugDiag uses to compute the value of
+RunningSince. The same inspection commands could be applied to
+HttpContext at frame 32. Its HttpContext argument is stored at memory
+location 0x000000014da07450 which we should recognize from the
+DebugDiag report.</p>
+
+<p>We can inspect the HttpWorkerRequest as follows:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:027> <font color="green">!CLRStack -a</font>
@@ -276,33 +279,35 @@ Size: 96(0x60) bytes
 ...
 </pre>
 
-<p>Moving up the call stack, at frame 30 we see SharePoint initialize
-the SPWeb based on the URL and prepare a request for the document
-library item storing the page (frame 26) inside the content
-database.</p>
+<p>Continouing our journey up the call stack, at frame 30 SharePoint
+initializes the SPWeb based on the URL, and at frame 26 prepares a
+request for the document library item storing the page inside the
+content database.</p>
 
-<p>At this point something interesting happens. Turns out that instead
-of using ADO.NET to connect to MS SQL Server and fetch the file -- a
-row in the database -- SharePoint transfers control to a native code
-COM component (frame 23) inside OWSSVR.dll. The following calls appear
-to resolve the file path inside the virtual filesystem of the
-database, and then before loading the actual file construct an audit
-log entry (frame 17). If enabled, audit log entries are stored in a
-single table inside the content database.</p>
+<p>At frames 25 to 23, something notable happens. Instead of
+connecting to MS SQL Server and fetching the file -- a row in a
+database table -- using ADO.NET, SharePoint transfers control to a
+native code COM component inside OWSSVR.dll. The following calls
+appear to resolve the file path inside the virtual filesystem of the
+content database, followed by the insertion of an audit log entry at
+frame 17. If enabled, audit log entries are stored in a single table
+called AuditData inside the content database.</p>
 
-<p>Because we're in native code, we lost our runtime metadata. But
-from the method names we see that
-<a href="https://en.wikipedia.org/wiki/OLE_DB">Microsoft OLE DB</a>, a
-COM based legacy equivalent to ADO.NET, composes and sends a SQL
-statement to MS SQL Server (frame 7). Data appears to have been sent
-on the socket (frame 6). The OLE driver calls the socket receive
-method waiting for a response (frame 4). Because no data is available,
-the socket blocks the thread (frame 3). Once socket data becomes
-available, Windows wakes up the thread.</p>
+<p>Because we're inside native code, limited runtime metadata is
+available compared to managed code. But from the method names it
+appear that at frame 7
+<a href="https://en.wikipedia.org/wiki/OLE_DB">Microsoft OLE DB</a> --
+a COM based legacy equivalent to ADO.NET -- composes and sends a SQL
+statement to MS SQL Server. Data appears to have been sent over a
+socket at frame 6, and at frame 4, the driver calls the socket receive
+method, causing the thread to block until a response arrives. What
+should've happened is that once SQL Server responds, Windows would
+wake up the thread. The thread would then fetch and return the actual
+page from the content database.</p>
 
-<p>We can extract the SQL statement which OLE DB sends to SQL
-Server. !CLRStack isn't applicable in native code. What we can do,
-however, is dump the native stack frame using
+<p>It's possible to extract the SQL statement send by OLE DB to MS SQL
+Server. While !CLRStack -a is no good with native code, what we can do
+is dump the native stack frame using
 the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/-frame--set-local-context-">frame</a>
 command. It holds the values of the CPU registers at that point in
 time:</p>
@@ -322,56 +327,58 @@ sqloledb!CStmt::ExecDirect+0xa5b:
 000007fe`e2e15866 4983cfff        or      r15,0FFFFFFFFFFFFFFFFh
 </pre>
 
-<p>Using
+<p>With
 the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/d--da--db--dc--dd--dd--df--dp--dq--du--dw--dw--dyb--dyd--display-memor">du
 command</a> (short for dump memory region as Unicode string), we can
 get at the SQL statement. Some amount of guesswork is required as to
-which register holds the pointer to the SQL statement. It turns out to
-be CPU register r13 which we can deference:</p>
+which register holds the pointer to the SQL statement. Here it's CPU
+register r13:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:027> <font color="green">du 000000001322a1b0 L1000</font>
 
 Cleaned up output:    
 EXEC <font color="red">proc_AddAuditEntry</font>
-  'F98E5B5D-2147-4534-9902-266AEA45A817', /* SiteId */
-  '95B07887-99E9-4B98-AFDC-2269C9747571', /* ItemId */
-  4,                                      /* ItemType */ 
-  7245,                                   /* UserId */ 
-  NULL,                                   /* MachineName */
-  NULL,                                   /* MachineIp */
-  N'org/it/pages/default.aspx',           /* Location */ 
-  0,                                      /* LocationType */
-  '20170713 20:49:50',                    /* Occurred */
-  3,                                      /* Event */
-  NULL,                                   /* EventName */
-  0,                                      /* EventSource */
-  NULL,                                   /* SourceName */ 
-  N'&lt;Version&gt;...&lt;/Version&gt'               /* EventData */
+  'F98E5B5D-2147-4534-9902-266AEA45A817', -- SiteId
+  '95B07887-99E9-4B98-AFDC-2269C9747571', -- ItemId
+  4,                                      -- ItemType
+  7245,                                   -- UserId
+  NULL,                                   -- MachineName
+  NULL,                                   -- MachineIp
+  N'org/it/pages/default.aspx',           -- Location
+  0,                                      -- LocationType
+  '20170713 20:49:50',                    -- Occurred
+  3,                                      -- Event
+  NULL,                                   -- EventName
+  0,                                      -- EventSource
+  NULL,                                   -- SourceName
+  N'&lt;Version&gt;...&lt;/Version&gt'               -- EventData
 </pre>
 
-<p>OLE DB is calling a stored procedure which adds a row to the audit
-log table (if auditing is enabling). The arguments identify object
-requested and the user. The time zone is UTC and given that the debug
-session time is reported as 23:00:51 and the request has been queued
-for 661 seconds, 20:49:50 makes sense.</p>
+<p>OLE DB is calling a stored procedure which adds an audit log entry
+to the database. The arguments to the stored procedure identify the
+object requested and the user requesting it. The time zone is UTC and
+given that the debug session time is reported as 23:00:51, and the
+request has been queued for 661 seconds, 20:49:50 marks the actual
+time of addition.</p>
 
 <h4>Conclusion</h4>
 
-<p>Inspecting the call stacks of the eight blocked threads, they're
-all blocked waiting for MS SQL Server to respond to the
-proc_AddAuditEntry stored procedure. It's unlikely that there's
-anything wrong with that procedure. It's just the first database
-operation which happens before actual content is fetched.</p>
+<p>Inspecting call stacks of the eight blocked threads, they're all
+blocked waiting for MS SQL Server to respond to the proc_AddAuditEntry
+stored procedure. As the stored procedure executes without issues the
+rest of the time, it's unlikely that there's anything wrong with the
+procedure itself.</p>
 
 <p>The culprit causing recurring platform outages appear to be MS SQL
 Server not responding to requests. It's a bit odd that no timeout
-occurs with the OLE DB driver. That might be entirely by design
-because audit logging must succeed in order to proceed.</p>
+occurs with the OLE DB driver. But that might be entirely by design if
+Microsoft decided that audit logging must succeed in order to
+continue.</p>
 
 <p>In
 the <a href="/blog/2017/07/23/debugging-recurring-web-farm-outages-sql-server-heartbeat-pings-and-lock-contention-analysis-with-build-in-tools">next</a>
 post we dive into MS SQL Server and investigate the cause of hangs
-observed within the application layer.</p>
+from a database perspective.</p>
 
 </div>
