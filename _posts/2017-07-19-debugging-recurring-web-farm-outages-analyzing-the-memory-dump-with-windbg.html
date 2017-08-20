@@ -25,8 +25,8 @@ process Activation Service to restart w3wp. This flow repeats itself a
 number of times.</p>
 
 <p>In this post we look into why worker threads become blocked. We do
-so by loading the memory dump into WinDbg and analyze the callstacks
-of blocked threads, looking for a pattern.</p>
+so by loading the memory dump into WinDbg and analyze call stacks of
+blocked threads, looking for a pattern.</p>
 
 <h4>Loading the dump into WinDbg</h4>
 
@@ -116,7 +116,7 @@ Scanning for threads waiting on CriticalSections...
 <font color="red">No deadlocks detected.</font>
 </pre>
 
-<p>Either the deadlock isn't there, the deadlock doesn't involve
+<p>The deadlock either isn't there, the deadlock doesn't involve
 managed resources, or it's a false positive Event Log message.</p>
 
 <h4>Analyzing blocked threads</h4>
@@ -151,9 +151,9 @@ the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/
 command</a>, followed by the managed call stack with the !CLRStack
 command, we combine both using the !DumpStack command. SharePoint
 consists of both native and managed code, and the combined stack may
-reveal a clue as to why a thread is blocked. Since the !DumpStack
-command doesn't include stack frame numbers, we manually add those for
-later reference:</p>
+reveal a clue as to why a thread is blocked. Since !DumpStack doesn't
+include stack frame numbers, we manually add those for later
+reference:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">~27s</font>
@@ -236,7 +236,7 @@ is assigned the processing of an incoming request by executing managed
 code.</p>
 
 <p>Say we want to know the URL being processed by the thread; the one
-shown by DebugDiag. Turns out that it's stored (among other places)
+shown by DebugDiag. It turns out that it's stored (among other places)
 inside the HttpWorkerRequest object passed as argument in frame
 38. That object has both a _path property and a _startTime property
 which presumably DebugDiag uses to compute the value of
@@ -279,7 +279,7 @@ Size: 96(0x60) bytes
 ...
 </pre>
 
-<p>Continouing our journey up the call stack, at frame 30 SharePoint
+<p>Continuing our journey up the call stack, at frame 30 SharePoint
 initializes the SPWeb based on the URL, and at frame 26 prepares a
 request for the document library item storing the page inside the
 content database.</p>
