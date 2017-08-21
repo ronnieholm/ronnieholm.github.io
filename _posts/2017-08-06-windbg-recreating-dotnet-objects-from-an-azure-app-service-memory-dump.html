@@ -10,76 +10,74 @@ Part 1: WinDbg: Recreating .NET objects from an Azure App Service memory dump<br
 Part 2: <a href="/blog/2017/08/09/clrmd-recreating-dotnet-objects-from-an-azure-app-service-memory-dump.html">ClrMD: Recreating .NET objects from an Azure App Service memory dump</a>
 </p>
   
-<p>This post outlines how to use WinDbg to extract in-memory .NET
+<p>This post outlines how to use WinDbg to identify and extract .NET
 objects from a memory dump of an Azure App Service, an Azure deployed
 web application.</p>
 
-<p>Akin to Google Analytics, the application records page visits by
-exposing endpoints called by JavaScript on each page of another
-site. For some reason the application has been running for three weeks
-without persisting visits to the database. Because visits are stored
-in-process, restarting the application will cause visits to be
-lost. Hence the goal is to analyze the memory dump port-mortem,
-extract objects describing visits, and replay those visits.</p>
+<p>Akin to Google Analytics, the memory dump is of an application
+which records page visits. It does so by exposing endpoints called by
+JavaScript on each visit to a web application. Due to a bug, the
+analytics application has been running for three weeks without the
+ability to persist visits to the database. Visits have accumulated
+in-process, and are lost on restart. The goal is to conduct a
+post-morten analysis of the memory dump and extract visit objects for
+replay.</p>
 
 <h4>Memory dumping an Azure App Service</h4>
 
-<p>An Azure App Service supports
+<p>Through
+<a href="https://github.com/projectkudu/kudu">Kudu</a>, an Azure App
+Service supports
 <a href="https://blogs.msdn.microsoft.com/benjaminperkins/2017/02/01/create-a-memory-dump-for-your-slow-performing-web-app">memory
-dumping</a> without terminating the process through its
-associated <a href="https://github.com/projectkudu/kudu">Kudu</a>
-instance. Again, using Kudu, we
-<a href="https://blogs.msdn.microsoft.com/waws/2015/07/01/debugging-a-w3wp-memory-dump-of-a-slow-performing-asp-net-azure-web-app/">download
-sos.dll and mscordacwks.dll</a> from the Azure site. At this point
-WinDbg
-can <a href="http://bugfree.dk/blog/2016/10/24/windbg-postmortem-debugging-across-installed-dotnet-clr-versions">load</a>
-the dump and we can continue working with it like any other dump of a
-.NET process.</p>
+dumping</a> without terminating the process. Furthermore, Kudu enables
+navigating the App Service's file system to
+<a href="https://blogs.msdn.microsoft.com/waws/2015/07/01/debugging-a-w3wp-memory-dump-of-a-slow-performing-asp-net-azure-web-app/">download</a>
+sos.dll and mscordacwks.dll. At this point the dump is ready to
+be <a href="http://bugfree.dk/blog/2016/10/24/windbg-postmortem-debugging-across-installed-dotnet-clr-versions">loaded</a>
+into WinDbg, like any other dump of a .NET process.</p>
 
 <h4>Architectural overview of the dumped process</h4>
 
 <p>To know what to look for and expect inside the dump, a brief
 overview of the application is in order. The dump is of
 the <a href="https://github.com/ronnieholm/Bugfree.Spo.Analytics">Bugfree.Spo.Analytics</a>
-application whose endpoints receive a JSON payload with visit metadata
-on a page visit in another application.</p>
+application whose endpoints receive a JSON payload containing visit
+metadata on each page visit to another application.</p>
 
 <p>On the server side, multiple producers and a single consumer
-operate on single, shared, in-process message queue. Once a request
-comes in on one of the worker threads, it's validated, enriched, and
-turned into a .NET Visit object which is enqueued. When the queue
-reaches a certain length, a consumer dequeues the Visit objects and
-after a bit of processing writes those visits to a MS SQL Azure
-instance:</p>
+operate on single, shared, in-process message queue. Once a visit
+arrives on a worker threads, it's validated, enriched, and turned into
+a .NET Visit object which is enqueued. When the queue reaches a
+certain length, a consumer dequeues the Visit objects and after a bit
+of processing writes the visits to a MS SQL Azure instance:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
-  Request 1   \
-  Request 2   -\
-  ...          -> Thread pool producers
-  ...         -/              |
-  ...        -/       Process and post
-  ...       -/                |
-  Request N /	              v
-                  Mailbox processor with queue and consumer
-                              |
-                      Process and save
-                              |
-                              v
-                  MS SQL Azure instance
+  Visit 1   \
+  Visit 2   -\
+  ..         -> Thread pool producers
+  ...       -/              |
+  ...      -/       Process and post
+  ...     -/                |
+  Visit N /                 v
+                Mailbox processor with queue and consumer
+                            |
+                    Process and save
+                            |
+                            v
+                MS SQL Azure instance
 </pre>
 
-<p>In our case, some 423k Visit objects are queued up, ready to be
-consumed. While visit data isn't business critical, per se, a three
-week gap should be avoided if it isn't too time-consuming.</p>
+<p>In our case, some 423k Visit objects are stuck, waiting to be
+consumed.</p>
 
 <h4>Locating Visit objects inside the mailbox processor</h4>
 
-<p>At this point, we're going to assume that the dump is ready to be
-loaded. From the output below we see that WinDbg ships with versions
-of sos.dll and mscordacwks.dll, but that might not always be the
-case. Process uptime is reported as close to 25 days. From later
-analysis we know that for about 21 of those the consumer hasn't
-processed Visits:</p>
+<p>At this point, we'll assume that the dump is ready to be loaded
+into WinDbg. From the output below, we see that WinDbg ships with
+appropriate versions of sos.dll and mscordacwks.dll, rather than
+loading the ones we supplied. Process uptime is reported at close to
+25 days. From later analysis we know that for about 21 of those the
+consumer has been inoperational:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Microsoft (R) Windows Debugger Version 10.0.15063.137 X86
@@ -124,19 +122,18 @@ CLRDLL: Loaded DLL C:\Program Files (x86)\Windows Kits\10\Debuggers\x86\sym\msco
 CLR DLL status: Loaded DLL C:\Program Files (x86)\Windows Kits\10\Debuggers\x86\sym\mscordacwks_x86_x86_4.7.2053.00.dll\58FA6BB36e6000\mscordacwks_x86_x86_4.7.2053.00.dll</font>
 </pre>
 
-<p>There's a couple of ways to go about locating Visit objects inside
-the dump. One way is filtering the heap for objects of the Visit
-type. The problem with this approach is that the heap may contain
-objects eligible for garbage collection, i.e., visits which have
-already been written to the database. While the application is built
-to handle duplicate visits, we better be specific if possible. Another
-way is browsing the application's source, looking for an object that,
-directly or indirectly, stores Visit objects.</p>
+<p>First order of business is to locate Visit objects inside the
+dump. One way is filtering the heap for objects of the Visit type. The
+problem with this approach is that the heap may contain objects
+eligible for garbage collection, i.e., visits already written to the
+database. Instead we opt for browsing the application's source,
+looking for a unique object which, directly or indirectly, stores
+Visit objects.</p>
 
-<p>Browsing the application's source, we observe that the
-producers/consumer mechanism is nicely encapsulated in the
-MailboxProcessor type. Searching the heap for instances of this
-object, a single instance shows up:</p>
+<p>Browsing the source, we observe that the producers/consumer
+mechanism is nicely encapsulated within the MailboxProcessor
+type. Searching the heap for instances of this type, a single instance
+shows up:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpHeap -stat -type MailboxProcessor</font>
@@ -151,19 +148,19 @@ Total 2 objects
 <a href="https://msdn.microsoft.com/en-us/visualfsharpdocs/conceptual/control.mailboxprocessor%5B'msg%5D-class-%5Bfsharp%5D">documentation</a>
 and
 <a href="https://github.com/fsharp/fsharp/blob/499526a5e37fc15ff5a6a9abcd63996037e3c8f1/src/fsharp/FSharp.Core/control.fs#L2520">F#
-library source</a>, it's clear that the type is compiled as
-FSharpMailboxProcessor and that it's generic in the type of object it
-stores. The "`1" part is CLR notation for arity of the generic type --
-the number of it's type arguments -- whose type and assembly is
-provided in brackets. The "+" in the type name is CLR notation for an
-inner class. From a C# perspective, having a type called Agents with
-an inner class of VisitorMessage may seem odd. It's an artifact of how
-the F# compiler maps language constructs to IL and not how the code
-was actually written.</p>
+library source</a>, it's evident that MailboxProcessor is alised as
+FSharpMailboxProcessor. The "`1" is CLR notation for the arity of its
+generic type -- the number of type arguments -- representing the type
+of item queued. Inside the brackets is the concrete generic type and
+its assembly, with "+" being CLR notation for an inner class.</p>
+
+<p>From a C# perspective, having a type called Agents with an inner
+type of VisitorMessage may seem like an odd design. In fact, it's an
+consequence of how the F# compiler maps language constructs to IL.</p>
 
 <p>From the value of the MT (Method Table) column, we can locate
-objects of that type on the managed heap. As the queueing mechanism is
-a singleton object, a static field actually, only a single instance
+objects of only that type on the managed heap. As the queueing
+mechanism is a singleton object, a static field, only one instance
 shows up:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
@@ -172,9 +169,10 @@ shows up:</p>
 <font color="red">0252c384</font> 08a2d584       32     
 </pre>
 
-<p>The address column points to the location of the object within the
-process' 32-bit virtual address space. We could inspect the object's
-dumping raw memory, but SOS comes with a command for that purpose:</p>
+<p>The address column points to the location of the object inside the
+process' 32-bit virtual address space. We could inspect it by dumping
+raw memory content, but SOS comes with a command to print an
+object:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 0252c384</font>
@@ -194,14 +192,12 @@ Fields:
 </pre>
 
 <p>The <a href="https://github.com/fsharp/fsharp/blob/499526a5e37fc15ff5a6a9abcd63996037e3c8f1/src/fsharp/FSharp.Core/control.fs#L2293">mailbox</a>
-field looks promising. Because the field is a reference type inside
-another type, Value is the memory location of the object. And because
-the type of the mailbox field is generic, its type is listed as
-System.__Canon. This type is a CLR placeholder related to
+field looks promising. It's a generic reference type whose Type is
+oddly listed as Microsoft.FSharp.Control.Mailbox`1[[System.__Canon,
+mscorlib]]. System.__Canon is a CLR placeholder type related to
 <a href="https://alexandrnikitin.github.io/blog/dotnet-generics-under-the-hood">how
-.NET generics is implemented under the hood</a>. Suffice it to say
-that System.__Canon is substituted for an actual reference type at
-runtime as seen from the Name below:</p>
+.NET generics is implemented under the hood</a> and is replaced with
+an actual type at runtime as shown next:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 0252c3a4</font>
@@ -220,10 +216,10 @@ Fields:
 0855b290  40001fd       18 ...olean, mscorlib]]  0 instance 0252c3e8 waitOneNoTimeout
 </pre>
 
-<p>From these fields, it's clear that Mailbox is where queue access
-synchronization happens. Continuing our search for Visit objects, the
-arrivals field looks promising. Once again following the pointer, we
-end up at a
+<p>From these fields, it's clear that Mailbox is where shared access
+to the queue is synchronized. Continuing our search for Visit objects,
+the arrivals field looks promising. Following the pointer once again,
+we end up at a
  <a href="https://github.com/fsharp/fsharp/blob/499526a5e37fc15ff5a6a9abcd63996037e3c8f1/src/fsharp/FSharp.Core/control.fs#L330">Queue</a>
 type defined in the F# standard library -- a thin wrapper around an
 array:</p>
@@ -244,9 +240,8 @@ Fields:
 </pre>
 
 <p>Besides an array of objects, the Queue appears to keep track of the
-index of the first and last element in queue as well as its size. The
-array has a current capacity of 524,288 items, but we only use
-422,813:</p>
+index of the first and last element as well as its size. The array has
+a capacity of 524,288, but only contains 422,813 visits:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpObj /d 037371e0</font>
@@ -259,16 +254,16 @@ Fields:
 None
 </pre>
 
-<p>As first sight, we might have expected the array to store Visit
-object, but that's not how a MailboxProcessor works. It supports
-switching on the type of each message. In C# terms, think of it as an
-inheritance hierarchy with VisitorMessage as the abstract base type
-and each message type as a concrete subtype. In addition, each type of
-message may carry addition state, such as the actual visit.</p>
+<p>At first glance, we might have expected the array to store Visit
+objects directly, but that's not how a MailboxProcessor works. It
+supports switching on the type of each message. In C# terms, think of
+messages as an inheritance hierarchy with VisitorMessage as the
+abstract base type and each actual message type as a concrete
+subtype. Each type of message may carry additional state, such as the
+actual visit stored in a field inside the subtype.</p>
 
-<p>To see this hierarchy in action, we can dump the first element of
-the array. Its item field holds as additional state a Visit
-object:</p>
+<p>To see this hierarchy at work, we dump the first element of the
+array. Its item field holds the Visit object:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpArray -start 0 -length 1 /d 037371e0</font>
@@ -308,15 +303,15 @@ Fields:
 054b5248  4000103       18 ...tring, mscorlib]]  0 instance 026637c4 UserAgent@
 </pre>
 
-<p>The "@" in the name denotes a property backing field. For every
-Visit object in the array, to recreate the object from memory, we must
-dump the values of each backing field. And for any non-simple type of
-backing field, we must recursively dump it until we arrive at simple
-types.</p>
+<p>The "@" sign appended to each name denotes a property backing
+field. Thus, for every Visit object in the array, to recreate it from
+memory, we must dump the values of each backing field. And for any
+non-simple type of backing field, we must recursively dump it until we
+arrive at simple types.</p>
 
-<p>Following pointers and dumping objects with WinDbg should make it
-very clear that we're traversing a (potentially cyclic) graph of
-objects. In this case the objects form a tree, rooted in a singleton
+<p>Tracking pointers and dumping objects with WinDbg should make it
+clear that we're traversing a (potentially cyclic) graph of
+objects. In this case the objects form a tree, rooted in theq singleton
 MailboxProcessor instance:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
@@ -351,10 +346,10 @@ Bugfree.Spo.Analytics.Cli.Agents+visitor (Microsoft.FSharp.Control.FSharpMailbox
         messageN
 </pre>
 
-<p>The Visit object is kept alive because it's indirectly rooted by
-the static field. It prevents the garbage collector from collecting
-Visit objects. Incidentally, the number of Visit objects in the array
-matches the number of Visit objects on the heap:</p>
+<p>Each Visit object inside the queue is prevented from being garbage
+collected because it's indirectly rooted by the static
+MailboxProcessor field. Incidentally, the number of Visit objects in
+the array matches the number of Visit objects on the heap:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:000> <font color="green">!DumpHeap -stat -type Bugfree.Spo.Analytics.Cli.Domain+Visit</font>
@@ -365,22 +360,25 @@ Statistics:
 Total 422814 objects
 </pre>
 
-<p>Thus, rather than traversing the tree, searching for and dumping
-Visit objects directly is simpler and yields the same result.</p>
+<p>This implies that rather than traversing the tree, dumping Visit
+objects directly is simpler and yields the same result.</p>
 
 <h4>Conclusion</h4>
 
-<p>While WinDbg provides for easy graph traversal, it only knows how
-to extract and pretty print simple .NET types such as String, Int, and
-Float. For compound types, such as Guid, FSharpOption, IPAddress, and
-DateTime, turning text output into .NET objects is a lot of work. We'd
-have to recursively traverse each compound type inside every one of
-422,813 Visit object, parsing text and substituting addresses.</p>
+<p>While WinDbg provides for easy graph exploration, it can only
+extract and pretty print simple .NET types such as String, Int, and
+Float. Compound types, such as Guid, FSharpOption, IPAddress, and
+DateTime require parsing of its text output. We'd have to recursively
+traverse each compound type inside each one of the 422,813 Visit
+objects, parsing command output.</p>
 
-<p>Using the <a href="https://github.com/Microsoft/clrmd">Microsoft
-Diagnostics Runtime</a>, ClrMD for
-short, <a href="/blog/2017/08/09/clrmd-recreating-dotnet-objects-from-an-azure-app-service-memory-dump">next</a>
-we'll automate heap traversal, extraction, and recreation of visits in
-a much simpler manner.</p>
+<p>Generating the batch of WinDbg commands to run against each visit
+and parsing all that command output is a lot of work. As an
+alternative,
+<a href="/blog/2017/08/09/clrmd-recreating-dotnet-objects-from-an-azure-app-service-memory-dump">next</a>
+we'll explore
+the <a href="https://github.com/Microsoft/clrmd">Microsoft Diagnostics
+Runtime</a> or ClrMD for short. Think of it as a .NET API for dump
+files, alliviating the need for WinDbg scripting and parsing.</p>
    
 </div>
