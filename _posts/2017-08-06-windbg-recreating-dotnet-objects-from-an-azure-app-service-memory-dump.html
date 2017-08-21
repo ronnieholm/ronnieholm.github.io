@@ -20,7 +20,7 @@ JavaScript on each visit to a web application. Due to a bug, the
 analytics application has been running for three weeks without the
 ability to persist visits to the database. Visits have accumulated
 in-process, and are lost on restart. The goal is to conduct a
-post-morten analysis of the memory dump and extract visit objects for
+post-mortem analysis of the memory dump and extract visit objects for
 replay.</p>
 
 <h4>Memory dumping an Azure App Service</h4>
@@ -47,9 +47,9 @@ metadata on each page visit to another application.</p>
 <p>On the server side, multiple producers and a single consumer
 operate on single, shared, in-process message queue. Once a visit
 arrives on a worker threads, it's validated, enriched, and turned into
-a .NET Visit object which is enqueued. When the queue reaches a
-certain length, a consumer dequeues the Visit objects and after a bit
-of processing writes the visits to a MS SQL Azure instance:</p>
+an enqueued .NET Visit object. When the queue reaches a certain
+length, a consumer dequeues the Visit objects and after a bit of
+processing writes the visits to a MS SQL Azure instance:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
   Visit 1   \
@@ -76,8 +76,8 @@ consumed.</p>
 into WinDbg. From the output below, we see that WinDbg ships with
 appropriate versions of sos.dll and mscordacwks.dll, rather than
 loading the ones we supplied. Process uptime is reported at close to
-25 days. From later analysis we know that for about 21 of those the
-consumer has been inoperational:</p>
+25 days. From later analysis of visits we know that for about 21 of
+those the consumer hasn't been operational:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Microsoft (R) Windows Debugger Version 10.0.15063.137 X86
@@ -148,7 +148,7 @@ Total 2 objects
 <a href="https://msdn.microsoft.com/en-us/visualfsharpdocs/conceptual/control.mailboxprocessor%5B'msg%5D-class-%5Bfsharp%5D">documentation</a>
 and
 <a href="https://github.com/fsharp/fsharp/blob/499526a5e37fc15ff5a6a9abcd63996037e3c8f1/src/fsharp/FSharp.Core/control.fs#L2520">F#
-library source</a>, it's evident that MailboxProcessor is alised as
+library source</a>, it's evident that MailboxProcessor is aliased as
 FSharpMailboxProcessor. The "`1" is CLR notation for the arity of its
 generic type -- the number of type arguments -- representing the type
 of item queued. Inside the brackets is the concrete generic type and
@@ -311,7 +311,7 @@ arrive at simple types.</p>
 
 <p>Tracking pointers and dumping objects with WinDbg should make it
 clear that we're traversing a (potentially cyclic) graph of
-objects. In this case the objects form a tree, rooted in theq singleton
+objects. In this case the objects form a tree, rooted in the singleton
 MailboxProcessor instance:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
@@ -378,7 +378,7 @@ alternative,
 <a href="/blog/2017/08/09/clrmd-recreating-dotnet-objects-from-an-azure-app-service-memory-dump">next</a>
 we'll explore
 the <a href="https://github.com/Microsoft/clrmd">Microsoft Diagnostics
-Runtime</a> or ClrMD for short. Think of it as a .NET API for dump
-files, alliviating the need for WinDbg scripting and parsing.</p>
+Runtime</a> or ClrMD for short. Think of it as a .NET dump file API,
+alleviating the need for WinDbg scripting and parsing.</p>
    
 </div>
