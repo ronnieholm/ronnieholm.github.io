@@ -16,33 +16,32 @@ Part 5: SQL Server heartbeat pings and lock contention analysis with build-in to
 
 <p>In
 the <a href="/blog/2017/07/19/debugging-recurring-web-farm-outages-analyzing-the-memory-dump-with-windbg">previous</a>
-post, we used WinDbg to debug OLE DB used by native code SharePoint to
-communicate with SQL Server. From OLE DB we managed to extract the SQL
-statement on which worker threads block. Turns out they all block on a
-call to proc_AddAuditEntry, a stored procedure responsible for writing
-audit log entries the content database. As such, when audit logging is
-enabled for a site collection, this procedure records the request
-before actual content is fetched.</p>
+post, we debugged the OLE DB driver used by native code SharePoint to
+communicate with MS SQL Server. It turns out that worker thread pool
+threads block on the call to proc_AddAuditEntry, the stored procedure
+responsible for writing audit log entries to the content
+database. This procedure records the request before actual content is
+fetched.</p>
 
 <p>In this post we develop a SQL Server heartbeat tool to measure
 general database availability. Then we use build-in SQL Server
-monitoring tools to determine what causes proc_AddAuditEntry to
-block.</p>
+commands to determine what causes proc_AddAuditEntry to block.</p>
 
-<h4>Collecting SQL Server heartbeats</h4>
+<h4>Collecting SQL Server heartbeat pings</h4>
 
 <p>Much akin to
 the <a href="/blog/2017/07/16/debugging-recurring-web-farm-outages-establishing-context-with-http-heartbeat-pings">HTTP
-heartbeat ping tool</a>, in order to measure availability, we want to
-issue periodic requests to SQL Server. That way we can tell if the
-issue is local to proc_AddAuditEntry and if the database (or server)
-is experiencing symptoms of instability.</p>
+heartbeat ping tool</a>, we wish to issue periodic requests to MS SQL
+Server to gauge its uptime. That way we can tell if the issue is local
+to proc_AddAuditEntry or if the database (or server) is experiencing
+symptoms of instability.</p>
 
 <p>The HTTP heartbeat and SQL Server heartbeat tools are structurally
-equivalent. The latter connects to SQL server and executes a fixed
-query. As native code SharePoint connects using OLE DB, the tool
-executes the same query using both ADO.NET and OLE DB, just in case
-there's an issue only facing OLE DB:</p>
+identical. The latter periodically connects to SQL server and executes
+a fixed query, but not on the AuditData table. As native code
+SharePoint connects using OLE DB, the tool executes the same query
+using both ADO.NET and OLE DB, just in case there's an issue with OLE
+DB only:</p>
 
 <pre class="prettyprint lang-cs" style="overflow: auto; word-wrap: normal; white-space: pre;">
 using System;
@@ -91,19 +90,19 @@ namespace SqlServerHeartbeat {
 }
 </pre>
 
-<p>Once setup to run on the reference laptop, the SQL Server, and Web
-front-end Server 2, we awaited the HTTP heartbeat tool to report
-SharePoint as down. That happened in between July 20, 22:47:04 and
-July 21, 00:18:06. SQL Server heartbeat kept going for entire
-duration, though. This confirms an earlier analysis of SharePoint 12
-hive log files recording database activity when HTTP-based SharePoint
-is unavailable.</p>
+<p>Setting up the SQL Server heartbeat tool to run on the reference
+laptop, the SQL Server, and Web front-end Server 2, we waited for the
+HTTP heartbeat tool to report SharePoint down. That happened between
+July 20, 22:47:04 and July 21, 00:18:06. SQL Server heartbeats were
+unaffected, supporting an earlier observation of SharePoint 12 hive
+log files showing database activity when HTTP-based SharePoint is
+down.</p>
 
 <p>The finding of SharePoint down and SQL Server up points in the
-direction of contention around writes to the audit log. What
-proc_AddAuditEntry does is technically straightforward. With the
-exception of DocLocation, the procedure inserts its arguments into the
-AuditData table:</p>
+direction of contention around the audit log. What proc_AddAuditEntry
+does is actually straightforward. With the exception of DocLocation,
+the procedure inserts its arguments as-is into the AuditData
+table:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 INSERT INTO AuditData (SiteId, ItemId, ItemType, UserId, MachineName, MachineIp, 
@@ -114,13 +113,14 @@ INSERT INTO AuditData (SiteId, ItemId, ItemType, UserId, MachineName, MachineIp,
                @EventName, @EventSource, @SourceName, @EventData)
 </pre>
 
-<p>The audit log has the potential
+<p>The audit log is known
 for <a href="https://blogs.msdn.microsoft.com/subhajitc/2009/05/20/tip-the-untold-story-of-audit-logs-in-sharepoint">high-frequency
-inserts and rapid growth</a>. Especially on an intranet which has had
-full auditing enabled since 2010 and where the audit log has never
-been trimmed. Here the AuditData table itself holds a very large
-amount of data. Add to that the storage required for its two indices:
-AuditData_OnSiteOccurredEvent and AuditData_OnSiteItem:</p>
+inserts and rapid growth</a>. Especially on an intranet where full
+audit logging has been enabled since 2010 and where the audit log has
+never been trimmed. Not only does the AuditData table itself hold a
+very large amount of data, but the storage required for its two
+indices, AuditData_OnSiteOccurredEvent and AuditData_OnSiteItem, is
+also significant:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 <font color="green">sp_spaceused AuditData</font>
@@ -129,16 +129,15 @@ name       rows         reserved        data             index_size     unused
 AuditData  <font color="red">500,797,831</font>  179,610,816 KB  <font color="red">144,268,664 KB</font>   <font color="red">34,772,344 KB</font>  569,808 KB
 </pre>
 
-<p>To better get a feeling for the normal activity pattern around the
-AuditData table, we summarize hourly inserts across two days. Keep in
-mind that the Occurred field used for filtering is in UTC, i.e., two
-hours behind local time:</p>
+<p>To measure the typical activity pattern around the AuditData table,
+we summarize hourly inserts across two days. Keep in mind that the
+Occurred field is in UTC, two hours behind local time:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 <font color="green">select count(*) 
 from AuditData (nolock)
-where Occurred >= '2017-07-21 00:00' and 
-      Occurred < '2017-07-21 01:00'</font>
+where Occurred >= '2017-07-20 00:00' and 
+      Occurred < '2017-07-20 01:00'</font>
   
 July 20                       July 21  
 00-01:    914  12-13: 26.225  00-01:  1.968  12-13: 14.739
@@ -155,22 +154,19 @@ July 20                       July 21
 11-12: 19.401  23-00:  2.100  11-12: 11.324  23-00:  1.349 
 </pre>
 
-<p>For the whole hour of 23-00 local time of each day, we know that
-SharePoint is down, translating to between 21 and 22 UTC. Clearly, a
-correlation exists between inserts on AuditData and downtimes.</p>
+<p>For the whole hour of 23-00 local time of each day (21-22 UTC), we
+know SharePoint is down. Clearly, a correlation exists between inserts
+on AuditData and downtimes.</p>
 
 <h4>Investigating lock contention on AuditData</h4>
 
-<p>The
+<p>Short of scripting period monitor calls, the
 most <a href="https://blog.wsol.com/sql-server-locks-blocked-processes-and-two-easy-ways-to-find-them">straightforward
-way to view locks in MS SQL Server</a> is during application
-downtime. Here the Activity Monitor, the Log File View, the sp_who2
-stored procedure, and the dm_tran_locks
+way to view locks in MS SQL Server</a> is the Activity Monitor, the
+Log File View, the sp_who2 stored procedure, and the dm_tran_locks
 <a href="https://docs.microsoft.com/en-us/sql/relational-databases/system-dynamic-management-views/system-dynamic-management-views">dynamic
-management view</a> are valuable tools for inspecting lock
-behavior. The table below shows what we can learn from sp_who2 by
-executing it shortly after SharePoint goes offline. Here we're looking
-at SharePoint downtime between July 21, 22:47:38 and July 22,
+management view</a>. Below we see the output of sp_who2 shortly after
+SharePoint goes offline between July 21, 22:47:38 and July 22,
 00:20:43:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
@@ -186,12 +182,12 @@ SPID  Status     HostName   BlkBy   DBName                  Command      LastBat
 </pre>
 
 <p>At 22:45:38 an alter index command comes in from Web front-end
-server 4. It causes the following insert to blocks, indicated by SPID
-906 in the BlkBy column. Later inserts block on the first insert, and
-inserts keep queuing up. Starting 22:56:22 and ending 23:35:02, on
-nine occasions, according to the SQL Server Log File Viewer, SPID 906
-was killed by the management process. When it first happened, sp_who2
-changed to report SPID 906 as follows:</p>
+server 4. It causes the next insert to blocks as indicated by SPID 906
+in the BlkBy column. Later inserts block on the first insert, and keep
+queuing up. Starting 22:56:22 and ending 23:35:02, on nine occasions,
+according to the SQL Server Log File Viewer, SPID 906 was killed by
+the management process. When this happens, sp_who2 change to report
+SPID 906 as follows:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 SPID  Status    HostName   BlkBy  DBName                  Command          LastBatch       ProgramName
@@ -199,16 +195,16 @@ SPID  Status    HostName   BlkBy  DBName                  Command          LastB
 </pre>
 
 <p>While rollback is in progress, inserts remain blocked on SPID
-906. Once the rollback is complete, and the lock on alter index is
-released, queued inserts are retroactively written to AuditData. That
-explains why even though SharePoint is down, (some) audit log still
-show up. Under these circumstances, SharePoint would add false audit
-log entries; the HTTP client originally asking for the page is no
-longer waiting.</p>
+906. Once rollback is complete, and the lock on alter index is
+released, queued inserts are executed against the AuditData
+table. That explains why (some) audit log entries eventually show up
+in the table. Under these circumstances, SharePoint records false
+audit log entries. Because once the insert finally completes, the HTTP
+client originally asking for the page has likely disconnected.</p>
 
 <p>From the output of sp_who2 alone we cannot be certain that what
-we're looking at are operations against AuditData. To confirm, we need
-to query dm_tran_locks, holding details about locks being held and
+we're looking at are operations against AuditData. To confirm, we must
+query dm_tran_locks, holding details about locks being held and
 requested:
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
@@ -237,10 +233,10 @@ lock mode</a> in full) of Sch-M is short for schema modification. A
 lock of type Sch-M prevents concurrent access to the table, meaning
 that Sch-M blocks inserts.</p>
 
-<p>Furthermore, a few times during the downtime and later at 00:24:34
+<p>In addition, a few times during the downtime and later at 00:24:34
 and 00:52:46, the Log File Viewer displays messages indicating that
-the I/O subsystem is overloaded, likely due to the large sizes of the
-table and its indices:</p>
+the I/O subsystem is overloaded. This is likely due to the large sizes
+of the table and its indices:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 SQL Server has encountered <font color="red">1699 occurrence(s) of I/O requests taking
@@ -253,14 +249,14 @@ longer than 15 seconds to complete</font> on file
 
 <h4>Investigating SharePoint timer jobs on WFE4</h4>
 
-<p>Let's have a look at WFE4, the originating host. With the client
-listed as ".Net SqlClient Data Provider", it's probably one of
-SharePoint's timer jobs. In Central Administration, under Timer Job
-Status, one job stands out. Below is what its status looks like during
-the downtime. It's a bit odd that on the following day of July 22, the
-Timer Job status page lists that very same job as succeeded and
-progress being 100%. Perhaps the timer job attempts a number of
-re-runs:</p>
+<p>Let's have a look at WFE4, the host from which the alter index
+request originates. With the client listed as ".Net SqlClient Data
+Provider", it's probably one of SharePoint's timer jobs. In Central
+Administration, under Timer Job Status, one job stands out. Below is
+what its status looks like during the downtime. On the following day
+of July 22, however, the Timer Job status page lists that very same
+job as succeeded with progress at 100%. Perhaps the timer job attempts
+a number of re-runs and one succeeds:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 Job Title            Server        Status  Progress  Started
@@ -270,37 +266,39 @@ Database Statistics  WFE4     Initialized  0%        <font color="red">7/21/2017
 <p>The <a href="https://technet.microsoft.com/en-us/library/cc678870(v=office.12).aspx">purpose
 of the Database Statistics job</a> is to
 <a href="http://www.sqlmvp.org/use-update-statistics-command-in-ms-sql-server">update
-query statistics</a> for main tables inside the Intranet content
-database. On SQL Server 2008 Enterprise Edition, which the farm is
-running, the job rebuilds <i>most</i> (for some unknown definition of
-most) indices online. The Database statistics timer job works by
-calling the proc_UpdateStatistics stored procedure which, according to
-a support article
-is <a href="https://support.microsoft.com/en-us/help/3103194/outdated-database-statistics-decrease-sharepoint-server-performance--c">
-unreliable when run in parallel with a database backup</a>. The stored
-procedure contains lines such as the following for each main
-table:</p>
+query statistics</a> for main tables inside the content database. On
+SQL Server 2008 Enterprise Edition, which the farm is running, the job
+rebuilds <i>most</i> (for some unknown definition of most) indices
+online, i.e., without taking an exclusive lock on the table. The
+Database statistics timer job works by calling the
+proc_UpdateStatistics stored procedure. The stored procedure contains
+lines such as the following for each main table:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 update statistics AuditData with resample
 </pre>
 
-<p>The support article mentions that operational status codes are
-logged by the Database Statistics job to SharePoint's 12 hive log. Yet
-the log on WFE4 contains no matching entries.</p>
+<p>According to a support article, proc_UpdateStatistics
+is <a href="https://support.microsoft.com/en-us/help/3103194/outdated-database-statistics-decrease-sharepoint-server-performance--c">
+unreliable when run in parallel with a database backup</a>. No
+database appears to be taking place at the same time, though. Also,
+the support article mentions that the Database Statistics job logs
+operational status codes to SharePoint's 12 hive log. Yet the log on
+WFE4 contains no matching entries.</p>
 
 <h4>Conclusion</h4>
 
-<p>Perhaps unsurprising by now, the AuditData table needs trimming,
-and stsadm command comes with
+<p>Perhaps unsurprising by now, the AuditData table requires
+trimming. For that purpose, the stsadm command supports
 the <a href="https://technet.microsoft.com/en-us/library/cc706879.aspx">Trimauditlog</a>
-operation for that purpose. It must be used judiciously and
-incrementally as the very operation of trimming acquires locks which
-for longer runs can take down SharePoint. Another side effect of
-trimming is transaction log bloat.</p>
+operation. It must be used judiciously and incrementally as the very
+act of trimming acquires a lock which for longer runs can take down
+SharePoint. Another side effect of trimming is transaction log
+bloat.</p>
 
-<p>Only with SharePoint 2010 and up does Central Administration allow
-for the specification of a number of days to retain audit log entries
-and a location to store entries into prior to trimming.</p>
+<p>Only with SharePoint 2010 and later does Central Administration
+allow for the specification of a number of days to retain audit log
+entries and a file location to store entries into prior to
+trimming.</p>
 
 </div>
