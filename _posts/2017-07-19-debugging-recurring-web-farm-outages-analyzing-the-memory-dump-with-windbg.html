@@ -329,12 +329,14 @@ sqloledb!CStmt::ExecDirect+0xa5b:
 000007fe`e2e15866 4983cfff        or      r15,0FFFFFFFFFFFFFFFFh
 </pre>
 
-<p>With
+<p>On 64 bit systems, the calling convention typically involves
+passing arguments to functions via registers (on 32 bit systems
+arguments are passed on the stack). Some amount of guesswork is
+required to determine which register holds the pointer to the SQL
+statement. Probing registers using
 the <a href="https://docs.microsoft.com/en-us/windows-hardware/drivers/debugger/d--da--db--dc--dd--dd--df--dp--dq--du--dw--dw--dyb--dyd--display-memor">du
-command</a> (short for dump memory region as Unicode string), we can
-get at the SQL statement. Some amount of guesswork is required as to
-which register holds the pointer to the SQL statement. Here it's CPU
-register r13:</p>
+command</a> (short for dump memory region as Unicode string), we find
+a pointer to a SQL statement in CPU register r13:</p>
 
 <pre style="overflow: auto; word-wrap: normal; white-space: pre;">
 0:027> <font color="green">du 000000001322a1b0 L1000</font>
