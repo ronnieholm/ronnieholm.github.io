@@ -223,14 +223,16 @@ OS Thread Id: 0x380 (27)
 <h4>Interpreting the native and managed call stack</h4>
 
 <p>Reading the call stack bottom up, it shows how (and where) one
-function calls the next, leading to the blocked thread. Beginning at
+function calls the next, leading to the blocked path. Beginning at
 frame 55, the user space part of the Windows kernel kicks of thread
 execution by passing control to ntdll!RtlUserThreadStart. Notice how
 its RetAddr is all zeros, indicating that it wasn't called from
 anywhere and should never return. The operating system passes
-RtlUserThreadStart the address of a function to run (the function
-passed to the Window create thread function), in this case the C++/CLR
-method at frame 52. From there on and until 41, the thread is setup to
+RtlUserThreadStart the address of a function to run -- the function
+passed
+via <a href="https://msdn.microsoft.com/en-us/library/windows/desktop/ms682453">CreateThread</a>'s
+lpStartAddress argument -- in this case a C++ method inside the CLR at
+frame 52. From there on and until 41, the thread is setup to
 eventually run managed code. This happens at frame 40 where the thread
 is assigned the processing of an incoming request by executing managed
 code.</p>
