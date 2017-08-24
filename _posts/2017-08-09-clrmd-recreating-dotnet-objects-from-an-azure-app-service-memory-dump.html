@@ -38,7 +38,7 @@ and whether it's a primitive or complex type. Like with WinDbg, ClrMD
 understands primitive types only. For Guid, DateTime, IPAddress, and
 FSharpOption, we must query their internal field values and pass those
 along to the appropriate constructor. With Guid, for instance, this
-amounts to querying the values of internal fields _a through _k and
+amounts to querying values of internal fields _a through _k and
 passing those to the Guid constructor.</p>
 
 <p>Another difficulty with ClrMD's API is that it often returns a null
@@ -148,7 +148,7 @@ settings between the console and the deployed web application, the
 former behaves as the web application with respect to enqueuing and
 dequeuing the 423k visits.</p>
 
-<p>In a way, we've inadvertently used the memory dump as a message
+<p>In a way, we've inadvertently turned the memory dump into a message
 queue persistence mechanism.</p>
    
 </div>
