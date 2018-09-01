@@ -33,18 +33,19 @@ date: 2018-09-01 12:00 UTC
     on <a href="https://en.wikipedia.org/wiki/Ray_tracing_(graphics)">ray
     tracing</a>.
   </p>
-  <p>
-    
-    <img src="https://upload.wikimedia.org/wikipedia/commons/8/83/Ray_trace_diagram.svg" width="300px"/>
+  <p>    
+    <img src="/content/ray-trace-diagram.svg" width="300px"/>
   </p>
   <p>
     I start with 2D because it's simpler to visualize and because it
     translates nicely to 3D. To develop a visual intuition for the
-    equations I used <a href="http://wolframalpha.com">Wolfram Alpha</a>
-    and <a href="https://www.desmos.com/calculator">similar</a> sites.
+    equations I used <a href="http://wolframalpha.com">Wolfram
+    Alpha</a>
+    and <a href="https://www.desmos.com/calculator">another</a>
+    graphing sites.
   </p>
 
-  <h3>Circle centered around origin</h3>
+  <h4>Circle centered around origin</h4>
   <p>
     A circle may be defined in terms of the position of its center and
     its radius. To start off simple, we assume the circle is centered
@@ -60,7 +61,7 @@ date: 2018-09-01 12:00 UTC
     form a right-sided triangle:
   </p>
   <p>
-    <a img="">Insert right-sided triangle</a>
+    <img src="/content/circle-equation.gif"/>
   </p>
   <p>
     For this triangle, \(\sqrt{x^2 + y^2} = r\). Or if we want to get
@@ -68,7 +69,7 @@ date: 2018-09-01 12:00 UTC
     circle equation.
   </p>
 
-  <h3>Circle offset from origin</h3>
+  <h4>Circle offset from origin</h4>
   <p>
     Instead of the circle centered at the origin, or \((0,0)\), it may
     be centered at any point \((c_x, c_y)\). Incorporating this offset
@@ -85,7 +86,7 @@ date: 2018-09-01 12:00 UTC
     circle to the right and up.
   </p>
 
-  <h3>Circle from point on circle</h3>
+  <h4>Circle from point on circle</h4>
   <p>
     Circle equation in hand, if we're provided with a point \((x,y) =
     (-3,4)\) on a circle, and we know the circle is centered around
@@ -103,7 +104,7 @@ date: 2018-09-01 12:00 UTC
     $$x^2 + y^2 = 5^2$$
   </p>
 
-  <h3>Points inside, on, or outside circle</h3>
+  <h4>Points inside, on, or outside circle</h4>
   <p>
     We can check if a point is on, inside, or outside that circle by
     comparing the distance of the circle's center to the point with
@@ -120,7 +121,7 @@ date: 2018-09-01 12:00 UTC
     See <a href="https://www.youtube.com/watch?v=HjN9TTRrQiA">this</a>
     video for additional commentary.</p>
 
-  <h3>Line and circle intersection</h3>
+  <h4>Line and circle intersection</h4>
   <p>
     Say we have a circle on the standard form of \(x^2 + y^2 = r^2\)
     and a line on the standard form of \(y = ax + b\). Now we want to
@@ -128,13 +129,11 @@ date: 2018-09-01 12:00 UTC
     point \((x,y)\) points. Three possible outcomes exist:
   </p>
   <p>
-    <img src="http://mathworld.wolfram.com/images/eps-gif/CircleLineIntersection_700.gif"/>
+    <img src="/content/circle-line-intersection-options.gif"/>
   </p>
   <p>
     Let's use the circle \(x^2 + y^2 = 3^2\) and the line \(y = -x +
-    3\) as an example. Graphically, this is what they look like:
-
-    INSERT INSERT.
+    3\) as an example.
   </p>
   <p>
     If the two intersect, it must mean that for some value of \(x\)
@@ -164,10 +163,13 @@ date: 2018-09-01 12:00 UTC
     2x^2 - 6x = 0 & & \textrm{\{simplify\}}
     \end{eqnarray*}$$
 
-    or
-
-    INSERT IMAGE
-    
+    Depicted graphically the line, the circle, and the quadratic
+    equations looks like this:
+  </p>
+  <p>
+    <img src="/content/circle-line-intersection-example.gif"/>
+  </p>
+  <p>    
     Solving a quadratic equation of the standard form \(ax^2 + bx + c
     = 0\) for \(x\) means that we're after the values of \(x\) for
     which \(y = 0\), or where the graph intersects the \(x\) axis.
@@ -223,7 +225,7 @@ date: 2018-09-01 12:00 UTC
     for additional commentary.
   </p>
 
-  <h3>Summary</h3>
+  <h4>Summary</h4>
   <p>
     Summary summary
   </p>
