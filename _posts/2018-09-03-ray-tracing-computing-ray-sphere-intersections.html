@@ -13,7 +13,7 @@ date: 2018-09-03 12:00 UTC
     circle standard equation to a sphere, and switch to vector
     notation for defining both sphere and line. Using vectors, we can
     generalize and perform intersection calculations succinctly for
-    any dimension. In a sense, vectors hide details about its scalar
+    any dimension. In a sense, a vector hides details about its scalar
     components, letting us operate on the vector as a whole.
   </p>
 
@@ -183,7 +183,7 @@ date: 2018-09-03 12:00 UTC
 
     t^2(\vec{p_1} \cdot \vec{p_1}) + t(\vec{p_0} \cdot \vec{p_1} + \vec{p_1} \cdot \vec{p_0} - \vec{p_1} \cdot \vec c - \vec c \cdot \vec{p_1}) + \vec{p_0} \cdot \vec{p_0} - \vec{p_0} \cdot \vec c - \vec c \cdot \vec{p_0} + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{factor out \(t\) in terms where it appears once\}}\\
 
-    t^2(\vec{p_1} \cdot \vec{p_1}) + t\vec{p_1}(\vec{p_0} + \vec{p_0} - \vec c - \vec c) + \vec{p_0} \cdot \vec{p_0} - \vec{p_0} \cdot \vec c - \vec c \cdot \vec{p_0} + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{factor out common \(p_1\) in \(t(...)\) part\}}\\    
+    t^2(\vec{p_1} \cdot \vec{p_1}) + t\vec{p_1}(\vec{p_0} + \vec{p_0} - \vec c - \vec c) + \vec{p_0} \cdot \vec{p_0} - \vec{p_0} \cdot \vec c - \vec c \cdot \vec{p_0} + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{factor out common \(\vec{p_1}\) in \(t(...)\) part\}}\\    
 
     t^2(\vec{p_1} \cdot \vec{p_1}) + t\vec{p_1}(2\vec{p_0} - 2\vec c) + \vec{p_0} \cdot \vec{p_0} - \vec{p_0} \cdot \vec c - \vec c \cdot \vec{p_0} + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{group similar element inside \(t(...)\) part\}}\\    
     
@@ -205,8 +205,8 @@ date: 2018-09-03 12:00 UTC
     Note that calculating the dot product of two vectors results in a
     scalar, not a new vector. So even though the above equation may
     look complicated, once we plug in known vectors and simplify,
-    we're left with a quadratic equation of the form \(ax^2 + bx +
-    c\), although \(x\) is called \(t\).
+    we're left with a quadratic equation of the form \(at^2 + bt +
+    c\).
   </p>
   <p>
     I struggled quite a bit with the simplifications because I don't
@@ -216,9 +216,9 @@ date: 2018-09-03 12:00 UTC
     name.
   </p>
   <p>
-    As an example, let's redo the scalar example from above in which
-    \(\vec{p_0} = (10,5,2)\), \(\vec{p_1} = (2,1,0)\), \(\vec c =
-    (0,0,0)\), and \(r^2 = 9\):
+    Let's redo the scalar example from above in which \(\vec{p_0} =
+    (10,5,2)\), \(\vec{p_1} = (2,1,0)\), \(\vec c = (0,0,0)\), and
+    \(r^2 = 9\):
 
     $$\begin{eqnarray*}
     t^2((2,1,0) \cdot (2,1,0)) + 2t(2,1,0) \cdot ((10,5,2)-(0,0,0)) + ((10,5,2) + (0,0,0) \cdot ((10,5,2) - (0,0,0)) - 3^2 = 0\\
