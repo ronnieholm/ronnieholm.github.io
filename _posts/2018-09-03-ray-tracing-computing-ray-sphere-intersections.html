@@ -166,15 +166,15 @@ date: 2018-09-03 12:00 UTC
     complicated looking equation into a quadratic one and solve it for
     \(t\). For an actual line and sphere, \(\vec{p_0}\),
     \(\vec{p_1}\), \(\vec c\), and \(r\) are known quantities, leaving
-    \(t\) the only unknown.
+    \(t\) as the only unknown.
   </p>
   <p>
     $$\begin{eqnarray*}
-    (\vec{p_0} \cdot \vec{p_0} + \vec{p_0} \cdot \vec{p_1}t - \vec{p_0} \cdot \vec c) + (\vec{p_1t} \cdot \vec{p_0} + \vec{p_1}t \cdot \vec{p_1}t - \vec{p_1}t \cdot \vec c) + (-\vec c \cdot \vec{p_0} - \vec c \cdot \vec{p_1}t + \vec c \cdot \vec c) - r^2 = 0 & & \textrm{\{expand square into 3 * 3 + 1 terms\}}\\
+    (\vec{p_0} \cdot \vec{p_0} + \vec{p_0} \cdot \vec{p_1}t - \vec{p_0} \cdot \vec c) + (\vec{p_1}t \cdot \vec{p_0} + \vec{p_1}t \cdot \vec{p_1}t - \vec{p_1}t \cdot \vec c) + (-\vec c \cdot \vec{p_0} - \vec c \cdot \vec{p_1}t + \vec c \cdot \vec c) - r^2 = 0 & & \textrm{\{expand square into 3 * 3 + 1 terms\}}\\
 
-    \vec{p_0} \cdot \vec{p_0} + \vec{p_0} \cdot \vec{p_1}t - \vec{p_0} \cdot \vec c + \vec{p_1t} \cdot \vec{p_0} + \vec{p_1}t \cdot \vec{p_1}t - \vec{p_1}t \cdot \vec c - \vec c \cdot \vec{p_0} - \vec c \cdot \vec{p_1}t + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{remove parenthesis as included for visualization\}}\\
+    \vec{p_0} \cdot \vec{p_0} + \vec{p_0} \cdot \vec{p_1}t - \vec{p_0} \cdot \vec c + \vec{p_1}t \cdot \vec{p_0} + \vec{p_1}t \cdot \vec{p_1}t - \vec{p_1}t \cdot \vec c - \vec c \cdot \vec{p_0} - \vec c \cdot \vec{p_1}t + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{remove parenthesis included as a visual aid in previous step\}}\\
     
-    \vec{p_0} \cdot \vec{p_0} + \vec{p_0} \cdot \vec{p_1}t - \vec{p_0} \cdot \vec c + \vec{p_1t} \cdot \vec{p_0} + t^2(\vec{p_1} \cdot \vec{p_1}) - \vec{p_1}t \cdot \vec c - \vec c \cdot \vec{p_0} - \vec c \cdot \vec{p_1}t + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{factor out \(t\) in term where it appears twice\}}\\
+    \vec{p_0} \cdot \vec{p_0} + \vec{p_0} \cdot \vec{p_1}t - \vec{p_0} \cdot \vec c + \vec{p_1}t \cdot \vec{p_0} + t^2(\vec{p_1} \cdot \vec{p_1}) - \vec{p_1}t \cdot \vec c - \vec c \cdot \vec{p_0} - \vec c \cdot \vec{p_1}t + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{factor out \(t\) in term where it appears twice\}}\\
 
     t^2(\vec{p_1} \cdot \vec{p_1}) + t(\vec{p_0} \cdot \vec{p_1} + \vec{p_1} \cdot \vec{p_0} - \vec{p_1} \cdot \vec c - \vec c \cdot \vec{p_1}) + \vec{p_0} \cdot \vec{p_0} - \vec{p_0} \cdot \vec c - \vec c \cdot \vec{p_0} + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{factor out \(t\) in terms where it appears once\}}\\
 
@@ -225,7 +225,7 @@ date: 2018-09-03 12:00 UTC
     \end{eqnarray*}$$
 
     which shows that the scalar and vector editions of ray-sphere
-    intersection yields identical results.
+    intersection yield identical results.
   </p>
   <p>
     For a commentary of the vector and parametric equations of a line,
