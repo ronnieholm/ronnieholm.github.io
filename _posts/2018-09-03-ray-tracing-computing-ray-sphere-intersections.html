@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Ray tracing: computing ray-sphere intersections"
+title: "Ray tracing: Computing ray-sphere intersections"
 date: 2018-09-03 12:00 UTC
 ---
 
@@ -12,7 +12,7 @@ date: 2018-09-03 12:00 UTC
     about ray-sphere intersections with vectors. We'll extend the
     circle standard equation to a sphere, and switch to vector
     notation for defining both sphere and line. Using vectors, we can
-    generalize and do intersection calculations more succintly, for
+    generalize and perform intersection calculations succinctly for
     any dimension. In a sense, vectors hide details about its scalar
     components, letting us operate on the vector as a whole.
   </p>
@@ -25,8 +25,8 @@ date: 2018-09-03 12:00 UTC
 
     $$(x - c_x)^2 + (y - c_y)^2 + (z - c_z)^2 = r^2$$
 
-    If the sphere is centered at the origin the \(c\) parts will go
-    away and the equation becomes
+    If the sphere is centered at the origin the \(c\) terms go away
+    and the equation becomes
 
     $$x^2 + b^2 + c^2 = r^2$$
   </p>
@@ -34,11 +34,10 @@ date: 2018-09-03 12:00 UTC
   <h4>Vector standard form of a line</h4>
   <p>
     Defining a line in 3D isn't as straightforward as in 2D. We don't
-    something similar to \(y = ax + b\) or \(x = \dfrac{y}{a}-b\). In
-    2D, the line equation expresses the fact that a change in one
-    dimension causes a change in one other. In 3D, a change in one
-    dimension causes a change in two others which is hard to express
-    in a similar form.
+    something similar to \(y = ax + b\). In 2D, the line equation
+    expresses the fact that a change in one dimension causes a change
+    in one other. In 3D, a change in one dimension causes a change in
+    two others which is hard to express in a similar form.
   </p>
   <p>
     Instead, in 3D a line is expressed as a starting position and an
@@ -53,8 +52,7 @@ date: 2018-09-03 12:00 UTC
     different point on the line (we consider a position vector and a
     point synonymous). Different values of \(t\) has the effect of
     scaling the position vector along the line and thus by varying
-    \(t\) we can get to any position on the line. We can even flip the
-    direction of \(\vec d\) by providing a negative \(t\).
+    \(t\) we can get to any position on the line.
   </p>
   <p>
     In ray tracing we're only interested in the half-line where \(t >
@@ -133,12 +131,19 @@ date: 2018-09-03 12:00 UTC
 
     $$(\vec p - \vec c) \cdot (\vec p - \vec c) = r^2$$
 
-    Here points on the sphere are all \(\vec p\) position vectors and
-    the \(\cdot\) symbol represents the dot product of the two
-    vectors. Product is the general term used to describe the result
-    of a multiplication, but unlike our single definition for the
-    product of two scalar, with vectors we have two kinds of product:
-    dot product and cross product.
+    \(\vec p\) is position vectors on the sphere and \(\cdot\) is the
+    dot product of two vectors. The term product in general refers to
+    the result of a multiplication. Unlike the single definition for
+    the product of scalars, vectors have two kinds of product: dot
+    product and cross product.
+  </p>
+  <p>
+    In the equations which follow, scalar product or dot product may
+    be inferred from the context. We don't need the \(\cdot\) symbol,
+    but it's convention. Like operator overloading in programming, if
+    both operands are vectors, it means dot product, if one operand is
+    a vector, it means scaling by that scalar, if both operands are
+    scalars, it means regular multiplication.
   </p>
   <p>
     At first sight, the sphere vector equation look nothing like its
@@ -146,7 +151,7 @@ date: 2018-09-03 12:00 UTC
 
     $$\vec u \cdot \vec v = {u_x}{v_x} + {u_y}{v_y} + {u_z}{v_z} = r^2$$    
 
-    With this definition, if \(vec{u} = \vec{v}\), which is the case
+    With this definition, if \(\vec{u} = \vec{v}\), which is the case
     for vector sphere definition, expanding the dot product turns into
     the original standard equation for a sphere. So while it may look
     mysterious, defining the sphere in terms of the dot product is
@@ -182,7 +187,7 @@ date: 2018-09-03 12:00 UTC
 
     t^2(\vec{p_1} \cdot \vec{p_1}) + t\vec{p_1}(2\vec{p_0} - 2\vec c) + \vec{p_0} \cdot \vec{p_0} - \vec{p_0} \cdot \vec c - \vec c \cdot \vec{p_0} + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{group similar element inside \(t(...)\) part\}}\\    
     
-    t^2(\vec{p_1} \cdot \vec{p_1}) + 2t \vec{p_1} \cdot (\vec{p_0} - \vec c) + \vec{p_0} \cdot \vec{p_0} - \vec{p_0} \cdot \vec c - \vec c \cdot \vec{p_0} + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{apply distributive law inside \(t(...)\) part: \(ab - ac = a(b - c)\) and remove extra parens\}}\\    
+    t^2(\vec{p_1} \cdot \vec{p_1}) + 2t \vec{p_1} \cdot (\vec{p_0} - \vec c) + \vec{p_0} \cdot \vec{p_0} - \vec{p_0} \cdot \vec c - \vec c \cdot \vec{p_0} + \vec c \cdot \vec c - r^2 = 0 & & \textrm{\{apply distributive law inside \(t(...)\) part: \(ab - ac = a(b - c)\) and remove extra parenthesis\}}\\    
     
     t^2(\vec{p_1} \cdot \vec{p_1}) + 2t \vec{p_1} \cdot (\vec{p_0} - \vec c) + \vec{p_0}^2 + \vec{c}^2 - 2\vec{p_0} \cdot \vec{c} - r^2 = 0 & & \textrm{\{group similar elements in constants part\}}\\
     
