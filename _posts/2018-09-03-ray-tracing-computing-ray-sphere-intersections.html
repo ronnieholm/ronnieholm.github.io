@@ -8,8 +8,8 @@ date: 2018-09-03 12:00 UTC
   <p>
     Whereas
     the <a href="/blog/2018/09/01/ray-tracing-computing-ray-circle-intersections">previous</a>
-    post was about line-circle intersections with scalars, this one is
-    about line-sphere intersections with vectors. We'll extend the
+    post was about ray-circle intersections with scalars, this one is
+    about ray-sphere intersections with vectors. We'll extend the
     circle standard equation to a sphere, and switch to vector
     notation for defining both sphere and line. Using vectors, we can
     generalize and do intersection calculations more succintly, for
@@ -59,8 +59,9 @@ date: 2018-09-03 12:00 UTC
   <p>
     In ray tracing we're only interested in the half-line where \(t >
     0\). That half-line represents a ray traveling from the camera
-    into the scene. \(t < 0\) would describe a ray traveling out the
-    back of the camera.
+    into the scene, and that's why we call it a ray instead of a
+    line. \(t < 0\) would describe a ray traveling out back of the
+    camera.
   </p>
   <p>
     As an example, we can find the parametric equation of the line
@@ -75,7 +76,7 @@ date: 2018-09-03 12:00 UTC
     \end{eqnarray*}$$
     
     For any scalar \(t\) we get any position vector on the line. For
-    line-sphere intersections, we're after the some values of \(t\)
+    ray-sphere intersections, we're after the some values of \(t\)
     describing points of intersection. Once we have those values, we
     plug those into the parametric equation of a line to get the
     \((x,y,z)\) coordinate.
@@ -102,16 +103,10 @@ date: 2018-09-03 12:00 UTC
     \(y\), and \(z\) and ended up with a quadratic equation with one
     unknown, namely \(t\). Solving for \(t\) means using the same
     method
-    as <a href="/blog/2018/09/01/ray-tracing-computing-ray-circle-intersections">previously</a>
-    post:
+    as <a href="/blog/2018/09/01/ray-tracing-computing-ray-circle-intersections">previous</a>:
 
     $$\begin{eqnarray*}
-    x = \dfrac{-b \pm \sqrt{d}}{2a} \textrm{, where \(d = b^2 - 4ac\) and \(a \neq 0\)}    
-    \end{eqnarray*}$$
-
-    and
-
-    $$\begin{eqnarray*}
+    x = \dfrac{-b \pm \sqrt{d}}{2a} \textrm{, where \(d = b^2 - 4ac\) and \(a \neq 0\)}\\
     d = 50 - 4(5)(120) = 100\\
     t_1 = \dfrac{-50 + \sqrt{100}}{2(5)} = \dfrac{-50 + 10}{10} = \dfrac{-40}{10} = -4\\
     t_2 = \dfrac{-50 - \sqrt{100}}{2(5)} = \dfrac{-50 - 10}{10} = \dfrac{-60}{10} = -6\\
@@ -194,7 +189,7 @@ date: 2018-09-03 12:00 UTC
     t^2(\vec{p_1} \cdot \vec{p_1}) + 2t \vec{p_1} \cdot (\vec{p_0} - \vec c) + (\vec{p_0} + \vec c)^2 - r^2 = 0 & & \textrm{\{apply binomial square law in constants part: \(a^2 + b^2 - 2ab = (a - b)^2\)\}}\\       
     \end{eqnarray*}$$     
 
-    or in terms of \(at^2 + bt + c\)
+    or in terms of the standard form of a quadratic equation: \(at^2 + bt + c\)
 
     \begin{eqnarray*}
     a = \vec{p_1} \cdot \vec{p_1}\\
@@ -217,8 +212,8 @@ date: 2018-09-03 12:00 UTC
   </p>
   <p>
     As an example, let's redo the scalar example from above in which
-    \(p_0 = (10,5,2)\), \(p_1 = (2,1,0)\), \(c = (0,0,0)\), and \(r^2
-    = 9\):
+    \(\vec{p_0} = (10,5,2)\), \(\vec{p_1} = (2,1,0)\), \(\vec c =
+    (0,0,0)\), and \(r^2 = 9\):
 
     $$\begin{eqnarray*}
     t^2((2,1,0) \cdot (2,1,0)) + 2t(2,1,0) \cdot ((10,5,2)-(0,0,0)) + ((10,5,2) + (0,0,0) \cdot ((10,5,2) - (0,0,0)) - 3^2 = 0\\
@@ -229,8 +224,8 @@ date: 2018-09-03 12:00 UTC
     5t^2 + 50t + 120 = 0
     \end{eqnarray*}$$
 
-    which shows that the scalar and vector editions of line-sphere
-    intersections yields identical results.
+    which shows that the scalar and vector editions of ray-sphere
+    intersection yields identical results.
   </p>
   <p>
     For a commentary of the vector and parametric equations of a line,
