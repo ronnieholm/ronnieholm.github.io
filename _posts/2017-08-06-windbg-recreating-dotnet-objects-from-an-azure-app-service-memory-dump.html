@@ -23,7 +23,7 @@ in-process, and are lost on restart. The goal is to conduct a
 post-mortem analysis of the memory dump and extract visit objects for
 replay.</p>
 
-<h4>Memory dumping an Azure App Service</h4>
+<h3>Memory dumping an Azure App Service</h3>
 
 <p>An Azure App Service supports
 <a href="https://blogs.msdn.microsoft.com/benjaminperkins/2017/02/01/create-a-memory-dump-for-your-slow-performing-web-app">memory
@@ -35,7 +35,7 @@ sos.dll and mscordacwks.dll. At this point the dump is ready to
 be <a href="http://bugfree.dk/blog/2016/10/24/windbg-postmortem-debugging-across-installed-dotnet-clr-versions">loaded</a>
 into WinDbg, like any other dump of a .NET process.</p>
 
-<h4>Architectural overview of the dumped process</h4>
+<h3>Architectural overview of the dumped process</h3>
 
 <p>To know what to look for and expect inside the dump, a brief
 overview of the application is in order. The dump is of
@@ -69,7 +69,7 @@ processing writes the visits to a MS SQL Azure instance:</p>
 <p>In our case, some 423k Visit objects are stuck, waiting to be
 consumed.</p>
 
-<h4>Locating Visit objects inside the mailbox processor</h4>
+<h3>Locating Visit objects inside the mailbox processor</h3>
 
 <p>At this point, we'll assume that the dump is ready to be loaded
 into WinDbg. From the output below, we see that WinDbg ships with
@@ -362,7 +362,7 @@ Total 422814 objects
 <p>This implies that rather than traversing the tree, dumping Visit
 objects directly is simpler and yields the same result.</p>
 
-<h4>Conclusion</h4>
+<h3>Conclusion</h3>
 
 <p>While WinDbg provides for easy graph exploration, it can only
 extract and pretty print simple .NET types such as String, Int, and

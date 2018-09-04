@@ -26,7 +26,7 @@ recycled, is crucial. We'll illustrate how to use
 a fixed time approach do generate a dump, and we'll use the DebugDiag
 reporting capabilities to analyze the dump.</p>
 
-<h4>DebugDiag dump collection</h4>
+<h3>DebugDiag dump collection</h3>
 
 <p>DebugDiag (watch the four-part introduction on Channel 9: <a href="
 https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-121-DebugDiag-Part-1">1</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-122-DebugDiag-Part-2">2</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-123-DebugDiag-Part-3">3</a>, <a href="https://channel9.msdn.com/Shows/Defrag-Tools/Defrag-Tools-124-DebugDiag-Part-4">4</a>)
@@ -44,7 +44,7 @@ deployable onto a production server. One has to either run the
 installer or xcopy deploy the installation folder from another machine
 and run the included Register.bat and Unregister.bat files.</p>
 
-<h4>Scheduled dump collection</h4>
+<h3>Scheduled dump collection</h3>
 
 <p>With a small PowerShell script shelling out
 to <a href="https://technet.microsoft.com/en-us/sysinternals/dd996900.aspx">ProcDump</a>,
@@ -79,7 +79,7 @@ finally dump the clone. But that switch is unsupported with Windows
 Server 2008. Fortunately, our dump times are short, in the 10-50
 seconds range, generating dump files of 1-4 GB in size.</p>
 
-<h4>Analyzing the dump DebugDiag reports</h4>
+<h3>Analyzing the dump DebugDiag reports</h3>
 
 <p>Next we have DebugDiag aggregate all its reports to a single
 file. Inside it we find the HttpContext Report, listing properties of
@@ -186,7 +186,7 @@ HTTP Headers           Authorization: NTLM TlRMTVNTUA...AAAAAAAAAAAAAAAAAA==
                        Host: intranet.acme.dk
 </pre>
 
-<h4>Conclusion</h4>
+<h3>Conclusion</h3>
 
 <p>The DebugDiag report confirms our suspicion that ASP.NET worker
 threads are stuck processing requests. The longer we wait, the more

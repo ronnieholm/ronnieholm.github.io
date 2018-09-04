@@ -28,7 +28,7 @@ number of times.</p>
 so by loading the memory dump into WinDbg and analyze call stacks of
 blocked threads, looking for a pattern.</p>
 
-<h4>Loading the dump into WinDbg</h4>
+<h3>Loading the dump into WinDbg</h3>
 
 <p>We don't want to analyze the memory dump directly on a production
 server. Instead we move it to another machine for postmortem
@@ -119,7 +119,7 @@ Scanning for threads waiting on CriticalSections...
 <p>The deadlock either isn't there, the deadlock doesn't involve
 managed resources, or it's a false positive Event Log message.</p>
 
-<h4>Analyzing blocked threads</h4>
+<h3>Analyzing blocked threads</h3>
 
 <p>Let's start by looking at high-level thread pool statistics. From
 the DebugDiag report we know that eight worker thread pool threads are
@@ -220,7 +220,7 @@ OS Thread Id: 0x380 (27)
 
 <p>That's quite a mouthful. We'll touch on the relevant parts next.
 
-<h4>Interpreting the native and managed call stack</h4>
+<h3>Interpreting the native and managed call stack</h3>
 
 <p>Reading the call stack bottom up, it shows how (and where) one
 function calls the next, leading to the blocked path. Beginning at
@@ -366,7 +366,7 @@ given that the debug session time is reported as 23:00:51, and the
 request has been queued for 661 seconds, 20:49:50 marks the actual
 time of addition.</p>
 
-<h4>Conclusion</h4>
+<h3>Conclusion</h3>
 
 <p>Inspecting call stacks of the eight blocked threads, they're all
 blocked waiting for MS SQL Server to respond to the proc_AddAuditEntry

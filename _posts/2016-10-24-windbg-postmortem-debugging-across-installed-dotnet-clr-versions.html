@@ -15,7 +15,7 @@ debugger extension</a> loaded to interrogate the dump. Specifically,
 SOS should load even if the WinDbg machine doesn't have the version of
 the CLR installed that the machine running the dumped process has.</p>
 
-<h4>Step 1: Generate process dump</h4>
+<h3>Step 1: Generate process dump</h3>
 
 <p>To generate an exemplar dump, navigate to Windows Task Manager,
 right click on w3wp.exe which we know is running .NET code, and select
@@ -50,7 +50,7 @@ the w3wp process is actually 2.0.50727.4253.</p>
 of the CLR running managed code inside the dumped process, we're ready
 to copy the dump and auxiliary files to the WinDbg machine.</p>
 
-<h4>Step 2: Copy dump and .NET CLR DLLs to other machine</h4>
+<h3>Step 2: Copy dump and .NET CLR DLLs to other machine</h3>
 
 <p>For WinDbg to be able to load and inspect the dump, auxiliary files
 from the CLR running inside w3wp must be available it. These files,
@@ -90,7 +90,7 @@ mscordacwks.dll and sos.dll from the .NET framework folder and
 together with w3wp.dmp copy these files to the C:\debug\w3wp-sp2007
 folder on the WinDbg machine.</p>
 
-<h4>Step 3: First attempt at loading w3wp.dmp into WinDbg</h4>
+<h3>Step 3: First attempt at loading w3wp.dmp into WinDbg</h3>
 
 <p>Open WinDbg (X64) and go to the File menu, Open Crash Dump... and
 locate C:\debug\w3wp-sp2007\w3wp.dmp. In response, WinDbg prints the
@@ -161,7 +161,7 @@ got loaded. But that isn't the case as we'll see in a moment.</p>
 
 <p></p>
 
-<h4>Step 4: Second attempt at loading w3wp.dmp into WinDbg</h4>
+<h3>Step 4: Second attempt at loading w3wp.dmp into WinDbg</h3>
 
 <p>Even though we see no error messages, issuing the
 <code>!CLRStack</code> command, which is part of SOS (and other SOS
@@ -265,7 +265,7 @@ CLRDLL: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.50727.4253.d
 CLR DLL status: Loaded DLL c:\debug\w3wp-sp2007\mscordacwks_AMD64_AMD64_2.0.50727.4253.dll
 </pre>
 
-<h4>Conclusion</h4>
+<h3>Conclusion</h3>
 
 <p>At this point we've loaded the correct versions of mscordacwks.dll
 and sos.dll and the SOS commands are at our disposal.</p>

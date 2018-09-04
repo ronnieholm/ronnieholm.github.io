@@ -35,13 +35,13 @@ effect on load times.</p>
 <p>The concluding section at the end presents a summary of the timing
 of each test case.</p>
 
-<h4>Establishing a baseline</h4>
+<h3>Establishing a baseline</h3>
 
 <p>To establish a baseline on which to improve, we sample loading the
 slow view (Documents/Forms/AllItems.aspx) and arrive at an average
 load time of 27.9 seconds.</p>
 
-<h4>Common causes for extended view load times</h4>
+<h3>Common causes for extended view load times</h3>
 
 <p>Starting from typical causes of slowness, and knowing that slowness
 has likely crept in gradually as the number of list items or webs
@@ -87,7 +87,7 @@ page. Moreover, the cost of an item limit of 300 and the cost of
 two-level group by on Managed Metadata fields, including group
 expansion, calls for investigation.</p>
 
-<h4>Overhead of non-view part of page</h4>
+<h3>Overhead of non-view part of page</h3>
 
 <p>We can determine the impact that non-view components have on view
 load by measuring against a page which cannot be modified and which
@@ -105,7 +105,7 @@ components on the page hosting the slow view. In other words, short of
 changing the navigation, 2.8 seconds marks the lower bound on view
 page load time (and any other page load time on that web).</p>
 
-<h4>Flattening the view</h4>
+<h3>Flattening the view</h3>
 
 <p>Flattening the view by disabling group by on two managed metadata
 fields while keeping expansion turned on, we arrive at a surprising
@@ -122,7 +122,7 @@ grouping, though, in which
 case <a href="https://support.office.com/en-us/article/Set-up-metadata-navigation-for-a-list-or-library-c222a75d-8b18-44e2-9ed8-7ee4e0d23cfc?ui=en-US&rs=en-US&ad=US">setting
 up metadata navigation on the list</a> might be worth pursuing.</p>
 
-<h4>Removing lookup fields from the view</h4>
+<h3>Removing lookup fields from the view</h3>
 
 <p>Next, we measure the cost of the view's 10 lookup fields by
 removing those from the flat view. It causes an additional decrease in
@@ -133,13 +133,13 @@ remaining non-managed metadata fields have almost no overhead) and the
 4.8 seconds with the original fields but expansion turned off (meaning
 that expansion is an expensive operation).</p>
 
-<h4>Reducing the item limit</h4>
+<h3>Reducing the item limit</h3>
 
 <p>By reducing the item limit from 300 to 30, even including group by
 and expansion, page load time becomes 6.4 seconds. If we disable group
 by we arrive at 4.2 seconds.</p>
 
-<h4>Conclusion</h4>
+<h3>Conclusion</h3>
 
 <p>The table below summarizes the measurements performed outside
 business hours and from an Azure virtual machine. Using an Azure host
