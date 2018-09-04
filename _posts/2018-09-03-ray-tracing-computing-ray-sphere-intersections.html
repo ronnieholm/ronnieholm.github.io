@@ -12,8 +12,8 @@ date: 2018-09-03 12:00 UTC
     about ray-sphere intersections with vectors. We'll extend the
     circle standard equation to a sphere, and switch to vector
     notation for defining both sphere and line. Using vectors, we can
-    generalize and perform intersection calculations succinctly for
-    any dimension. In a sense, a vector hides details about its scalar
+    generalize and perform intersection calculations for any
+    dimension. In a sense, a vector hides details about its scalar
     components, letting us operate on the vector as a whole.
   </p>
 
@@ -92,7 +92,7 @@ date: 2018-09-03 12:00 UTC
     $$\begin{eqnarray*}
     (10 + 2t)^2 + (5 + t)^2 + (2)^2 = 9 & & \textrm{\{plug in line equation\}}\\
     (10 + 2t)(10 + 2t) + (5 + t)(5 + t) + 4 = 9 & & \textrm{\{expand squares\}}\\
-    100 + 20t + 20t + 4t^2 + 25 + 5t + 5t + t^2 + 4 = 9\\
+    100 + 20t + 20t + 4t^2 + 25 + 5t + 5t + t^2 + 4 = 9 & & \textrm{\{expand parenthesis\}}\\
     5t^2 + 50t + 129 = 9 & & \textrm{\{simplify and rearrange in \(t^2\), \(t\), constants order\}}\\
     5t^2 + 50t + 120 = 0 & & \textrm{\{move 9 to left side to arrive at the standard form of a quadratic equation\}}
     \end{eqnarray*}$$
@@ -216,7 +216,7 @@ date: 2018-09-03 12:00 UTC
     name.
   </p>
   <p>
-    Let's redo the scalar example from above in which \(\vec{p_0} =
+    Continuing the scalar example above in which \(\vec{p_0} =
     (10,5,2)\), \(\vec{p_1} = (2,1,0)\), \(\vec c = (0,0,0)\), and
     \(r^2 = 9\):
 
