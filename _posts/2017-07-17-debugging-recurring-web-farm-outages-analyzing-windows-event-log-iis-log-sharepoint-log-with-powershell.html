@@ -127,7 +127,7 @@ entries. Remember that IIS first receives the request and based on the
 URL it passes it along to ASP.NET. Requests for ASPX pages are
 processed by ASP.NET and SharePoint while requests for static
 resources such as images, CSS, and JavaScript files may be served
-directly from the filesystem.</p>
+directly from the file system.</p>
 
 <p>We start by tracing a few successful heartbeats. Observe that
 because the IIS log field is in UTC, it's two hours behind heartbeat
@@ -153,7 +153,7 @@ the IIS log. That's because the client, the .NET WebClient class,
 initially requests the URL without an authentication header. IIS then
 responds with HTTP 401: Unauthorized and a list of authentication
 providers configured for the site. The client picks a provider and
-resends the request, now including the NTLM authentication
+re-sends the request, now including the NTLM authentication
 header. That's why the subsequent HTTP 200: OK entry includes domain
 and user name. This handshake process is hidden away inside the .NET
 WebClient class and the HTTP 401: Unauthorized is by design and not an
