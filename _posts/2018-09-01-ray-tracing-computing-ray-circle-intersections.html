@@ -6,29 +6,41 @@ date: 2018-09-01 12:00 UTC
 
 <div id="post">
   <p>
-    I'm currently making my way through
-    <a href="https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8">Ray
+    Part 1: Ray tracing: Computing ray-circle intersections<br>
+    Part 2: <a href="/blog/2018/09/03/ray-tracing-computing-ray-sphere-intersections">Ray tracing: Computing ray-circle intersections</a>
+  </p>
+
+  <p>
+    I'm currently making my way
+    through <a href="https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8">Ray
     tracing in One Weekend</a> (now also available for
-    <a href="https://drive.google.com/drive/folders/14yayBb9XiL16lmuhbYhhvea8mKUUK77W">free</a>). While the
-    <a href="https://github.com/petershirley/raytracinginoneweekend">C++
-    code</a> accompanying the book is only about 500 lines and with no
-    dependencies, understanding and implementing ray tracing in a
-    weekend is perhaps a bit optimistic unless the math is already
-    second nature to you. If like me you're initially a bit rusty on
-    the math side, you may find this post a welcome supplement to the
-    book.
+    <a href="https://drive.google.com/drive/folders/14yayBb9XiL16lmuhbYhhvea8mKUUK77W">free</a>)
+    and its 500 lines
+    of <a href="https://github.com/petershirley/raytracinginoneweekend">C++
+    code</a>. Being a bit rusty on the math side, these posts serve as
+    my notes and supplement the book.
+  </p>  
+  <p>
+    In this post I focus on the mechanics of 2D line-circle
+    intersection. This technique is required in order to trace a ray
+    from the eye, or camera position, through a pixel on the screen,
+    or image plane, and into the scene. As the ray travels through the
+    scene, we want to determine whether it hits, or intersects with,
+    the circle, or scene object, and if so at which positions. These
+    positions determines the image plane's color at that pixel.
   </p>
   <p>
-    In this post I focus on 2D line-circle intersection. The idea is
-    to trace a ray from the eye, or camera position, through a pixel
-    on the screen, or image plane, and into the scene. As the ray
-    travels through the scene, we want to determine whether it hits,
-    or intersects with, the circle, or scene object, and if so at
-    which positions. These positions determines the image plane's
-    color at that pixel.
+    I start out with line-circle intersections in 2D because it's
+    simpler to visualize and because once the scalar math is worked
+    out, it generalizes nicely to 3D and vector math. To develop a
+    visual intuition for the math, I found it helpful to play with the
+    equations in
+    <a href="http://wolframalpha.com">Wolfram Alpha</a>
+    and <a href="https://www.desmos.com/calculator">similar</a> sites.
   </p>
   <p>
-    This process in 3D is nicely illustrated in the Wikipedia article
+    In 3D space, the process is nicely illustrated in the Wikipedia
+    article
     on <a href="https://en.wikipedia.org/wiki/Ray_tracing_(graphics)">ray
     tracing</a>.
   </p>
@@ -36,17 +48,9 @@ date: 2018-09-01 12:00 UTC
     <img src="/content/ray-trace-diagram.svg" width="300px"/>
   </p>
   <p>
-    I start with 2D because it's simpler to visualize and because once
-    the scalar math presented in this post is worked out, it
-    translates well to 3D and vectors math. In order to develop a
-    visual intuition for the equations I played with those in
-    <a href="http://wolframalpha.com">Wolfram Alpha</a>
-    and <a href="https://www.desmos.com/calculator">similar</a> sites.
-  </p>
-  <p>
-    For a gentle introduction to the topic of ray tracing, I
-    recommend <a href="https://www.youtube.com/watch?v=frLwRLS_ZR0">Disney's
-    short Practical Guide to Path Tracing</a> and
+    For a gentle introduction to the topic of ray tracing, I recommend
+    watching <a href="https://www.youtube.com/watch?v=frLwRLS_ZR0">Disney's
+    short Practical Guide to Path Tracing</a> and the
     the <a href="https://www.youtube.com/watch?v=hWANIFgssWg">Painting
     With Light</a> conference talk.
   </p> 
@@ -54,57 +58,53 @@ date: 2018-09-01 12:00 UTC
   <h3>Circle centered around origin</h3>
   <p>
     A circle may be defined in terms of the position of its center and
-    its radius. To start off simple, we assume the circle is centered
-    around the origin of \((0,0)\). In this case, the circle equation,
-    or circle on standard form, is:
+    its radius. To start simple, assume the circle is centered around
+    the origin at \((0,0)\). In this case, the circle equation, or
+    circle on standard form as it's also called, is:
 
     $$x^2 + y^2 = r^2$$
 
-    The way to read this equation is that for any \((x,y)\), if \(x^2
-    + y^2 = r^2\) holds true, then the point is on the circle,
+    The way to read the circle equation is that for any \((x,y)\), if
+    \(x^2 + y^2 = r^2\) holds true, then the point is on the circle,
     otherwise it's not. The circle equation follows from the
     Pythagorean theorem, or distance formula. In order to visualize
     the relationship between the circle equation and the Pythagorean
-    theorem, consider a point \((x,y)\) on the circle:
+    theorem, consider a point \((x,y)\) on the circle shown below:
   </p>
   <p>
     <img src="/content/circle-equation.gif" width="350px"/>
   </p>
   <p>
     For this right-sided triangle, \(\sqrt{x^2 + y^2} = r\) holds
-    true. By squaring both sides we can get rid of the square root and
-    are back at the circle equation.
+    true. By squaring both sides we get rid of the square root and end
+    up with the circle equation.
   </p>
 
   <h3>Circle offset from origin</h3>
   <p>
     Instead of a circle centered at \((0,0)\), it may be centered at
-    any point \((c_x, c_y)\). Incorporating this offset from origin
-    into the circle equation:
-
+    any point \((c_x, c_y)\):
+    
     $$\begin{eqnarray*}
     (x - c_x)^2 + (y - c_y)^2 = r^2 & & \textrm{or} & & \sqrt{(x - c_x)^2 + (y - c_y)^2} = r
     \end{eqnarray*}$$
     
-    As an example, imagine the center being to the right and up
-    compared to origin. To counter the offset being subtracted from
-    the \(x\) and \(y\) component, for the circle equation to remain
+    As an example, imagine the circle's center being to the right and
+    up with respect to origin. For the circle equation to still hold
     true, \((x,y)\) points on the circle must have greater values of
-    \(x\) and \(y\) than with the circle centered at \((0,0)\). This
-    has the effect of translating the points on the circle to the
-    right and up.
+    \(x\) and \(y\) than when the circle was centered at origin.
   </p>
   <p>
-    To keep the examples below short, they assume the circle is
-    centered at \((0,0)\), removing the \(c_x\) and \(c_y\) terms from
-    the circle equation.
+    To keep the following examples short, they assume the circle is
+    centered at \((0,0)\) such that \(c_x\) and \(c_y\) from the
+    circle equation may be ignored.
   </p>
 
   <h3>Circle from point on circle</h3>
   <p>
-    Circle equation in hand, if we're provided with a point \((x,y) =
-    (-3,4)\) on a circle, and we assume the circle is centered around
-    the origin, we can determine the circle equation:
+    Circle equation in hand, if provided with a point \((x,y) =
+    (-3,4)\) on a circle, and assuming the circle is centered around
+    origin, the circle equation can be determined:
 
     $$\begin{eqnarray*}
     x^2 + y^2 = r^2\\
@@ -113,16 +113,16 @@ date: 2018-09-01 12:00 UTC
     5 = r
     \end{eqnarray*}$$
 
-    meaning that this circle's equation becomes
+    meaning this circle's equation is
     
     $$x^2 + y^2 = 5^2$$
   </p>
 
   <h3>Points inside, on, or outside circle</h3>
   <p>
-    We can now check if a point is on, inside, or outside that circle
-    by comparing the distance of the circle's center to the point with
-    the radius of the circle:
+    Comparing the distance of a point to the center of a circle
+    defined by \(x^2 + y^2 = 5^2\), any point may be determined as
+    either inside, outside, or on the circle:
 
     $$\begin{eqnarray*}
     (2,-3): \sqrt{2^2 + (-3)^2} = \sqrt{13} \approx 3.6 & & \textrm{\{inside circle\}}\\
@@ -131,97 +131,94 @@ date: 2018-09-01 12:00 UTC
     \end{eqnarray*}$$
   </p>
   <p>
-    For additional commentary on the calculations,
-    see <a href="https://www.youtube.com/watch?v=HjN9TTRrQiA">this</a>
-    video.</p>
+    For additional explanation, refer
+    to <a href="https://www.youtube.com/watch?v=HjN9TTRrQiA">this</a>
+    video.
+  </p>
 
   <h3>Line and circle intersection</h3>
   <p>
-    Now we're closing in on our goal for 2D. Let's assume we have a
-    circle \(x^2 + y^2 = r^2\) and a line \(y = ax + b\), both on
-    standard forms (if not, we'd need to make them into standard
-    forms). We want to determine if the line intersects the circle,
-    and if so at which \((x,y)\) points. Three possible intersection
-    scenarios are possible:
+    Assuming a circle \(x^2 + y^2 = r^2\) and a line \(y = ax + b\),
+    both on their standard form (if not, we first must bring those on
+    standard form), three possible intersection scenarios exists:
   </p>
   <p>
     <img src="/content/circle-line-intersection-options.gif"/>
   </p>
   <p>
-    Let's go with the circle \(x^2 + y^2 = 3^2\) and the line \(y = -x
-    + 3\) as an example. If the two intersect, it implies that for
-    some same value of \(x\) and for some same value of \(y\) plugged
-    into both equations they're equal. It doesn't imply that the left
-    side of one equation equals the right side of the other, but that
-    the left and right side of each equation by itself is equal.
+    As an example, let's go with the circle \(x^2 + y^2 = 3^2\) and
+    the line \(y = -x + 3\). If the two intersect, it implies that for
+    some same value of \(x\) and for some same value of \(y\),
+    plugging those values into both equations, they each hold true. It
+    doesn't imply that the left side of one equation equals the right
+    side of the other, but that the left and right side of each
+    equation by itself holds true.
   </p>
   <p>
-    If at an intersection, the value of \(x\) and the value of \(y\)
-    in the two equation are the same, we can plug either \(y = -x +
-    3\) or \(x = -y + 3\) of the line into the circle
-    equation. Plugging in \(y\) results in
+    At a point of intersection, the value of \(x\) and the value of
+    \(y\) in the two equation are the same. Thus, either \(y = -x +
+    3\) or \(x = -y + 3\) of the line equation may be plugged into the
+    circle equation. Plugging in \(y\) results in
 
     $$x^2 + (-x + 3)^2 = 3^2$$
 
     The goal of plugging one equation into the other is that instead
-    of one circle equation with two variables (\(x\) and \(y\)), we
-    now have one quadratic equation with one variable
-    (\(x\)). Expanding \(y = -x + 3\) we get:
+    of one circle equation with two variables (\(x\) and \(y\)), out
+    comes one quadratic equation with one variable (\(x\)):
 
     $$\begin{eqnarray*}
     x^2 + (-x + 3)(-x + 3) = 3^2 & & \textrm{\{expand \(y = -x + 3\)\}}\\
-    x^2 + x^2 - 3x - 3x + 9 = 9 & & \\
+    x^2 + x^2 - 3x - 3x + 9 = 9 & & \textrm{\{multiply out parenthesis\}}\\
     x^2 + x^2 - 3x - 3x = 0 & & \textrm{\{subtract 9 from both sides\}}\\
     2x^2 - 6x = 0 & & \textrm{\{simplify\}}
     \end{eqnarray*}$$
 
     Solving a quadratic equation of the standard form \(ax^2 + bx + c
-    = 0\) for \(x\) implies that we're after the values of \(x\) for
-    which \(y = 0\), or where the quadratic equation intersects the
-    \(x\) axis. For an equation of this form, we have a existing
-    standard tool to algebraically solve for \(x\).
+    = 0\) for \(x\) means determining values of \(x\) for which \(y =
+    0\). In other words, determining where the quadratic equation
+    intersects the \(x\) axis.
   </p>
   <p>
     Depicted graphically, the line, circle, and quadratic equations
-    looks like this. Visually, the solutions to the quadratic
-    equation is \(x_1 = 0\) and \(x_2 = 3\):
+    are shown below. Visually, it's easy to confirm that the solutions
+    to the quadratic equation are \(x_1 = 0\) and \(x_2 = 3\):
   </p>
   <p>
     <img src="/content/circle-line-intersection-example.gif" width="550px"/>
   </p>
   <p>
     Solving algebraically, the standard method involves plugging the
-    coefficients of \(ax^2 + bx + c\), that is \(a\), \(b\), and \(c\)
-    into the equation below, with \(d\) being the discriminant:
+    coefficients of \(ax^2 + bx + c\), that is \(a\), \(b\), and
+    \(c\), into the equation below, with \(d\) being the discriminant:
 
     $$\begin{eqnarray*}
     x = \dfrac{-b \pm \sqrt{d}}{2a} \textrm{, where \(d = b^2 - 4ac\)}
     \end{eqnarray*}$$
 
-    The discriminant tell us which of the three possible outcomes from
-    above to expect. If \(d = 0\), then one solution, or intersection,
-    exist as the square root term disappears from the equation. If \(d
-    > 0\), two solutions, or intersections, exist as we're both adding
-    and subtracting the square root term. If \(d < 0\), no solution,
-    or intersection, exist as we can't take the square root of a
-    negative number:
+    The discriminant signals which of the three intersection scenarios
+    to expect. If \(d = 0\), then one solution, or intersection, exist
+    as the square root term disappears from the equation. If \(d >
+    0\), two solutions, or intersections, exist as the square root
+    term must be both added and subtracted. If \(d < 0\), no solution,
+    or intersection, exist as calculating the square root of a
+    negative number is undefined:
   </p>				  
   <p>
     $$d = (-6)^2 - 4(2)(0) = 36$$
 
     Calculating the discriminant on its own, without plugging it into
-    the larger equation, is useful only if we want to know the number
-    of solutions in advance. For the actual solutions, the points of
-    intersection, we require the larger equation:
+    the larger equation, is useful only as a means to determine the
+    number of solutions. For the actual solutions, the points of
+    intersection, the larger equation is needed:
 
     $$\begin{eqnarray*}    
     x_1 = \dfrac{-(-6) + \sqrt{36}}{2(2)} = \dfrac{6 + 6}{4} = \dfrac{12}{4} = 3\\
     x_2 = \dfrac{-(-6) - \sqrt{36}}{2(2)} = \dfrac{6 - 6}{4} = \dfrac{0}{4} = 0
     \end{eqnarray*}$$
 
-    Finally, we can plug in the two values of \(x\) into either
-    equation to get the corresponding value of \(y\). We pick the line
-    equation because it's the simplest:
+    Finally, plugging the two values of \(x\) into either equation
+    gets us the corresponding values of \(y\). The line equation is
+    the simplest of the two:
 
     $$\begin{eqnarray*}
     y_1 = -x_1 + 3 = -0 + 3 = 3\\
@@ -231,22 +228,23 @@ date: 2018-09-01 12:00 UTC
     and so the points of intersection of the line and the circle are
     at \((0,3)\) and \((3,0)\).
   </p>
-
   <p>
-    For an example with additional commentary, calculating the
-    discriminant and points of intersection,
-    see <a href="https://www.youtube.com/watch?v=lGZNaoHGsM8">this</a>
+    For additional explanation on calculating the discriminant and
+    points of intersection, refer
+    to <a href="https://www.youtube.com/watch?v=lGZNaoHGsM8">this</a>
     and <a href="https://www.youtube.com/watch?v=OuAhkinZVsU">this</a>
     video.
   </p>
 
   <h3>Summary</h3>
   <p>
-    What we accomplished in this post may not seem like much. After
-    all, most high school student are taught these techniques. The
-    true power of these techniques become apparent in the next post
-    where they're generalized from 2D to 3D (to any dimension,
-    actually) and from scalars to vectors. 3D and vectors are what we
-    after for ray tracer.
+    At first sight, the math introduced in this post may not seem all
+    that relevant or important. After all, most high school students
+    are taught these subjects. The true power, however, become
+    apparent in
+    the <a href="/blog/2018/09/03/ray-tracing-computing-ray-sphere-intersections">next</a>
+    post where the techniques are generalized from 2D to 3D (to any
+    dimension, actually) and from scalars to vectors. 3D and vectors
+    are what's needed for ray tracing.
   </p>
 </div>
