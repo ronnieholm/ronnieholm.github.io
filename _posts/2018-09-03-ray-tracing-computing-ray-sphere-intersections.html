@@ -4,29 +4,33 @@ title: "Ray tracing: Computing ray-sphere intersections"
 date: 2018-09-03 12:00 UTC
 ---
 
-<div id="post">  
+<div id="post">
+  <p>
+    Part 1: <a href="/blog/2018/09/01/ray-tracing-computing-ray-circle-intersections">Ray tracing: Computing ray-circle intersections</a><br>
+    Part 2: Ray tracing: Computing ray-circle intersections
+  </p> 
+  
   <p>
     Whereas
     the <a href="/blog/2018/09/01/ray-tracing-computing-ray-circle-intersections">previous</a>
-    post was about ray-circle intersections with scalars, this one is
-    about ray-sphere intersections with vectors. We'll extend the
-    circle standard equation to a sphere, and switch to vector
-    notation for defining both sphere and line. Using vectors, we can
-    generalize and perform intersection calculations for any
-    dimension. In a sense, a vector hides details about its scalar
-    components, letting us operate on the vector as a whole.
+    post was about 2D ray-circle intersections with scalars, this one
+    is about 3D ray-sphere intersections with vectors. We'll extend
+    the circle standard equation to a sphere, and switch from scalar
+    to vector notation for defining both line and sphere. With
+    vectors, we can generalize and perform intersection calculations
+    for any dimension in a succinct manner.
   </p>
 
   <h3>Sphere offset from origin</h3>
   <p>
-    Except for the added dimension, the equation of a sphere centered
-    at a point \(c\) is identical to that of the circle. Its equation
-    still follows from the Pythagorean theorem:
+    Except for the added third dimension, the equation of a sphere
+    centered at a point \(c\) is identical to that of the circle. Its
+    equation still follows from the Pythagorean theorem:
 
     $$(x - c_x)^2 + (y - c_y)^2 + (z - c_z)^2 = r^2$$
 
-    If the sphere is centered at the origin the \(c\) terms disappears
-    and the equation becomes
+    With the sphere is centered at the origin the \(c\) terms
+    disappears and the equation becomes
 
     $$x^2 + b^2 + c^2 = r^2$$
   </p>
@@ -34,22 +38,23 @@ date: 2018-09-03 12:00 UTC
   <h3>Vector standard form of a line</h3>
   <p>
     Defining a line in 3D isn't as straightforward as in 2D. We don't
-    something similar to \(y = ax + b\). In 2D, the line equation
-    expresses the fact that a change in one dimension causes a change
-    in one other. In 3D, a change in one dimension causes a change in
-    two others which is hard to express in a similar form.
+    have anything similar to \(y = ax + b\). In 2D, the line equation
+    expresses that a change in one dimension can cause a change in at
+    most one other dimension. In 3D, a change in one dimension can
+    cause a change in at up to two other dimensions, which makes it
+    hard to express in a similar form.
   </p>
   <p>
-    Instead, in 3D a line is expressed as a starting position and an
+    Instead, a line is 3D is expressed as a starting position and an
     amount of movement in some direction. Statements about position
-    and direction are best expressed mathematically with vectors and
-    operations on vectors:
+    and direction are best expressed with vectors and operations on
+    vectors:
 
     $$\vec p = \vec{p_0} + t\vec{p_1}$$
 
     Plugging in different values of \(t\), for time, result in a line
-    described by the same origin but a position vector pointing at a
-    different point on the line (we consider a position vector and a
+    described by the same origin but a position vector pointing at
+    different points on the line (we consider a position vector and a
     point synonymous). Different values of \(t\) has the effect of
     scaling the position vector along the line and thus by varying
     \(t\) we can get to any position on the line.
@@ -57,8 +62,8 @@ date: 2018-09-03 12:00 UTC
   <p>
     In ray tracing we're only interested in the half-line where \(t >
     0\). That half-line represents a ray traveling from the camera
-    into the scene, and that's why we call it a ray instead of a
-    line. \(t < 0\) would describe a ray traveling out back of the
+    into the scene, and that's why we refer to it as a ray instead of
+    a line. \(t < 0\) would describe a ray traveling out back of the
     camera.
   </p>
   <p>
@@ -74,19 +79,19 @@ date: 2018-09-03 12:00 UTC
     \end{eqnarray*}$$
     
     For any scalar \(t\) we get any position vector on the line. For
-    ray-sphere intersections, we're after the some values of \(t\)
+    ray-sphere intersections, we're after some values of \(t\)
     describing points of intersection. Once we have those values, we
     plug those into the parametric equation of a line to get the
-    \((x,y,z)\) coordinate.
+    \((x,y,z)\) coordinate of intersection.
   </p>
   
-  <h3>Line and sphere intersection, scalar edition</h3>
+  <h3>Line and sphere intersections, scalar edition</h3>
   <p>
     As an example, suppose we have the parametric equation of the line
     \((10 + 2t, 5 + t, 2)\) and the equation of a sphere in standard
     form \(x^2 + y^2 + z^2 = 9\). As with 2D intersection, we're after
     values for \(x\), \(y\), and \(z\) that when plugged into both
-    equations make them equal. That implies we can plug in what we
+    equations make them equal. This implies we can plug in what we
     know about the unknowns of one equation into the other:
 
     $$\begin{eqnarray*}
@@ -94,13 +99,12 @@ date: 2018-09-03 12:00 UTC
     (10 + 2t)(10 + 2t) + (5 + t)(5 + t) + 4 = 9 & & \textrm{\{expand squares\}}\\
     100 + 20t + 20t + 4t^2 + 25 + 5t + 5t + t^2 + 4 = 9 & & \textrm{\{expand parenthesis\}}\\
     5t^2 + 50t + 129 = 9 & & \textrm{\{simplify and rearrange in \(t^2\), \(t\), constants order\}}\\
-    5t^2 + 50t + 120 = 0 & & \textrm{\{move 9 to left side to arrive at the standard form of a quadratic equation\}}
+    5t^2 + 50t + 120 = 0 & & \textrm{\{move 9 to left side to arrive at standard form of quadratic equation\}}
     \end{eqnarray*}$$
 
     We went from one sphere equation with three unknowns, \(x\),
     \(y\), and \(z\) and ended up with a quadratic equation with one
-    unknown, namely \(t\). Solving for \(t\) means using the same
-    method
+    unknown \(t\). Solving for \(t\) means applying the same method
     as <a href="/blog/2018/09/01/ray-tracing-computing-ray-circle-intersections">previous</a>:
 
     $$\begin{eqnarray*}
@@ -110,8 +114,8 @@ date: 2018-09-03 12:00 UTC
     t_2 = \dfrac{-50 - \sqrt{100}}{2(5)} = \dfrac{-50 - 10}{10} = \dfrac{-60}{10} = -6\\
     \end{eqnarray*}$$     
 
-    Plugging these values into the parametric vector equation, we get
-    the points of line-sphere intersection:
+    Plugging these values of \(t\) into the parametric vector
+    equation, we get the points of line-sphere intersection:
 
     $$\begin{eqnarray*}
     \vec{p_1} = (x_1,y_1,z_1) = (10 + 2(-4) = 2, 5+ (-4) = 1, 2) = (2,1,2)\\
@@ -119,56 +123,62 @@ date: 2018-09-03 12:00 UTC
     \end{eqnarray*}$$
   </p>
   <p>
-    For a commentary on line-sphere intersection,
-    see <a href="https://www.youtube.com/watch?v=r2lw132iV-0">here</a>.
+    For additional explanation on calculating line-sphere
+    intersection, refer
+    to <a href="https://www.youtube.com/watch?v=r2lw132iV-0">this</a>
+    video.
   </p>
 
-  <h3>Line and sphere intersection, vector edition</h3>
+  <h3>Line and sphere intersections, vector edition</h3>
   <p>
-    We already established the standard vector equation for a
-    line. For a sphere centered at \(c\) with radius \(r\), its
-    corresponding standard vector equation is
+    Above we established the standard vector equation for a line. For
+    a sphere centered at \(c\) with radius \(r\), its corresponding
+    standard vector equation is
 
     $$(\vec p - \vec c) \cdot (\vec p - \vec c) = r^2$$
 
-    \(\vec p\) is position vectors on the sphere and \(\cdot\) is the
-    dot product of two vectors. The term product in general refers to
-    the result of a multiplication. Unlike the single definition for
-    the product of scalars, vectors have two kinds of product: dot
-    product and cross product.
+    \(\vec p\) represents position vectors on the sphere and \(\cdot\)
+    is the <a href="https://en.wikipedia.org/wiki/Dot_product">dot
+    product</a> of two vectors. The term product in general refers to
+    the result of a multiplication. But unlike the single definition
+    of the product of scalars, vectors have two definitions of
+    product: dot product and cross product. We're only using the dot
+    product, defined as the sum of the products of the corresponding
+    entries. The dot product of two vectors is a scalar, not another
+    vector.
   </p>
   <p>
-    In the equations which follow, scalar product or dot product may
-    be inferred from the context. We don't need the \(\cdot\) symbol,
-    but it's convention. Like operator overloading in programming, if
-    both operands are vectors, it means dot product, if one operand is
-    a vector, it means scaling by that scalar, if both operands are
-    scalars, it means regular multiplication.
+    In the equations which follow, the use of scalar product or dot
+    product can be inferred based on whether both operands are scalars
+    or vectors. Strictly speaking, we don't need the \(\cdot\) symbol,
+    but it's convention.
   </p>
   <p>
-    At first sight, the sphere vector equation look nothing like its
-    scalar counterpart. But note the definition of the dot product:
+    At first sight, the sphere standard vector equation looks nothing
+    like its scalar counterpart. But note the definition of the dot
+    product:
 
     $$\vec u \cdot \vec v = {u_x}{v_x} + {u_y}{v_y} + {u_z}{v_z} = r^2$$    
 
-    With this definition, if \(\vec{u} = \vec{v}\), which is the case
-    for vector sphere definition, expanding the dot product turns into
-    the original standard equation for a sphere. So while it may look
-    mysterious, defining the sphere in terms of the dot product is
-    correct:
+    With this definition, if \(\vec{u} = \vec{v}\), as is the case for
+    the vector sphere definition, expanding the dot product turns it
+    into the original standard equation of a sphere. So while at first
+    sight the dot product and sphere seems unrelated, defining the
+    sphere in terms of the dot product is valid:
 
     $$\vec u \cdot \vec u = {u_x}{u_x} + {u_y}{u_y} + {u_z}{u_z} =
     u_{x}^2 + u_{y}^2 + u_{z}^2 = x^2 + y^2 + z^2 = r^2$$
     
-    In a similar way to how we plugged in the line equation into the
-    equation of the sphere above, we can replace \(\vec p\) by the
-    vector equation of the line because where they're the same must be
-    where the line intersects with the sphere:
+    Similar as with scalars above, where we plugged in the line
+    equation into the equation of the sphere, we can replace \(\vec
+    p\) in the sphere equation by the vector equation of the line
+    (don't be confused by the use of \(\vec p\) in both the line and
+    sphere definitions. Those are different \(\vec p\)s):
 
     $$(\vec{p_0} + \vec{p_1}t - \vec c) \cdot (\vec{p_0} + \vec{p_1}t - \vec c) - r^2 = 0$$
 
     Through rewriting and simplification, the goal is to turn this
-    complicated looking equation into a quadratic one and solve it for
+    complicated looking equation into a quadratic one and solve for
     \(t\). For an actual line and sphere, \(\vec{p_0}\),
     \(\vec{p_1}\), \(\vec c\), and \(r\) are known quantities, leaving
     \(t\) as the only unknown.
@@ -194,7 +204,8 @@ date: 2018-09-03 12:00 UTC
     t^2(\vec{p_1} \cdot \vec{p_1}) + 2t \vec{p_1} \cdot (\vec{p_0} - \vec c) + (\vec{p_0} + \vec c)^2 - r^2 = 0 & & \textrm{\{apply binomial square law in constants part: \(a^2 + b^2 - 2ab = (a - b)^2\)\}}\\       
     \end{eqnarray*}$$     
 
-    or in terms of the standard form of a quadratic equation: \(at^2 + bt + c\)
+    Or in terms of the standard form of a quadratic equation: \(at^2 +
+    bt + c\)
 
     \begin{eqnarray*}
     a = \vec{p_1} \cdot \vec{p_1}\\
@@ -202,22 +213,21 @@ date: 2018-09-03 12:00 UTC
     c = (\vec{p_0} + \vec c)^2 - r^2
     \end{eqnarray*}
     
-    Note that calculating the dot product of two vectors results in a
-    scalar, not a new vector. So even though the above equation may
-    look complicated, once we plug in known vectors and simplify,
-    we're left with a quadratic equation of the form \(at^2 + bt +
-    c\).
+    Because the dot product of two vectors results in a scalar, once
+    we plug in the known elements (\(\vec{p_0}\), \(\vec{p_1}\),
+    \(\vec c\), and \(r\)) and simplify, we're left with a quadratic
+    equation of the form \(at^2 + bt + c\).
   </p>
   <p>
-    I struggled quite a bit with the simplifications because I don't
-    have all possible rules memorized. For that
-    case <a href="https://www.symbolab.com/solver/simplify-calculator/simplify%20p%2Bp%20%E2%88%92c%E2%88%92c">Symbollab.com</a>
-    is helpful in that given an equation, it can identity the rule by
-    name.
+    Carrying out the simplification steps requires the memorization of
+    rules. Given an equation, a site such as
+    <a href="https://www.symbolab.com/solver/simplify-calculator/simplify%20p%2Bp%20%E2%88%92c%E2%88%92c">Symbollab.com</a>
+    can help identity the rule by name and carry out the
+    simplification.
   </p>
   <p>
-    Continuing the scalar example above in which \(\vec{p_0} =
-    (10,5,2)\), \(\vec{p_1} = (2,1,0)\), \(\vec c = (0,0,0)\), and
+    Continuing with the scalar example from above in which \(\vec{p_0}
+    = (10,5,2)\), \(\vec{p_1} = (2,1,0)\), \(\vec c = (0,0,0)\), and
     \(r^2 = 9\):
 
     $$\begin{eqnarray*}
@@ -229,16 +239,18 @@ date: 2018-09-03 12:00 UTC
     5t^2 + 50t + 120 = 0
     \end{eqnarray*}$$
 
-    which shows that the scalar and vector editions of ray-sphere
-    intersection yield identical results.
+    which shows that the scalar and vector editions yield identical
+    results.
   </p>
   <p>
-    For a commentary of the vector and parametric equations of a line,
-    see <a href="https://www.youtube.com/watch?v=PyPp4QvQY3Q">here</a>. Similar,
-    see <a href="https://betterexplained.com/articles/vector-calculus-understanding-the-dot-product">here</a>
-    for intuitive explanation of the dot product. For a brush-up basic
-    vector algebra,
-    see <a href="https://www.youtube.com/watch?v=Wosggu8TPhM">here</a>.
+    For additional explanation of the vector and parametric equations
+    of a line, refer
+    to <a href="https://www.youtube.com/watch?v=PyPp4QvQY3Q">this</a>
+    video. For an intuitive explanation of the dot product, refer
+    to <a href="https://betterexplained.com/articles/vector-calculus-understanding-the-dot-product">this</a>
+    one. Lastly, for a brush-up on basic vector algebra,
+    refer <a href="https://www.youtube.com/watch?v=Wosggu8TPhM">this</a>
+    video.
   </p>
     
   <h3>Summary</h3>
@@ -248,14 +260,14 @@ date: 2018-09-03 12:00 UTC
     \(y\), and \(z\) components of a vector as a single unit, making
     equations shorter and clearer. Similarly, defining and applying
     vector operations in code makes the code shorter and less
-    error-phone. Thinking of a vector like this isn't much different
+    error-phone. Working with vectors like this isn't much different
     than in object oriented programming when we create a class to
-    group related data and operations on those data.
+    group related data and operations.
   </p>
   <p>
-    With the equation derived in the vector edition section, we have
-    the mathematical tools required to create a first ray tracer; one
-    that shoots rays from the camera, through each pixel, and into the
-    scene, coloring the pixel on ray-sphere intersections.
+    With the derived line-sphere vector intersection equation, we now
+    have the mathematical tool required to create a first ray tracer;
+    one that shoots rays from the camera, through each pixel, and into
+    the scene, coloring pixels on ray-sphere intersections[5~.
   </p>
 </div>
