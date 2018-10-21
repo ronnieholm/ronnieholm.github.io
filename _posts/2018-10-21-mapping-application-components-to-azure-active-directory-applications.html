@@ -6,10 +6,10 @@ date: 2018-10-21 12:00 UTC
 
 <div id="post">
 
-<p>Developing applications which must authorize against <a
-href="https://docs.microsoft.com/en-us/azure/active-directory">Azure
+<p>Developing applications which must authorize
+against <a href="https://docs.microsoft.com/en-us/azure/active-directory">Azure
 Active Directory</a>, one point of confusion seems to be the number of
-app registrations required. From blog posts and the Azure portal's App
+app registrations required. From blog posts and the Azure Portal's App
 registration page, one might be misled into creating fewer app
 registrations, which may technically work, but which doesn't map well
 to the architecture and how it's likely to evolve.</p>
@@ -26,7 +26,7 @@ application type. The mapping of iOS app to "Native" and the Web API
 service to "Web app / API" is straightforward, but what about the
 Angular app?</p>
 
-<p>Most likely in the name of brevity, blog posts tends to re-use the
+<p>Maybe likely in the name of brevity, blog posts tend to re-use the
 app registration for the Web API for the Angular client. Reusing an
 app registration is at best a shortcut to avoid a third app
 registration and at worst a potential security risk. In all but the
@@ -47,16 +47,16 @@ ASP.NET app with occasional JavaScript calls.</p></li>
 
 <li><p>An Angular app may be targeting multiple services: our
 services, Graph, Delve, SharePoint, Exchange, Azure endpoints. It's
-not tied to any particular service, except for the convenience of not
-creating a separate app registration for it. App registrations are
-free in terms of monetary cost and close to free in terms of cognitive
+not tied to one service, except for the convenience of not creating a
+separate app registration for it. App registrations are free in terms
+of monetary cost and close to free in terms of cognitive
 overhead. Frugality doesn't apply to app registrations.</p></li>
 
 <li><p>App registration metadata differ between an Angular app and a
 REST service. Maybe not in a significant way at first, but it's only a
-matter of time. Then we'd either have to split the registration into
-two, maybe forcing users to re-consent, or have the registration
-contain the union of the settings of the two.</p></li>
+matter of time. Then we'd either must split the registration into two,
+maybe forcing users to re-consent, or have the registration contain
+the union of the settings of the two.</p></li>
 
 <li><p>By design, the Angular app requires
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-implicit-grant-flow">implicit
@@ -64,9 +64,8 @@ grant type</a> flow whereas the Web API doesn't. App registrations
 have implicit grant flow disabled by default. The Angular app makes
 use of reply URLs whereas the Web API doesn't, and the Angular app
 likely accesses a different set of Web APIs than a specific
-service. Thus, a number of settings for an Angular app are specific to
-it, meaning it should be recorded in its own app
-registration.</p></li>
+service. Thus, settings for an Angular app are specific to it, meaning
+it should have its own app registration.</p></li>
 
 </ul>
 
@@ -83,7 +82,7 @@ To quote
 Microsoft's <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/azure-ad-endpoint-comparison">comparison
 of v1.0 and v2.0 endpoints</a>:
 
-<quote>
+<blockquote>
 You can use the v2.0 endpoint
 [with <a href="https://github.com/AzureAD/microsoft-authentication-library-for-js">MSAL.js</a>,
 not ADAL.js]
@@ -93,10 +92,10 @@ can receive tokens only from an application that has the same
 Application ID. <b>You cannot access a Web API from a client that has
 a different Application ID</b>. The client won't be able to request or
 obtain permissions to your Web API.
-</quote>
+</blockquote>
 
 <p>This limitation in inherent in Microsoft OAuth2 implementation, not
-the standard itself. We have the iOS application with it own app
+the standard itself. We have the iOS application with its app
 registration, and hence application id, not to mention the Angular
 application.</p>
 
