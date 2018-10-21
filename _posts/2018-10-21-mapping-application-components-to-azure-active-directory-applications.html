@@ -6,18 +6,25 @@ date: 2018-10-21 12:00 UTC
 
 <div id="post">
 
-<p>Developing applications which must authorize
+<p>Developing a real-world application with multiple components which
+must all authorize
 against <a href="https://docs.microsoft.com/en-us/azure/active-directory">Azure
-Active Directory</a>, one point of confusion seems to be the number of
-app registrations required. From blog posts and the Azure Portal's App
-registration page, one might be misled into creating fewer app
-registrations, which may technically work, but which doesn't map well
-to the architecture and how it's likely to evolve.</p>
+Active Directory</a>, a common point of confusion is the number of app
+registrations needed. Blog posts tend to focus on simple scenarios and
+the guidance provided on the Azure Portal's App registration page
+isn't exhaustive. It's easy to err on the side of registering too few
+apps, which may technically work in the beginning, but doesn't map
+well to the components and how they're likely to evolve.</p>
 
-<p>As a working example, consider the use case of a native iOS
-application which must make authenticated calls to an ASP.NET Core Web
-API REST service. Add to the mix an Angular app also required to make
-authorized calls the Web API.</p>
+<p>This post attempts to provide common points of reasoning to aid in
+determining when to create an app registration.</p>
+
+<h3>Real-world use case</h3>
+
+<p>As a working example, consider the case of a native iOS application
+which must make authenticated calls to an ASP.NET Core Web API. Add to
+the mix an Angular app also required to make authorized calls the Web
+API.</p>
 
 <p>With these three components, the iOS app, the REST service, and the
 Android app, inside the Azure portal, creating a new App registration,
@@ -26,14 +33,14 @@ application type. The mapping of iOS app to "Native" and the Web API
 service to "Web app / API" is straightforward, but what about the
 Angular app?</p>
 
+<h3>Points of reasoning</h3>
+
 <p>Maybe likely in the name of brevity, blog posts tend to re-use the
 app registration for the Web API for the Angular client. Reusing an
 app registration is at best a shortcut to avoid a third app
 registration and at worst a potential security risk. In all but the
-simplest architectures, the Angular app should have its own app
-registrations.</p>
-
-<p>The main reasons include:</p>
+simplest cases, the Angular app should have its own app
+registrations:</p>
 
 <ul>
 
@@ -98,6 +105,8 @@ obtain permissions to your Web API.
 the standard itself. We have the iOS application with its app
 registration, and hence application id, not to mention the Angular
 application.</p>
+
+<h3>Summary</h3>
 
 <p>With the use case we set out with, for the reasons above we should
 end up with three app registration. This ensure the optimal mapping
