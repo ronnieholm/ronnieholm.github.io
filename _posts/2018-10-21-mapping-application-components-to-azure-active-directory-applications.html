@@ -21,73 +21,89 @@ determining when to create an app registration.</p>
 
 <h3>Real-world use case</h3>
 
-<p>As a working example, consider the case of a native iOS application
-which must make authenticated calls to an ASP.NET Core Web API. Add to
-the mix an Angular app also required to make authorized calls the Web
-API.</p>
+<p>As a example, consider the following application implemented as a
+distributed set of components: a native iOS application which must
+make authenticated calls to an ASP.NET Core Web API. Add to the mix an
+Angular app also required to make authorized calls the Web API.</p>
 
-<p>With these three components, the iOS app, the REST service, and the
-Android app, inside the Azure portal, creating a new App registration,
-we have a choice between "Web app / API" or "Native" for the
-application type. The mapping of iOS app to "Native" and the Web API
-service to "Web app / API" is straightforward, but what about the
-Angular app?</p>
+<p>Inside the Azure portal, creating a new App registration, we have a
+choice between "Web app / API" or "Native" for the application
+type. Within the <a href="https://tools.ietf.org/html/rfc6749">OAuth2
+specification</a>, application types are
+called <a href="https://tools.ietf.org/html/rfc6749#section-2.1">client
+profiles</a>, and there's three options: web application,
+user-agent-based application (a fancy term for a browser), and native
+application. The Azure Portal merges the user-agent-based application
+with "Web app / API", and it's implicitly selected by flipping the
+manifest's <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/reference-app-manifest">oauth2AllowImplicitFlow</a>
+setting to true.
+</p>
+
+<p>With these definitions, it's clear that iOS app maps to "Native"
+and Web API to "Web app / API", but what about the Angular app? Well,
+it's a also a "Web app / API" but can we fold it under the Web API
+registration?</p>
 
 <h3>Points of reasoning</h3>
 
-<p>Maybe likely in the name of brevity, blog posts tend to re-use the
-app registration for the Web API for the Angular client. Reusing an
-app registration is at best a shortcut to avoid a third app
+<p>Perhaps in the name of brevity blog posts often re-use the app
+registration for the Web API for the Angular client. But reusing an
+app registration is at best a shortcut to avoid an additional app
 registration and at worst a potential security risk. In all but the
-simplest cases, the Angular app should have its own app
-registrations:</p>
+simplest use cases, the Angular app should have its own app
+registration:</p>
 
 <ul>
 
-<li><p>Logically the frontend and backend are distinct parts of a
-system, created with distinct technologies and with distinct
-authorization needs. The two are deployed independently, to different
-Azure app services, and may reside in different source code
-repository. Reusing the app registration may be a mental leftover from
-when frontend and backend are intermingled in a postback-driven
-ASP.NET app with occasional JavaScript calls.</p></li>
+<li><p>Logically frontend and backend are distinct components of the
+application, created with distinct technologies and with distinct
+authorization needs. The two are likely deployed to different Azure
+app service instance, and may reside in different source code
+repositories. Making the two share an app registration may be
+reminiscent of when frontend and backend were intermingled in a
+postback-driven app with occasional JavaScript calls.</p></li>
 
-<li><p>An Angular app may be targeting multiple services: our
-services, Graph, Delve, SharePoint, Exchange, Azure endpoints. It's
-not tied to one service, except for the convenience of not creating a
-separate app registration for it. App registrations are free in terms
-of monetary cost and close to free in terms of cognitive
-overhead. Frugality doesn't apply to app registrations.</p></li>
+<li><p>An Angular app may be targeting multiple endpoints: our Web
+APIs, Graph, Delve, SharePoint, Exchange. It's not tied to one
+service, except perhaps for the convenience of not having to create an
+additional app registration. But with the zero monetary cost, there's
+no need to be frugal about app registration, though they might
+contribute a slight cognitive overhead.</p></li>
 
 <li><p>App registration metadata differ between an Angular app and a
-REST service. Maybe not in a significant way at first, but it's only a
-matter of time. Then we'd either must split the registration into two,
-maybe forcing users to re-consent, or have the registration contain
-the union of the settings of the two.</p></li>
+Web API. Maybe not in a significant way at first, but in time they
+drift apart. Then we must either split the registration, maybe forcing
+users to re-consent, or make the single registration contain a union
+of settings, if at all possible.</p></li>
 
-<li><p>By design, the Angular app requires
+<li><p>By design, an Angular app requires
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-implicit-grant-flow">implicit
-grant type</a> flow whereas the Web API doesn't. App registrations
-have implicit grant flow disabled by default. The Angular app makes
-use of reply URLs whereas the Web API doesn't, and the Angular app
-likely accesses a different set of Web APIs than a specific
-service. Thus, settings for an Angular app are specific to it, meaning
-it should have its own app registration.</p></li>
+grant type</a> of flow whereas the Web API doesn't. App registrations
+have implicit grant type of flow disabled by default. An Angular app
+also requires reply URLs whereas the Web API doesn't, and over time an
+Angular app will likely access a different set of APIs than any
+specific service. Thus, settings for an Angular app are specific to
+it, meaning it should have its own app registration.</p></li>
 
 </ul>
 
-<p>To support our use case, from Angular we use the
-<a href="https://github.com/AzureAD/azure-activedirectory-library-for-js">ADAL.js</a>
-library (via
-a <a href="https://github.com/benbaran/adal-angular4">wrapper</a>
-and <a href="https://github.com/benbaran/adal-angular6-example">example</a>),
-and hence are limited to the v1.0 Azure Active Directory authorization
-endpoint. Despite security concerns of the implicit grant type flow
-relative to others, ADAL.js uses the implicit grant flow.</p>
+<h3>ADAL.js vs MSAL.js</h3>
 
-To quote
+<p>To support the use case, from Angular we must use the
+<a href="https://github.com/AzureAD/azure-activedirectory-library-for-js">ADAL.js</a>
+library (indirectly through
+a <a href="https://github.com/benbaran/adal-angular4">wrapper</a> as
+with
+this <a href="https://github.com/benbaran/adal-angular6-example">sample</a>). Despite
+security concerns compared to
+the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code">authorization
+code type</a> of flow, ADAL.js implements the implicit grant type of
+flow, and in the process limits us to the v1.0 Azure Active Directory
+authorization endpoint.</p>
+
+<p>To quote
 Microsoft's <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/azure-ad-endpoint-comparison">comparison
-of v1.0 and v2.0 endpoints</a>:
+of v1.0 and v2.0 endpoint capabilities</a></p>:
 
 <blockquote>
 You can use the v2.0 endpoint
@@ -101,20 +117,18 @@ a different Application ID</b>. The client won't be able to request or
 obtain permissions to your Web API.
 </blockquote>
 
-<p>This limitation in inherent in Microsoft OAuth2 implementation, not
-the standard itself. We have the iOS application with its app
-registration, and hence application id, not to mention the Angular
-application.</p>
+<p>It's a limitation inherent in Microsoft's OAuth2 implementation
+rather than the OAuth2 standard itself. In our case, we have the iOS
+application, not to mention the Angular app, with separate app
+registrations, and hence application ids, which differ from that of
+the Web API.</p>
 
 <h3>Summary</h3>
 
-<p>With the use case we set out with, for the reasons above we should
-end up with three app registration. This ensure the optimal mapping
-between architectural components and app registrations, now and in the
-future. The iOS application uses
-the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code">authorization
-grant type</a> flow and the Angular application uses
-the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-implicit-grant-flow">implicit
-grant type</a> flow.</p>
+<p>Starting from the initial use case, we end up with three app
+registrations to support an optimal mapping between components and app
+registrations, now and in the future. The iOS and Angular app uses the
+authorization grant type and implicit grant type of flow,
+respectively.</p>
   
 </div>
