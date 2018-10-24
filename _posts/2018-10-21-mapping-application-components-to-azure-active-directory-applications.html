@@ -103,7 +103,7 @@ should have its own app registration.</p></li>
 
 <h3>ADAL.js, MSAL.js, and the implicit grant type</h3>
 
-<p>To support our use case, with Angular we're required to use
+<p>To support our use case, with Angular we're required to use the
 <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js">ADAL.js</a>
 client authorization library (through
 a <a href="https://github.com/benbaran/adal-angular4">wrapper</a> as
@@ -111,11 +111,19 @@ with
 this <a href="https://github.com/benbaran/adal-angular6-example">example</a>). Despite
 inherent security concerns, ADAL.js implements authorization using the
 implicit grant type, causing the access token to be transmitted over
-an insecure front channel and stored in the browser (in comparison to
-the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code">authorization
-code grant type</a> which uses a secure back channel to connect to the
-authorization server and exchange an authorization grant for an access
-token).</p>
+an insecure front channel and stored in the browser. Implicit grant
+type also doesn't use a refresh token for access token
+renewal. Rather, ADAL.js periodically requests a new access from the
+authorization endpoint by including a session cookie previously
+returned by the authorization server in the request. For as long as
+the session cookie is valid, ADAL.js can request new access tokens.
+
+<p>Compare the implicit grant type to the more
+secure <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code">authorization
+code grant type</a> used by the iOS app. Only an authorization grant
+is transmitted on the front channel. It then uses a back channel to
+connect to the authorization server's token endpoint to exchange the
+authorization grant, or a refresh token, for an access token.</p>
 
 <p>As for the choice between ADAL.js and MSAL.js, we're forced into
 the former, and hence limited to the old Azure Active Directory v1.0
