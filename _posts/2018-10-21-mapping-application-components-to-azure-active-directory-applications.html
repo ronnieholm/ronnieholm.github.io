@@ -54,18 +54,29 @@ API's registration?</p>
 registration between Web API and an Angular app. But for anything but
 the simplest use cases, reusing an app registration is at best a
 shortcut to avoid an additional app registration and at worst a
-potential security risk. Almost always should the Angular app have its
-own app registration:</p>
+potential security risk:</p>
 
 <ul>
+
+<li><p>Almost always should the Angular app have its own app
+registration. Only in a small, contained Angular app/Web API case
+where both are designed to only work with each other as a single unit,
+without integrating with other APIs, is sharing a registration a
+viable option.</p></li>
+
+<li><p>Authorization on a per-application doesn't apply with only one
+app registration for the Angular app and Web API. With both assigned
+the same permission scope, to a downstream API such as Graph, the
+Angular app and Web API share the same access rights.</p></li>
 
 <li><p>Logically frontend and backend are distinct components of the
 application, created with distinct technologies and with distinct
 authorization needs. The two are likely deployed to different Azure
-app service instances and reside in different source code
-repositories. Having the two default to sharing an app registration
-could be rooted in a time when frontend and backend were intermingled
-in a postback-driven app with occasional JavaScript calls.</p></li>
+app service instances and reside in different source code repositories
+with different life-cycles. Having the two default to sharing an app
+registration could be rooted in a time when frontend and backend were
+intermingled in a postback-driven app with occasional JavaScript
+calls.</p></li>
 
 <li><p>An Angular app may be consuming multiple endpoints: our Web
 APIs, Graph, Delve, SharePoint, Exchange. It isn't tied to one API,
@@ -94,16 +105,17 @@ should have its own app registration.</p></li>
 
 <p>To support our use case, with Angular we're required to use
 <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js">ADAL.js</a>
-(through
+client authorization library (through
 a <a href="https://github.com/benbaran/adal-angular4">wrapper</a> as
-in
+with
 this <a href="https://github.com/benbaran/adal-angular6-example">example</a>). Despite
 inherent security concerns, ADAL.js implements authorization using the
 implicit grant type, causing the access token to be transmitted over
 an insecure front channel and stored in the browser (in comparison to
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code">authorization
-code grant type</a> which uses a secure back channel to the
-authorization server).</p>
+code grant type</a> which uses a secure back channel to connect to the
+authorization server and exchange an authorization grant for an access
+token).</p>
 
 <p>As for the choice between ADAL.js and MSAL.js, we're forced into
 the former, and hence limited to the old Azure Active Directory v1.0
