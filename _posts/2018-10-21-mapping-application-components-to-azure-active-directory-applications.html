@@ -114,30 +114,29 @@ implicit grant type, causing the access token to be transmitted over
 an insecure front channel and stored in the browser. Implicit grant
 type also doesn't use a refresh token for access token
 renewal. Rather, ADAL.js periodically requests a new access from the
-authorization endpoint by including a session cookie previously
-returned by the authorization server in the request. For as long as
-the session cookie is valid, ADAL.js can request new access tokens.
+authorization endpoint by including in the request a session cookie
+previously returned by the authorization server. For as long as the
+session cookie is valid, ADAL.js can request new access tokens.
 
 <p>Compare the implicit grant type to
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code">authorization
-code grant type</a> used by the iOS app
-(through <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc">ADAL
+code grant type</a> used by the iOS app (implemented
+by <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc">ADAL
 for Objective C</a>). Only the authorization grant is transmitted on
 the front channel. The iOS app then switches to using a more secure
 back channel to connect to the authorization server's token endpoint
 to exchange the authorization grant, or refresh token, for the access
 token.</p>
 
-<p>As for the choice between ADAL.js and MSAL.js, we're forced into
-the former, and hence limited to the old Azure Active Directory v1.0
-authorization endpoint. To quote
+<p>As for the choice between ADAL.js
+and <a href="https://github.com/AzureAD/microsoft-authentication-library-for-js">MSAL.js</a>,
+we're forced into the former, and hence limited to the old Azure
+Active Directory v1.0 authorization endpoint. To quote
 Microsoft's <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/azure-ad-endpoint-comparison">comparison
 of v1.0 and v2.0 endpoint capabilities</a>:</p>
 
 <blockquote>
-You can use the v2.0 endpoint
-[with <a href="https://github.com/AzureAD/microsoft-authentication-library-for-js">MSAL.js</a>,
-not ADAL.js]
+You can use the v2.0 endpoint [with MSAL.js, not ADAL.js]
 to <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-app-types#web-apis">build
 a Web API that is secured with OAuth 2.0</a>. However, that Web API
 can receive tokens only from an application that has the same
