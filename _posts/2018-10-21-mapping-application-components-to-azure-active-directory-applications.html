@@ -40,7 +40,7 @@ JavaScript application), and native application. Inside the Azure
 Portal, user-agent-based application maps to "Web app / API" with the
 registration
 manifest's <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/reference-app-manifest">oauth2AllowImplicitFlow</a>
-flipped to true.
+setting turned on.
 </p>
 
 <p>From these definitions, it's clear that iOS app maps to "Native"
@@ -92,12 +92,15 @@ registration contain the settings of both, if possible.</p></li>
 
 <li><p>By design, the Angular app requires
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-implicit-grant-flow">implicit
-grant type</a> (of authorization flow) whereas the Web API doesn't. An
-Angular app also requires reply URLs to be setup as part of the
-registration whereas the Web API doesn't, and over time the Angular
-app will likely access a different set of APIs than any one API. Thus,
-an Angular app have registration settings specific to it, meaning it
-should have its own app registration.</p></li>
+grant type</a> (of authorization flow to acquire an access token)
+whereas the Web API doesn't. An Angular app also requires reply URLs
+to be setup in advance as part of the registration (to avoid a rogue
+app requesting a token by passing a non-whitelisted reply URL as part
+of the query string to the authorization server) whereas the Web API
+doesn't, and over time the Angular app will likely access a different
+set of APIs than any one Web API. Thus, an Angular app have
+registration settings specific to it, meaning it should have its own
+app registration.</p></li>
 
 </ul>
 
@@ -154,12 +157,17 @@ application IDs to differ from that of the Web API.</p>
 
 <ul>
 
-<li><a href="https://www.youtube.com/watch?v=sXRp2s0DKXw">An IT pros
-guide to Open ID Connect OAuth 2.0 with the V1 and V2 Azure
-Active</a>. At around 28m50s, OAuth2 terminology is compared to Azure
-Active Directory terminology: the authorization server is AAD, client
-(Angular app) is an application is AAD, resource server (Web API) is
-an application in AAD, resource owner is a user in AAD.</li>
+<li><p><a href="https://www.youtube.com/watch?v=996OiexHze0">OAuth 2.0
+and OpenID Connect (in plain English)</a>. </p></li>
+  
+<li><p><a href="https://www.youtube.com/watch?v=sXRp2s0DKXw">An IT
+pros guide to Open ID Connect, OAuth 2.0 with the V1 and V2 Azure
+Active Directory endpoints</a>. An overview talk focused on Azure
+Active Directory and how it related to OAuth2 and Open ID Connect. At
+around 28m50s, OAuth2 and Azure Active Directory terminology is
+compared: the authorization server is AAD, client (Angular app) is an
+application is AAD, resource server (Web API) is an application in
+AAD, and resource owner is a user in AAD.</p></li>
 
 <li><a href="https://www.youtube.com/watch?v=NWPdF-aSrB4">Troubleshooting OpenID Connect and OAuth2.0 protocols on Azure Active Directory</a>.</li>
 
