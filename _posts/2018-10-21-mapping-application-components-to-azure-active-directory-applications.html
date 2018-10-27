@@ -92,13 +92,13 @@ registration contain the settings of both, if possible.</p></li>
 
 <li><p>By design, the Angular app requires
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-implicit-grant-flow">implicit
-grant type</a> (of authorization flow to acquire an access token)
-whereas the Web API doesn't. An Angular app also requires reply URLs
-to be setup in advance as part of the registration (to avoid a rogue
-app requesting a token by passing a non-whitelisted reply URL as part
-of the query string to the authorization server) whereas the Web API
-doesn't, and over time the Angular app will likely access a different
-set of APIs than any one Web API. Thus, an Angular app have
+grant type</a> (of authorization flow or method to acquire an access
+token) whereas the Web API doesn't. An Angular app also requires reply
+URLs to be setup in advance as part of the registration (to avoid a
+rogue app requesting a token by passing a non-whitelisted reply URL as
+part of the query string to the authorization server) whereas the Web
+API doesn't, and over time the Angular app will likely access a
+different set of APIs than any one Web API. Thus, an Angular app have
 registration settings specific to it, meaning it should have its own
 app registration.</p></li>
 
@@ -169,7 +169,16 @@ compared: the authorization server is AAD, client (Angular app) is an
 application is AAD, resource server (Web API) is an application in
 AAD, and resource owner is a user in AAD.</p></li>
 
-<li><a href="https://www.youtube.com/watch?v=NWPdF-aSrB4">Troubleshooting OpenID Connect and OAuth2.0 protocols on Azure Active Directory</a>.</li>
+<li><a href="https://www.youtube.com/watch?v=NWPdF-aSrB4">Troubleshooting
+OpenID Connect and OAuth2.0 protocols on Azure Active
+Directory</a>. Talk focuses on troubleshooting the hybrid-flow with
+Postman and Fiddler with
+the <a href="https://github.com/vibronet/OInspector/tree/dev">OpenId
+Connect Inspector</a> to look inside tokens. The talk examines in
+great detail requests, responses, and consents. At 40m03s, a Fiddler
+breakpoint is used to change the response from AAD before it being
+passed to the application. This enables verifying that the application
+implements proper token validation.</p></li>
 
 </ul>
 
