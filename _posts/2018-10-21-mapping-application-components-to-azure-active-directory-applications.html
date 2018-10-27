@@ -113,8 +113,8 @@ a <a href="https://github.com/benbaran/adal-angular4">wrapper</a> as
 with
 this <a href="https://github.com/benbaran/adal-angular6-example">example</a>). Despite
 inherent security concerns, ADAL.js implements authorization using the
-implicit grant type, causing the access token to be transmitted over
-an insecure front channel and stored in the browser. Implicit grant
+implicit grant type, causing the access token to be transmitted over a
+less secure front channel and stored in the browser. Implicit grant
 type also doesn't use a refresh token for access token
 renewal. Rather, ADAL.js periodically requests a new access from the
 authorization endpoint by including in the request a session cookie
@@ -156,9 +156,6 @@ application IDs to differ from that of the Web API.</p>
 <h3>Additional resources</h3>
 
 <ul>
-
-<li><p><a href="https://www.youtube.com/watch?v=996OiexHze0">OAuth 2.0
-and OpenID Connect (in plain English)</a>. </p></li>
   
 <li><p><a href="https://www.youtube.com/watch?v=sXRp2s0DKXw">An IT
 pros guide to Open ID Connect, OAuth 2.0 with the V1 and V2 Azure
@@ -172,13 +169,22 @@ AAD, and resource owner is a user in AAD.</p></li>
 <li><a href="https://www.youtube.com/watch?v=NWPdF-aSrB4">Troubleshooting
 OpenID Connect and OAuth2.0 protocols on Azure Active
 Directory</a>. Talk focuses on troubleshooting the hybrid-flow with
-Postman and Fiddler with
+<a href="https://www.getpostman.com">Postman</a>
+and <a href="https://www.telerik.com/fiddler">Fiddler</a> with
 the <a href="https://github.com/vibronet/OInspector/tree/dev">OpenId
-Connect Inspector</a> to look inside tokens. The talk examines in
-detail requests, responses, and consents. At 40m03s, a Fiddler
-breakpoint is used to change the response from AAD before it being
-passed to the application. This enables verifying that the application
-implements proper token validation.</p></li>
+Connect Inspector (dev branch)</a> to look inside tokens. The talk
+examines in detail requests, responses, and consents. At 40m03s, a
+Fiddler breakpoint is used to change the response from AAD before it
+being passed to the application. This enables verifying that the
+application implements proper token validation.</p></li>
+
+<li><p><a href="https://www.youtube.com/watch?v=996OiexHze0">OAuth 2.0
+and OpenID Connect (in plain English)</a>. Covers the history and use
+cases leading up to the OAuth2.0 and OpenID Connect standards, and
+explains in-depth the URL components that go into the common grant
+types. With especially OAuth 2.0 leaving a lot of details up to
+implementations, a non-Microsoft view helps in better understanding
+the standards and the AAD concepts.</p></li>
 
 </ul>
 
