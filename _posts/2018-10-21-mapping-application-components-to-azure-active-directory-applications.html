@@ -17,22 +17,27 @@ registering too few applications, which may technically work but
 doesn't map well to the needs of the components and how they're likely
 to evolve.</p>
 
-<p>This post attempts to provide common points of reasoning to aid in
-determining when to create an app registration.</p>
+<p>This post aims to provide points of reasoning for how to determine
+the number of app registration from a real-world use case. The post
+then addresses how the use case and app registrations affect the
+choice of client authentication library and
+the <a href="https://tools.ietf.org/html/rfc6749">OAuth2</a> and
+<a href="https://openid.net/developers/specs">OpenID Connect</a>
+standards at work.</p>
 
 <h3>Real-world use case</h3>
 
-<p>As an example, consider the following application implemented as a
-distributed set of components: a native iOS application which must
-make authorized calls to an ASP.NET Core Web API. Add to the mix an
-Angular app also required to make authorized calls the same Web
+<p>As a working example, consider the following application
+implemented as a distributed set of components: (1) an ASP.NET Web API
+accepting Azure Active Directory authorized requests only, (2) an
+Angular app making authorized requests to the Web API, and (3) a
+native iOS app also required to make authorized request to the Web
 API.</p>
 
 <p>Inside the Azure portal, creating a new App registration, for the
 application type we have a choice between "Web app / API" or
-"Native". Within
-the <a href="https://tools.ietf.org/html/rfc6749">OAuth2
-specification</a>, however, application types are
+"Native". Within the OAuth2 specification, however, application types
+are
 called <a href="https://tools.ietf.org/html/rfc6749#section-2.1">client
 profiles</a>, and there's three options: web application,
 user-agent-based application (a fancy term for a browser hosting a
@@ -48,7 +53,7 @@ and Web API to "Web app / API", but what about the Angular app? Well,
 it's also a "Web app / API" but can and should it run under the Web
 API's registration?</p>
 
-<h3>Points of reasoning</h3>
+<h3>Determining the number of app registrations</h3>
 
 <p>Perhaps in the name of brevity, many blog posts share the app
 registration between Web API and an Angular app. But for anything but
@@ -104,7 +109,7 @@ app registration.</p></li>
 
 </ul>
 
-<h3>ADAL.js, MSAL.js, and the implicit grant type</h3>
+<h3>Angular, ADAL.js, MSAL.js, and the implicit grant type</h3>
 
 <p>To support our use case, with Angular we're required to use the
 <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js">ADAL.js</a>
@@ -114,22 +119,13 @@ with
 this <a href="https://github.com/benbaran/adal-angular6-example">example</a>). Despite
 inherent security concerns, ADAL.js implements authorization using the
 implicit grant type, causing the access token to be transmitted over a
-less secure front channel and stored in the browser. Implicit grant
-type also doesn't use a refresh token for access token
-renewal. Rather, ADAL.js periodically requests a new access from the
-authorization endpoint by including in the request a session cookie
-previously returned by the authorization server. For as long as the
-session cookie is valid, ADAL.js can request new access tokens.
+less secure front channel and stored in the browser.</p>
 
-<p>Compare the implicit grant type to
-the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code">authorization
-code grant type</a> used by the iOS app (implemented
-by <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc">ADAL
-for Objective C</a>). Only the authorization grant is transmitted on
-the front channel. The iOS app then switches to using a more secure
-back channel to connect to the authorization server's token endpoint
-to exchange the authorization grant, or refresh token, for the access
-token.</p>
+<p>Implicit grant type also doesn't use a refresh token for access
+token renewal. Rather, ADAL.js periodically requests a new access from
+the authorization endpoint by including in the request a session
+cookie previously returned by the authorization server. For as long as
+the session cookie is valid, ADAL.js can request new access tokens.
 
 <p>As for the choice between ADAL.js
 or <a href="https://github.com/AzureAD/microsoft-authentication-library-for-js">MSAL.js</a>,
@@ -153,6 +149,20 @@ rather than the OAuth2 standard itself. In our case, we have separate
 app registrations for the iOS and Angular apps, causing their
 application IDs to differ from that of the Web API.</p>
 
+<h3>iOS, ADAL for Objective C, and the authorization code grant type</h3>
+
+<p>Compare the implicit grant type to
+the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code">authorization
+code grant type</a> used by the iOS app (implemented
+by <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc">ADAL
+for Objective C</a>). Here only the short-lived authorization code
+grant is transmitted on the front channel. The iOS app then switches
+to using a more secure back channel to connect to the authorization
+server's token endpoint to exchange the authorization grant, or
+refresh token, for the access token.</p>
+
+<!--<p></p>-->
+
 <h3>Additional resources</h3>
 
 <ul>
@@ -171,21 +181,20 @@ OpenID Connect and OAuth2.0 protocols on Azure Active
 Directory</a>. Talk focuses on troubleshooting the hybrid-flow with
 <a href="https://www.getpostman.com">Postman</a>
 and <a href="https://www.telerik.com/fiddler">Fiddler</a> with
-the <a href="https://github.com/vibronet/OInspector/tree/dev">OpenId
+the <a href="https://github.com/vibronet/OInspector/tree/dev">OpenID
 Connect Inspector (dev branch)</a> to look inside tokens. The talk
 examines in detail requests, responses, and consents. At 40m03s, a
-Fiddler breakpoint is used to change the response from AAD before it
-being passed to the application. This enables verifying that the
-application implements proper token validation.</p></li>
+Fiddler breakpoint is set to modify the response from AAD before it's
+passed to the application. This enables verifying that the application
+implements proper token validation.</p></li>
 
 <li><p><a href="https://www.youtube.com/watch?v=996OiexHze0">OAuth 2.0
 and OpenID Connect (in plain English)</a>. Covers the history and use
-cases leading up to the OAuth2.0
-and <a href="https://openid.net/developers/specs">OpenID Connect
-standards</a>, and explains in-depth the URL components that go into
-the common grant types. With OAuth 2.0 allowing for a number of
-implementation dependent choices, a non-Microsoft view helps better
-understand how the standards and AAD concepts work together.</p></li>
+cases leading up to the OAuth2.0 and OpenID Connect standards, and
+explains in-depth the URL components that go into the common grant
+types. With OAuth 2.0 allowing for a number of implementation
+dependent choices, a non-Microsoft view helps better understand how
+the standards and AAD concepts work together.</p></li>
 
 </ul>
 
