@@ -162,9 +162,9 @@ server's token endpoint to exchange the authorization grant, or
 refresh token, for the access token.</p>
 
 <p>Like with the implicit grant, because the authorization code grant
-originates from
-a <a href="https://tools.ietf.org/html/rfc6749#section-2.1">public
-client</a>, not even on the back channel does the client authenticate
+originates from a public client
+(see <a href="https://tools.ietf.org/html/rfc6749#section-2.1">client
+types</a>), not even on the back channel does the client authenticate
 itself with Azure Active Directory. Any client in possession of the
 code can exchange it for tokens. Client authentication would involve
 submitting with the code and client ID a client secret. But since
@@ -204,11 +204,11 @@ application implements proper token validation.</p></li>
 
 <li><p><a href="https://www.youtube.com/watch?v=996OiexHze0">OAuth 2.0
 and OpenID Connect (in plain English)</a>. Covers the history and use
-cases leading up to the OAuth2.0 and OpenID Connect standards, and
+cases leading up to the OAuth2.0 and OpenID Connect standards and
 explains in-depth the URL components that go into the common grant
-types. With OAuth 2.0 allowing for a number of implementation
-dependent choices, a non-Microsoft view helps better understand how
-the standards and AAD concepts work together.</p></li>
+types. With OAuth 2.0 allowing for implementation dependent choices, a
+non-Microsoft view helps better understand how the standards and AAD
+concepts work together.</p></li>
 
 </ul>
 
