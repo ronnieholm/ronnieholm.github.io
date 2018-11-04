@@ -199,7 +199,7 @@ know that implicit grant type couldn't have been used because
 oauth2AllowImplicitFlow is turned off with the iOS app
 registration.</p>
 
-<h3>ASP.NET Core Web API: token processing and validation</h3>
+<h3>ASP.NET Core Web API: token validation</h3>
 
 <p>With the use case, the Web API is solely a receiver of access
 tokens from the Angular and iOS apps. It doesn't make call to AAD
@@ -220,7 +220,9 @@ AAD. Furthermore, to validate the token's lifetime, the not before
 (nbf) and expiration time (exp) claims must be valid. Finally, The
 signature is used to validate the authenticity of the token with the
 header holding the algorithm (alg) and public key (kid) used to
-generate the signature. Signature validation
+generate the signature.</p>
+
+<p>Signature validation
 must <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens#validating-the-signature">adhere
 to AAD policies</a> stating that</p>
 
