@@ -210,7 +210,7 @@ credentials grant type</a>.</p>
 <p>As the receiver of access tokens, it's the Web APIs responsibility
 to validate both the token's claims and signature. Each token consists
 of
-a <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens">header,
+a <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens#claims-in-access-tokens">header,
 payload, and signature</a>. From the payload, the issuer (iss) claim
 of the token must be the AAD token service as defined in the
 <a href="https://login.microsoftonline.com/common/.well-known/openid-configuration">OpenID
@@ -220,7 +220,9 @@ AAD. Furthermore, to validate the token's lifetime, the not before
 (nbf) and expiration time (exp) claims must be valid. Finally, The
 signature is used to validate the authenticity of the token with the
 header holding the algorithm (alg) and public key (kid) used to
-generate the signature.</p>
+generate the signature. Signature validation
+must <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens#validating-the-signature">adhere
+to AAD policies</a> stating that</p>
 
 <blockquote>
 At any given point in time, Azure AD may sign an id_token [the OpenID
