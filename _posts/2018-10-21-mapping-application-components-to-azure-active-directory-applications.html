@@ -6,65 +6,77 @@ date: 2018-10-21 12:00 UTC
 
 <div id="post">
 
-<p>Deploying a real-world application with multiple components which
-must all authorize
-against <a href="https://docs.microsoft.com/en-us/azure/active-directory">Azure
-Active Directory</a>, a common point of confusion is the number of app
-registrations needed. Many blog posts tend to focus on simple
-scenarios and the guidance provided on the Azure Portal's App
-registration page isn't exhaustive. It's easy to err on the side of
-registering too few applications, which may technically work but
-doesn't map well to the needs of the components and how they're likely
-to evolve.</p>
+<p>Deploying a real-world application with components secured
+by <a href="https://docs.microsoft.com/en-us/azure/active-directory">Azure
+Active Directory</a> (AAD), a point of confusion is how many AAD
+applications to register. Many blog posts focus on simple scenarios
+and unless one has a deep understanding of
+the <a href="https://tools.ietf.org/html/rfc6749">OAuth2</a>
+and <a href="https://openid.net/developers/specs">OpenID Connect</a>
+standards, the Azure Portal's App registration page can be
+confusing.</p>
 
-<p>This post aims to provide points of reasoning for how to determine
-the number of app registration from a real-world use case. The post
-then addresses how the use case and app registrations affect the
-choice of client authentication library and
-the <a href="https://tools.ietf.org/html/rfc6749">OAuth2</a> and
-<a href="https://openid.net/developers/specs">OpenID Connect</a>
-standards at work.</p>
+<p>From a real-world use case, this post provides guidance on the
+number of app registrations required to support a secure
+architecture. It then details how the use case affects the choice of
+client authentication library and the parts of OAuth2 and OpenID
+Connect at work to support it.</p>
 
 <h3>Real-world use case</h3>
 
-<p>As a working example, consider the following application
-implemented as a distributed set of components: (1) an ASP.NET Web API
-accepting Azure Active Directory authorized requests only, (2) an
-Angular app making authorized requests to the Web API, and (3) a
-native iOS app also required to make authorized request to the Web
-API.</p>
+<p>Consider the following application implemented as a distributed set
+of components: (1) an Angular app making secured requests to a custom
+REST service, and (2) a native iOS app also making secured requests to
+the same REST service, and (3) an ASP.NET Web API with which the
+clients interact. All components are secured by AAD, meaning that
+sign-in to (1) and (2) happens against AAD and with AAD users and that
+(3) receives signed tokens issues by AAD to (1) and (2), and passed
+along with calls to (3).</p>
 
-<p>Inside the Azure portal, creating a new App registration, for the
-application type we have a choice between "Web app / API" or
-"Native". Within the OAuth2 specification, however, application types
-are
-called <a href="https://tools.ietf.org/html/rfc6749#section-2.1">client
-types</a>, and there's three options: web application,
+<p>Reading along, keep in mind that OAuth2 is an authorization
+standard. It's OpenID Connect, a thin layer on top of OAuth2, which
+defines authentication. In other words, an OAuth2 access token is
+passed along from (1) and (2) to (3) and authorizes that (1) and (2)
+are allowed to access (3) on the user's behalf and only with the
+permissions consented to. The OpenID Connect token, a special kind of
+access token, is what authenticates a user to (1) and (2). It holds
+username, full name, Active Directory group memberships, and so on,
+and is never passed along to (3).</p>
+
+<p>Creating a new App registration inside the Azure portal, for the
+application type we have options "Web app/API" and "Native". The
+OAuth2 specification, however, names application types
+<a href="https://tools.ietf.org/html/rfc6749#section-2.1">client
+types</a> and outlines three options: web application,
 user-agent-based application (a fancy term for a browser hosting a
-JavaScript application), and native application. Inside the Azure
-Portal, user-agent-based application maps to "Web app / API" with the
-registration
-manifest's <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/reference-app-manifest">oauth2AllowImplicitFlow</a>
-setting turned on.
-</p>
+JavaScript application), and native application.</p>
 
-<p>From these definitions, it's clear that iOS app maps to "Native"
-and Web API to "Web app / API", but what about the Angular app? Well,
-it's also a "Web app / API" but can and should it run under the Web
-API's registration?</p>
+<p>Inside AAD, user-agent-based application maps to "Web app/API"
+with <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/reference-app-manifest">oauth2AllowImplicitFlow</a>
+turned on in the registration manifest. The meaning of turning on
+oauth2AllowImplicitFlow is that implicit flow is added to the already
+supported flows and that because AAD knows the app requesting access
+to an endpoint, AAD allows implicit flow for whatever endpoint the app
+requests access to. For iOS and Web API, oauth2AllowImplicitFlow is
+left turned off.</p>
+
+<p>From these definitions, it's clear that the iOS app maps to
+"Native" and that both Angular and Web API maps to "Web app/API". But
+does that mean that Angular and Web API should run under the same
+registration?</p>
 
 <h3>Determining the number of app registrations</h3>
 
 <p>Perhaps in the name of brevity, many blog posts share the app
-registration between Web API and an Angular app. But for anything but
-the simplest use cases, reusing an app registration is at best a
-shortcut to avoid an additional app registration and at worst a
-potential security risk:</p>
+registration between Web API and Angular app. But for anything but the
+simplest use cases, reusing an app registration is at best a shortcut
+to avoid an additional app registration and at worst a potential
+security risk:</p>
 
 <ul>
 
 <li><p>Almost always should the Angular app have its own app
-registration. Only in a small, contained Angular app/Web API case
+registration. Only in a small, contained Angular app/Web API use case
 where both are designed to only work with each other as a single unit,
 without integrating with other APIs, is sharing a registration a
 viable option.</p></li>
@@ -72,22 +84,23 @@ viable option.</p></li>
 <li><p>Authorization on a per-application basis doesn't apply with
 only one app registration for the Angular app and Web API. With both
 assigned the same permission scope, to a downstream API such as Graph,
-the Angular app and Web API share the same access rights.</p></li>
+the Angular app and Web API share the same access rights and are
+indistinguishable.</p></li>
 
 <li><p>Logically frontend and backend are distinct components of the
 application, created with distinct technologies and with distinct
 authorization needs. The two are likely deployed to different Azure
 app service instances and reside in different source code repositories
-with different life-cycles. Having the two default to sharing an app
-registration could be rooted in a time when frontend and backend were
-intermingled in a postback-driven app with occasional JavaScript
-calls.</p></li>
+with different life-cycles. Having the two share an app registration
+is reminiscent of a time when frontend and backend were intermingled
+in a postback-driven app with occasional JavaScript calls.</p></li>
 
 <li><p>An Angular app may be consuming multiple endpoints: our Web
-APIs, Graph, Delve, SharePoint, Exchange. It isn't tied to one API,
+API, Graph, Delve, SharePoint, and Exchange. It isn't tied to one API,
 except perhaps for the convenience of not having to create an
-additional app registration. But with zero monetary cost, there's no
-need to be frugal with app registrations.</p></li>
+additional app registration. While the extra app registration may come
+with a small mental cost, its monetary is cost. There's no need to be
+frugal with app registrations.</p></li>
 
 <li><p>App registration metadata differ between an Angular app and a
 Web API. Maybe not in a significant way at first, but in time they're
@@ -95,42 +108,29 @@ likely to drift further apart. At that point, we must either split the
 registration, maybe forcing users to re-consent, or make the single
 registration contain the settings of both, if possible.</p></li>
 
-<li><p>By design, the Angular app requires
+<li><p>By design, an Angular app requires
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-implicit-grant-flow">implicit
 grant type</a> (of authorization flow or method to acquire an access
 token) whereas the Web API doesn't. An Angular app also requires reply
-URLs to be setup in advance as part of the registration (to avoid a
-rogue app requesting a token by passing a non-whitelisted reply URL as
-part of the query string to the authorization server) whereas the Web
-API doesn't, and over time the Angular app will likely access a
-different set of APIs than any one Web API. Thus, an Angular app have
-registration settings specific to it, meaning it should have its own
-app registration.</p></li>
+URLs to be setup as part of the registration (to avoid a rogue app
+requesting a token by passing a non-whitelisted reply URL to the
+authorization server) whereas a Web API doesn't, and over time an
+Angular app will likely access a different set of APIs than any one
+Web API. Thus, an Angular app have registration settings specific to
+it, meaning it should have its own app registration.</p></li>
 
 </ul>
 
 <h3>Angular: ADAL.js, MSAL.js, and the implicit grant type</h3>
 
-<p>To support our use case, with Angular we're required to use the
+<p>To support our use case, we're forced into using
 <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js">ADAL.js</a>
-client authorization library (through
+over <a href="https://github.com/AzureAD/microsoft-authentication-library-for-js">MSAL.js</a>
+as client authorization library (through
 a <a href="https://github.com/benbaran/adal-angular4">wrapper</a> as
 with
-this <a href="https://github.com/benbaran/adal-angular6-example">example</a>). Despite
-inherent security concerns, ADAL.js implements authorization using the
-implicit grant type, causing the access token to be transmitted over a
-less secure front channel and stored in the browser.</p>
-
-<p>Implicit grant type also doesn't use a refresh token for access
-token renewal. Rather, ADAL.js periodically requests a new access from
-the authorization endpoint by including in the request a session
-cookie previously returned by the authorization server. For as long as
-the session cookie is valid, ADAL.js can request new access tokens.
-
-<p>As for the choice between ADAL.js
-or <a href="https://github.com/AzureAD/microsoft-authentication-library-for-js">MSAL.js</a>,
-we're forced into the former, and hence limited to the older Azure
-Active Directory v1.0 authorization endpoint. To quote
+this <a href="https://github.com/benbaran/adal-angular6-example">example</a>).
+To quote
 Microsoft's <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/azure-ad-endpoint-comparison">comparison
 of v1.0 and v2.0 endpoint capabilities</a>:</p>
 
@@ -146,32 +146,55 @@ obtain permissions to your Web API.
 
 <p>It's an inherent limitation in Microsoft's OAuth2 implementation
 rather than the OAuth2 standard itself. In our case, we have separate
-app registrations for the iOS and Angular apps, causing their
-application IDs to differ from that of the Web API.</p>
+app registrations for iOS and Angular, causing their application IDs
+to differ from that of the Web API.</p>
 
-<h3>iOS: ADAL for Objective C, and the authorization code grant type</h3>
+<p>Despite inherent security concerns, ADAL.js implements
+authorization using the implicit grant type, causing the access token
+to be transmitted over the less secure front channel and stored in the
+browser. The implicit grant type also doesn't use a refresh token for
+access token renewal. ADAL.js periodically requests a new access from
+the authorization endpoint by including in the request a session
+cookie previously returned by the authorization server. For as long as
+the session cookie is valid, ADAL.js can request new access
+tokens.</p>
+
+<h3>iOS: ADAL for Objective C and the authorization code grant type</h3>
 
 <p>Compare the implicit grant type to
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code">authorization
 code grant type</a> used by the iOS app (implemented
 by <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc">ADAL
-for Objective C</a>). Here only the short-lived authorization code
-grant is transmitted on the front channel. The iOS app then switches
-to using a more secure back channel to connect to the authorization
-server's token endpoint to exchange the authorization grant, or
-refresh token, for the access token.</p>
+for Objective C</a>). Only the short-lived authorization code grant is
+transmitted on the front channel via an app embedded browser
+control. ADAL registers a custom protocol handler (like http or ftp,
+but app specific and matching the name setup with AAD) making the app
+the default for URLs with that protocol. When the authorization server
+redirects the browser control to myapp://..., the app receives the
+code as part of the URL. The app then switches to using the more
+secure back channel to connect to the authorization server's token
+endpoint to exchange the authorization grant (or refresh token) for
+the access and refresh tokens.</p>
 
 <p>Like with the implicit grant, because the authorization code grant
 originates from a public client
-(see <a href="https://tools.ietf.org/html/rfc6749#section-2.1">client
-types</a>), not even on the back channel does the client authenticate
-itself with Azure Active Directory. Any client in possession of the
-code can exchange it for tokens. Client authentication would involve
-submitting with the code and client ID a client secret. But since
-anyone can reverse engineer the Angular and iOS apps and extract the
-client secret, authentication for public clients is meaningless. Only
-confidential clients, code running on a server, authenticate using a
-previously agreed upon client secret which is part of the app
+(see <a href="https://tools.ietf.org/html/rfc6749#section-2.1">OAuth2
+client types</a>), not even on the back channel does the client
+authenticate with the authorization server. Any client in possession
+of the code can exchange it for access and refresh tokens. Client
+authentication would involve submitting with the code and client ID a
+previously agreed upon client secret. But since anyone would be able
+to discover the secret of a public client, and it cannot easily be
+changed after deployment, public client authentication is
+meaningless. Only confidential clients, code running on a server,
+authenticate using a secret shared between themselves and the
+authorization server.</p>
+
+<p>To convince ourselves that iOS is using the authorization code
+grant type, we
+can <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc#diagnostics">turn
+on diagnostics logging</a>. Otherwise, we'd only know indirectly
+because oauth2AllowImplicitFlow is turned off with the iOS app
 registration.</p>
 
 <h3>Additional resources</h3>
@@ -180,16 +203,18 @@ registration.</p>
   
 <li><p><a href="https://www.youtube.com/watch?v=sXRp2s0DKXw">An IT
 pros guide to Open ID Connect, OAuth 2.0 with the V1 and V2 Azure
-Active Directory endpoints</a>. An overview talk focused on Azure
-Active Directory and how it related to OAuth2 and Open ID Connect. At
-around 28m50s, OAuth2 and Azure Active Directory terminology is
-compared: the authorization server is AAD, client (Angular app) is an
-application is AAD, resource server (Web API) is an application in
-AAD, and resource owner is a user in AAD.</p></li>
+Active Directory endpoints</a>. An overview talk focused on AAD and
+how it related to OAuth2 and Open ID Connect. At around 28m50s, OAuth2
+and AAD terminology is compared: the authorization server is AAD,
+client (Angular app) is an app in AAD, resource server (Web API) is an
+app in AAD, and resource owner is a user in AAD.</p></li>
 
 <li><a href="https://www.youtube.com/watch?v=NWPdF-aSrB4">Troubleshooting
 OpenID Connect and OAuth2.0 protocols on Azure Active
-Directory</a>. Talk focuses on troubleshooting the hybrid-flow with
+Directory</a>. Talk focuses on troubleshooting the hybrid flow, an
+OpenID Connect flow where a client can request either or all of
+authorization code, ID token, access token, and refresh token. The
+talk introduces
 <a href="https://www.getpostman.com">Postman</a>
 and <a href="https://www.telerik.com/fiddler">Fiddler</a> (until AAD
 starts rolling
@@ -199,8 +224,8 @@ the <a href="https://github.com/vibronet/OInspector/tree/dev">OpenID
 Connect Inspector (dev branch)</a> plugin to peek inside tokens. The
 talk examines in detail requests, responses, and consents. At 40m03s,
 a Fiddler breakpoint is set to modify the response from AAD before
-it's passed to the application. This enables verifying that the
-application implements proper token validation.</p></li>
+it's passed to the app. This enables verifying that the app implements
+proper token validation.</p></li>
 
 <li><p><a href="https://www.youtube.com/watch?v=996OiexHze0">OAuth 2.0
 and OpenID Connect (in plain English)</a>. Covers the history and use
@@ -214,9 +239,11 @@ concepts work together.</p></li>
 
 <h3>Summary</h3>
 
-<p>To support the diverse needs of our three application components,
-now and in the future, we end up with three app registrations. For the
-iOS and Angular apps to authorize with the Web API, they use the
-authorization grant type and implicit grant type, respectively.</p>
-  
+<p>To support the diverse needs of our three components, now and in
+the future, we ended up with three app registrations. Besides details
+of registration, to fully understand what's going on as part of app
+authentication and authorization, relevant parts of OAuth2 and OpenID
+Connect standards were outlined. Without such knowledge, debugging
+amounts to time consuming guess work.</p>
+
 </div>
