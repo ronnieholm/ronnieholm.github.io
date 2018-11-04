@@ -173,7 +173,7 @@ the default for URLs with that protocol. When the authorization server
 redirects the browser control to myapp://..., the app receives the
 code as part of the URL. The app then switches to using the more
 secure back channel to connect to the authorization server's token
-endpoint to exchange the authorization grant (or refresh token) for
+endpoint to exchange the authorization grant, or refresh token, for
 the access and refresh tokens.</p>
 
 <p>Like with the implicit grant, because the authorization code grant
@@ -193,9 +193,57 @@ authorization server.</p>
 <p>To convince ourselves that iOS is using the authorization code
 grant type, we
 can <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc#diagnostics">turn
-on diagnostics logging</a>. Otherwise, we'd only know indirectly
-because oauth2AllowImplicitFlow is turned off with the iOS app
+on diagnostics logging</a> to see the custom protocol URL and
+authorization code and its conversion to tokens. Otherwise, we'd only
+know that implicit grant type couldn't have been used because
+oauth2AllowImplicitFlow is turned off with the iOS app
 registration.</p>
+
+<h3>ASP.NET Core Web API: token processing and validation</h3>
+
+<p>With the use case, the Web API is solely a receiver of access
+tokens from the Angular and iOS apps. It doesn't make call to AAD
+secured endpoint, but if it had, it would do so using
+the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
+credentials grant type</p>.
+
+<p>As the receiver of access tokens, it's the Web APIs responsibility
+to validate both the token's claims and signature. Each token consists
+of
+a <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens">header,
+payload, and signature</a>. From the payload, the issuer (iss) claim
+of the token must be the AAD token service as defined in the
+<a href="https://login.microsoftonline.com/common/.well-known/openid-configuration">OpenID
+Connect metadata document</a> and the audience (aud) claim, the
+intended recipient, must be the Web API as registered with
+AAD. Furthermore, to validate the token's lifetime, the not before
+(nbf) and expiration time (exp) claims must be valid. Finally, The
+signature is used to validate the authenticity of the token with the
+header holding the algorithm (alg) and public key (kid) used to
+generate the signature.</p>
+
+<blockquote>
+At any given point in time, Azure AD may sign an id_token using any
+one of a certain set of public-private key pairs. Azure AD rotates the
+possible set of keys on a periodic basis, so your app should be
+written to handle those key changes automatically. A reasonable
+frequency to check for updates to the public keys used by Azure AD is
+every 24 hours.
+</blockquote>
+
+<p>Within the metadata document, jwks_uri identifies
+the <a href="https://login.microsoftonline.com/common/discovery/keys">location</a>
+of the public keys used to sign tokens. The Web API may then use the
+header's alg and kid claims to find the public certificate and perform
+validation. For all their details, we can paste the value of each of
+the x5c fields into
+an <a href="https://redkestrel.co.uk/products/decoder">online X509
+decoder</a>.</p>
+
+<p>Take a look at this ASP.NET
+Core<a href="https://github.com/Azure-Samples/active-directory-dotnet-webapp-openidconnect-aspnetcore">sample</a>
+for validating tokens. It shows how to automatically download the
+metadata document to comply with quote.</p>
 
 <h3>Additional resources</h3>
 
