@@ -149,15 +149,16 @@ rather than the OAuth2 standard itself. In our case, we have separate
 app registrations for iOS and Angular, causing their application IDs
 to differ from that of the Web API.</p>
 
-<p>Despite inherent security concerns, ADAL.js implements
-authorization using the implicit grant type, causing the access token
-to be transmitted over the less secure front channel and stored in the
-browser. The implicit grant type also doesn't use a refresh token for
-access token renewal. ADAL.js periodically requests a new access from
-the authorization endpoint by including in the request a session
-cookie previously returned by the authorization server. For as long as
-the session cookie is valid, ADAL.js can request new access
-tokens.</p>
+<p>Despite
+known <a href="https://tools.ietf.org/html/rfc6749#section-10.16">security
+concerns</a>, ADAL.js implements authorization using the implicit
+grant type, causing the access token to be transmitted on the less
+secure front channel and stored in the browser. The implicit grant
+type also doesn't use a refresh token for access token
+renewal. ADAL.js periodically requests a new access from the
+authorization endpoint by including in the request a session cookie
+previously returned by the authorization server. For as long as the
+session cookie is valid, ADAL.js can request new access tokens.</p>
 
 <h3>iOS: ADAL for Objective C and the authorization code grant type</h3>
 
