@@ -166,15 +166,16 @@ the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-
 code grant type</a> used by the iOS app (implemented
 by <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc">ADAL
 for Objective C</a>). Only the short-lived authorization code grant is
-transmitted on the front channel via an app embedded browser
-control. ADAL registers a custom protocol handler (like http or ftp,
-but app specific and matching the name setup with AAD) making the app
-the default for URLs with that protocol. When the authorization server
-redirects the browser control to myapp://..., the app receives the
-code as part of the URL. The app then switches to using the more
-secure back channel to connect to the authorization server's token
-endpoint to exchange the authorization grant, or refresh token, for
-the access and refresh tokens.</p>
+transmitted on the front channel via a browser control. ADAL registers
+a <a href="https://tools.ietf.org/html/rfc6749#section-9">custom
+protocol handler</a> (like http or ftp, but app specific and matching
+the name setup with AAD) making the app the default for URLs with that
+protocol. When the authorization server redirects the browser to
+myapp://..., the app receives the code as part of the URL. The app
+then switches to using the more secure back channel to connect to the
+authorization server's token endpoint to exchange the short lived,
+single use authorization code, or refresh token, for the access and
+refresh tokens.</p>
 
 <p>Like with the implicit grant, because the authorization code grant
 originates from a public client
