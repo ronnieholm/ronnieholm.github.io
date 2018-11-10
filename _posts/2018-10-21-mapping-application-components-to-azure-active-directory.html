@@ -244,28 +244,27 @@ can paste the value of each x5c into
 an <a href="https://redkestrel.co.uk/products/decoder">online</a>
 decoder.</p>
 
-<p>Take a look
+<p>Have a look
 at <a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">this</a>
 post on how to validate tokens with ASP.NET Core. While the post shows
 how to validate tokens, it doesn't show how to reload metadata on a
 period basis. For that we either require a periodically executing
 method or perhaps the Web API is already
 using <a href="https://www.hangfire.io">Hangfire</a>. Otherwise, we
-risk the Web API failing token validation for some period after a key
-rotation and before the app pool is recycled. Even worse, validation
-failures will appear sporadic and will eventually disappear without
+risk the Web API failing token validation following a key rotation and
+before the app pool is recycled. Even worse, validation failure will
+appear sporadic and will eventually disappear without
 intervention.</p>
 
 <p>With on-premise Web API hosting, we can rely
 on <a href="https://weblogs.asp.net/owscott/why-is-the-iis-default-app-pool-recycle-set-to-1740-minutes">idle
-and periodic app pool restarts</a> for keeping metadata up to
+and periodic app pool restarts</a> to keep metadata up to
 date. Although by default the app pool recycles at least every 29
 hours, exceeding AAD's 24 hour policy, both periods are
 configurable. With Azure App Service, however, running a site in
 "Always on"
 mode <a href="https://stackoverflow.com/questions/21840983/will-always-on-setting-prevent-both-idletimeout-and-periodicrestart">prevents
-idle restarts</a> as Azure periodically pings the site to keep it
-alive, and periodic restarts isn't an IIS but
+idle restarts</a> and periodic restarts isn't an IIS but
 a <a href="https://docs.microsoft.com/en-us/dotnet/framework/wcf/feature-details/hosting-in-windows-process-activation-service">WAS</a>
 feature, unavailable in Azure.</p>
 
