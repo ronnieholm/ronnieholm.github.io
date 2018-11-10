@@ -259,13 +259,13 @@ intervention.</p>
 <p>With on-premise Web API hosting, we can rely
 on <a href="https://weblogs.asp.net/owscott/why-is-the-iis-default-app-pool-recycle-set-to-1740-minutes">idle
 and periodic app pool restarts</a> for keeping metadata up to
-date. Although by default, the app pool recycles at least every 29
-hours, exceeding AAD's 24 hour policy, the periods are
+date. Although by default the app pool recycles at least every 29
+hours, exceeding AAD's 24 hour policy, both periods are
 configurable. With Azure App Service, however, running a site in
 "Always on"
 mode <a href="https://stackoverflow.com/questions/21840983/will-always-on-setting-prevent-both-idletimeout-and-periodicrestart">prevents
 idle restarts</a> as Azure periodically pings the site to keep it
-alive, and periodic restarts isn't an IIS, but
+alive, and periodic restarts isn't an IIS but
 a <a href="https://docs.microsoft.com/en-us/dotnet/framework/wcf/feature-details/hosting-in-windows-process-activation-service">WAS</a>
 feature, unavailable in Azure.</p>
 
