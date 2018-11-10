@@ -234,10 +234,6 @@ changes automatically. A reasonable frequency to check for updates to
 the public keys used by Azure AD is every 24 hours.
 </blockquote>
 
-Using the header's algorithm (alg) and public key (kid) claims,
-the signature must b used to validate the authenticity of the
-token.
-
 <p>Within the metadata document mentioned above, jwks_uri point to
 the <a href="https://login.microsoftonline.com/common/discovery/keys">location</a>
 of the <a href="https://tools.ietf.org/html/rfc7517">JSON Web Key
@@ -250,9 +246,19 @@ decoder.</p>
 
 <p>Take a look
 at <a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">this</a>
-post on how to validate a token with ASP.NET Core. Its code goes into
-Startup.cs and takes care of downloading and parsing the metadata
-document on a regular basis.</p>
+post on how to validate tokens with ASP.NET Core. While the post shows
+how to validate tokens, it doesn't show how to reload metadata on a
+period basis. For that we can either rely
+on <a href="https://docs.microsoft.com/en-us/iis/configuration/system.applicationhost/applicationpools/add/recycling/periodicrestart">period
+app pool recycling</a> (every 29 hours, by default, which is more than
+AAD's 24 hour update policy) or implement our own metadata update
+mechanism. Either a periodically executing async method or perhaps the
+Web API is already
+using <a href="https://www.hangfire.io">Hangfire</a>. Otherwise, we
+risk the Web API failing token validation for some period after key
+rollover and before app pool recycling. Even worse, validation
+failures will appear sporadic and will disappear without
+intervention.</p>
 
 <h3>Additional resources</h3>
 
