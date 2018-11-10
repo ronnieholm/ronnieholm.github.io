@@ -250,13 +250,13 @@ post on how to validate tokens with ASP.NET Core. While the post shows
 how to validate tokens, it doesn't show how to reload metadata on a
 period basis. For that we can either rely
 on <a href="https://docs.microsoft.com/en-us/iis/configuration/system.applicationhost/applicationpools/add/recycling/periodicrestart">period
-app pool recycling</a> (every 29 hours, by default, which is more than
-AAD's 24 hour update policy) or implement our own metadata update
-mechanism. Either a periodically executing async method or perhaps the
-Web API is already
+app pool recycling</a> (every 29 hours by default, which exceeds AAD's
+24 hour policy) or implement our own metadata update mechanism. Either
+a periodically executing async method or perhaps the Web API is
+already
 using <a href="https://www.hangfire.io">Hangfire</a>. Otherwise, we
 risk the Web API failing token validation for some period after key
-rollover and before app pool recycling. Even worse, validation
+rotation and before app pool recycling. Even worse, validation
 failures will appear sporadic and will disappear without
 intervention.</p>
 
