@@ -240,11 +240,11 @@ token.
 
 <p>Within the metadata document mentioned above, jwks_uri point to
 the <a href="https://login.microsoftonline.com/common/discovery/keys">location</a>
-of <a href="https://tools.ietf.org/html/rfc7517">JSON Web Key Set</a>,
-the public keys to verify the signature. Web API must use the header's
-algorithm (alg) and Key ID (kid) claims to locate the public key and
-perform validation. For all the X509 certificate details, we can paste
-the value of each x5c into
+of the <a href="https://tools.ietf.org/html/rfc7517">JSON Web Key
+Set</a>, the public keys to verify the signature. Web API must use the
+header's algorithm (alg) and Key ID (kid) claims to locate the public
+key and perform validation. For all the X509 certificate details, we
+can paste the value of each x5c into
 an <a href="https://redkestrel.co.uk/products/decoder">online</a>
 decoder.</p>
 
