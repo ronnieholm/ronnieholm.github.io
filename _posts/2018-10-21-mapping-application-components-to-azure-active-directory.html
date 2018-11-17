@@ -38,9 +38,8 @@ passed along with calls to (3).</p>
 standard. It's OpenID Connect, the layer on top of OAuth2, which
 defines authentication. In other words, an OAuth2 access token is
 passed along from (1) and (2) to (3) and authorizes that (1) and (2)
-are allowed to access (3) on the user's behalf and with the
-permissions consented to. OpenID Connect's ID token (see primer on
-OpenID Connect,
+can access (3) on the user's behalf and with the permissions consented
+to. OpenID Connect's ID token (see primer on OpenID Connect,
 parts <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1">1</a>, <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-2">2</a>, <a href="https://developer.okta.com/blog/2017/08/01/oidc-primer-part-3">3</a>),
 a special kind of access token, is what authenticates a user to (1)
 and (2). It holds username, full name, and so on, and is never passed
@@ -308,7 +307,7 @@ information.</p></li>
 delegated "Read directory data" permissions to lookup security group
 members and the ObjectID of any user. That would expose directory
 information through a public client, and Web API would still need to
-verify that what Angular and iOS claim is actually true. Using token
+verify that what Angular and iOS claim is true. Using token
 validation, claims can be verified, but the response of Graph API
 calls made by Angular and iOS cannot. Hence Graph API calls must be
 made by Web API.</p>
