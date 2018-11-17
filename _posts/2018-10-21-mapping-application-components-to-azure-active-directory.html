@@ -27,11 +27,12 @@ Connect at work to support it.</p>
 <p>Consider the following application implemented as a distributed set
 of components: (1) an Angular app making secured requests to a custom
 REST service, and (2) a native iOS app also making secured requests to
-the same REST service, and (3) an ASP.NET Web API with which the
-clients interact. All components are secured by AAD, meaning that
-sign-in to (1) and (2) happens against AAD and with AAD users and that
-(3) receives signed tokens issues by AAD to (1) and (2), and passed
-along with calls to (3).</p>
+the same REST service, (3) an ASP.NET Web API implementing the REST
+service with which the clients interact, and (4) Web API making
+secured calls to Graph API. All components are secured by AAD, meaning
+that sign-in to (1) and (2) happens against AAD and with AAD users and
+that (3) receives signed tokens issues by AAD to (1) and (2), and
+passed along with calls to (3).</p>
 
 <p>Reading along, keep in mind that OAuth2 is an authorization
 standard. It's OpenID Connect, the layer on top of OAuth2, which
@@ -169,16 +170,18 @@ the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-
 code grant type</a> used by the iOS app (implemented
 by <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc">ADAL
 for Objective C</a>). Only the short-lived authorization code grant is
-transmitted on the front channel via a browser control. ADAL registers
+transmitted on the front channel by a browser control kicking of the
+flow by connecting to the server's authorization endpoint. ADAL
+registers
 a <a href="https://tools.ietf.org/html/rfc6749#section-9">custom
-protocol handler</a> (like http or ftp, but app specific and matching
+schema handler</a> (like http or ftp, but app specific and matching
 the name setup with AAD) making the app the default for URLs with that
 protocol. When the authorization server redirects the browser to
 myapp://..., the app receives the code as part of the URL. The app
 then switches to using the more secure back channel to connect to the
 authorization server's token endpoint to exchange the short lived,
-single use authorization code, or refresh token, for the access and
-refresh tokens.</p>
+single use authorization code (and later refresh token), for access
+and refresh tokens.</p>
 
 <p>Like with the implicit grant, because the authorization code grant
 originates from a public client
@@ -205,13 +208,8 @@ registration.</p>
 
 <h3>ASP.NET Core Web API: token validation</h3>
 
-<p>With our use case, the Web API is solely a receiver of access
-tokens from the Angular and iOS apps. It doesn't make call to any AAD
-secured endpoint, but if it had, it would do so using
-the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
-credentials grant type</a>.</p>
-
-<p>As the receiver of an access token, the Web APIs is responsible for
+<p>With our use case, the Web API is a receiver of access tokens from
+the Angular and iOS apps. As such, the Web APIs is responsible for
 validating both the token's claims and its signature. Each token
 consists of
 a <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens#claims-in-access-tokens">header,
@@ -269,6 +267,52 @@ idle restarts</a> and periodic restarts isn't an IIS but
 a <a href="https://docs.microsoft.com/en-us/dotnet/framework/wcf/feature-details/hosting-in-windows-process-activation-service">WAS</a>
 feature, unavailable in Azure.</p>
 
+<h3>ASP.NET Core Web API: calling Graph API</h3>
+
+<p>Besides being an AAD secured endpoint, and hence the receiver of
+access tokens, Web API itself makes calls to Graph API, another AAD
+secured endpoint. It does so by means of
+the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
+credentials grant type</a>, used by confidential clients for
+service-to-service interaction. Without end-user interaction, to the
+token endpoint, the Web API submits its client ID, a pre-established
+shared client secret (effectively username and password), and the
+resource ID of Graph API. In return the token endpoint provides an
+access token for the Graph API.</p>
+
+<p>The following use cases require Graph API interaction:</p>
+
+<ul>
+<li><p>To lookup security group memberships of the user making a Web
+API call. When Angular requests an access token using the implicit
+grant type and a user is a member of more than five groups, AAD
+substitutes groups claim in ID token and access token with
+a <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js/issues/239">hasgroups
+claim</a> set to true. It's up to Web API
+to <a href="https://stackoverflow.com/questions/45501568/azure-jwt-with-property-hasgroups-true-instead-of-groups-property-object">inspect</a>
+the hasgroups claim and make a call to Graph API to resolve security
+groups. Substitution is due to a limitation in the length of URL by
+which the implicit grant type receives tokens. Similar tokens returned
+to iOS, through the authorization code grant type and therefore the
+response body, aren't subject to the same limitation, and contain a
+groups claim, regardless of the number of groups memberships.</p></li>
+
+<li><p>To have Angular or iOS users provide a username and have Web
+API resolve it to an ObjectID, the AAD equivalent of
+AD's <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
+identifier</a>, which is how Web API identifies and stores user
+information.</p></li>
+</ul>
+
+<p>With AAD, it's possible to grant Angular and iOS applications the
+delegated "Read directory data" permissions to lookup security group
+members and the ObjectID of any user. That would expose directory
+information through a public client, and Web API would still need to
+verify that what Angular and iOS claim is actually true. Using token
+validation, claims can be verified, but the response of Graph API
+calls made by Angular and iOS cannot. Hence Graph API calls must be
+made by Web API.</p>
+
 <h3>Additional resources</h3>
 
 <ul>
@@ -284,8 +328,10 @@ app in AAD, and resource owner is a user in AAD.</p></li>
 <li><a href="https://www.youtube.com/watch?v=NWPdF-aSrB4">Troubleshooting
 OpenID Connect and OAuth2.0 protocols on Azure Active
 Directory</a>. Talk focuses on troubleshooting the hybrid flow, a
-flexible combination of the authorization code and implicit code
-flow. The talk introduces
+combination of the authorization code and implicit code flows (useful
+when frontend should have immediate access to short-lived ID token
+while backend exchanges authorization code for longer lived refresh
+token). The talk introduces
 <a href="https://www.getpostman.com">Postman</a>
 and <a href="https://www.telerik.com/fiddler">Fiddler</a> (until AAD
 starts rolling
