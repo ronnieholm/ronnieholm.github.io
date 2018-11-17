@@ -34,14 +34,16 @@ sign-in to (1) and (2) happens against AAD and with AAD users and that
 along with calls to (3).</p>
 
 <p>Reading along, keep in mind that OAuth2 is an authorization
-standard. It's OpenID Connect, a thin layer on top of OAuth2, which
+standard. It's OpenID Connect, the layer on top of OAuth2, which
 defines authentication. In other words, an OAuth2 access token is
 passed along from (1) and (2) to (3) and authorizes that (1) and (2)
-are allowed to access (3) on the user's behalf and only with the
-permissions consented to. The OpenID Connect token, a special kind of
-access token, is what authenticates a user to (1) and (2). It holds
-username, full name, Active Directory group memberships, and so on,
-and is never passed along to (3).</p>
+are allowed to access (3) on the user's behalf and with the
+permissions consented to. OpenID Connect's ID token (see primer on
+OpenID Connect,
+parts <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1">1</a>, <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-2">2</a>, <a href="https://developer.okta.com/blog/2017/08/01/oidc-primer-part-3">3</a>),
+a special kind of access token, is what authenticates a user to (1)
+and (2). It holds username, full name, and so on, and is never passed
+along to (3).</p>
 
 <p>Creating a new App registration inside the Azure portal, for the
 application type we have options "Web app/API" and "Native". The
@@ -244,17 +246,16 @@ can paste the value of each x5c into
 an <a href="https://redkestrel.co.uk/products/decoder">online</a>
 decoder.</p>
 
-<p>Have a look
-at <a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">this</a>
-post on how to validate tokens with ASP.NET Core. While the post shows
-how to validate tokens, it doesn't show how to reload metadata on a
-period basis. For that we either require a periodically executing
-method or perhaps the Web API is already
-using <a href="https://www.hangfire.io">Hangfire</a>. Otherwise, we
-risk the Web API failing token validation following a key rotation and
-before the app pool is recycled. Even worse, validation failure will
-appear sporadic and will eventually disappear without
-intervention.</p>
+<p><a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">This</a>
+post introduces token validation with ASP.NET Core, but not how to
+reload metadata on a regular basis. For that we require a periodically
+executing method or perhaps the Web API already makes use
+of <a href="https://www.hangfire.io">Hangfire</a>. Otherwise, we risk
+the Web API failing token validation following
+a <a href="https://openid.net/specs/openid-connect-core-1_0.html#RotateSigKeys">key
+rotation</a> and before the Web API is restarted. Even worse,
+validation failure will appear sporadic and will eventually disappear
+without intervention.</p>
 
 <p>With on-premise Web API hosting, we can rely
 on <a href="https://weblogs.asp.net/owscott/why-is-the-iis-default-app-pool-recycle-set-to-1740-minutes">idle
@@ -282,10 +283,9 @@ app in AAD, and resource owner is a user in AAD.</p></li>
 
 <li><a href="https://www.youtube.com/watch?v=NWPdF-aSrB4">Troubleshooting
 OpenID Connect and OAuth2.0 protocols on Azure Active
-Directory</a>. Talk focuses on troubleshooting the hybrid flow, an
-OpenID Connect flow where a client can request either or all of
-authorization code, ID token, access token, and refresh token. The
-talk introduces
+Directory</a>. Talk focuses on troubleshooting the hybrid flow, a
+flexible combination of the authorization code and implicit code
+flow. The talk introduces
 <a href="https://www.getpostman.com">Postman</a>
 and <a href="https://www.telerik.com/fiddler">Fiddler</a> (until AAD
 starts rolling
