@@ -52,9 +52,8 @@ can access (3) on the end-user's behalf and with the permissions
 consented to by the end-user and possibly an admin user. OpenID
 Connect's ID token (see primer on OpenID Connect,
 parts <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1">1</a>, <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-2">2</a>, <a href="https://developer.okta.com/blog/2017/08/01/oidc-primer-part-3">3</a>),
-a special kind of access token, is what authenticates an end-user to
-(1) and (2). It holds username, full name, and so on, and is never
-passed along to (3).</p>
+is what authenticates an end-user to (1) and (2). It holds username,
+full name, and so on, and is never passed along to (3).</p>
 
 <h3>Types of app registrations</h3>
 
@@ -157,25 +156,43 @@ to <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-a
 a Web API that is secured with OAuth 2.0</a>. However, that Web API
 can receive tokens only from an application that has the same
 Application ID. <b>You cannot access a Web API from a client that has
-a different Application ID</b>. The client won't be able to request or
-obtain permissions to your Web API.
+a different Application ID</b> [AAD term for client ID]. The client
+won't be able to request or obtain permissions to your Web API.
 </blockquote>
 
-<p>It's an inherent limitation in Microsoft's OAuth2 implementation
-rather than the OAuth2 standard itself. In our case, we have separate
-app registrations for iOS and Angular, causing their application IDs
-to differ from that of the Web API.</p>
+<p>It's an inherent limitation in MS' OAuth2 implementation and not
+the OAuth2 standard itself. In our case, we have separate app
+registrations for iOS and Angular, causing their application IDs to
+differ from that of the Web API.</p>
 
 <p>Despite
 known <a href="https://tools.ietf.org/html/rfc6749#section-10.16">security
 concerns</a>, ADAL.js implements authorization using the implicit
-grant type, causing the access token to be transmitted on the less
-secure front channel and stored in the browser. The implicit grant
-type also doesn't use a refresh token for access token
-renewal. ADAL.js periodically requests a new access from the
-authorization endpoint by including in the request a session cookie
-previously returned by the authorization server. For as long as the
-session cookie is valid, ADAL.js can request new access tokens.</p>
+grant type, causing only ID token and access token to be transmitted
+on the less secure front channel and stored in the browser. Instead of
+a refresh token, ADAL.js periodically requests new ID tokens and
+on-demand requests new access tokens. A refresh token is by design
+longer lived than an ID token and an access token, and would therefore
+pose a security risk if returned with the implicit grant type.</p>
+
+<p>Without prompting the user, ADAL.js accomplishes periodic ID token
+refresh by dynamically adding an invisible iframe element to the DOM,
+pointing it's source at the authorization endpoint. Inside the iframe,
+an authorization request is made, causing any cookies for the domain,
+such as the authorization server's session cookie (actually a number
+of cookies) returned during initial login, to be included. As during
+user prompted login, within the iframe, the authorization server
+directs the browser back to provided redirect URL. At this point,
+ADAL.js code runs inside the iframe, saving off the new ID token to
+browser storage. For as long as the session cookie is valid, and kept
+alive, ADAL.js can request new tokens without prompting the
+user. On-demand access token refresh follows the same procedure,
+resulting in a new access token saved to browser storage.</p>
+
+<p>Keeping the Angular application idle while having Chrome developer
+tools open, we can observe the refresh procedure kicking in. ADAL.js
+has it hardcoded to kick off every 3,600 seconds, taking into account
+the ID token lifetime of 3,900 seconds.</p>
 
 <h3>iOS: ADAL for Objective C and the authorization code grant type</h3>
 
