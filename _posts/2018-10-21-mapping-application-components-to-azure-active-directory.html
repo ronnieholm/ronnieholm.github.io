@@ -8,68 +8,81 @@ date: 2018-10-21 12:00 UTC
 
 <p>Deploying a real-world application with components secured
 by <a href="https://docs.microsoft.com/en-us/azure/active-directory">Azure
-Active Directory</a> (AAD), a point of confusion is how many AAD
-applications to register. Many blog posts focus on simple scenarios
-and unless one has a deep understanding of
+Active Directory</a> (AAD), Azure's AAD app registration page can be a
+confusing place. It provides minimal guidance on application types and
+how many applications to register. To add to the confusion, many blog
+posts focus on simple scenarios and unless one has a good
+understanding of
 the <a href="https://tools.ietf.org/html/rfc6749">OAuth2</a>
 and <a href="https://openid.net/developers/specs">OpenID Connect</a>
-standards, the Azure Portal's App registration page can be
-confusing.</p>
+standards, it's tricky to arrive at a secure and extensible
+solution.</p>
 
-<p>From a real-world use case, this post provides guidance on the
-number of app registrations required to support a secure
+<p>From a real-world use case, this post provides guidance on the type
+and number of app registrations required to support a secure
 architecture. It then details how the use case affects the choice of
 client authentication library and the parts of OAuth2 and OpenID
-Connect at work to support it.</p>
+Connect at work to support each component.</p>
 
 <h3>Real-world use case</h3>
 
 <p>Consider the following application implemented as a distributed set
-of components: (1) an Angular app making secured requests to a custom
-REST service, and (2) a native iOS app also making secured requests to
-the same REST service, (3) an ASP.NET Web API implementing the REST
-service with which the clients interact, and (4) Web API making
-secured calls to Graph API. All components are secured by AAD, meaning
-that sign-in to (1) and (2) happens against AAD and with AAD users and
-that (3) receives signed tokens issues by AAD to (1) and (2), and
-passed along with calls to (3).</p>
+of components:
+
+<ol>
+<li><p>An Angular app making secured calls to a custom REST
+service.</p>
+<li><p>A native iOS app also making secured calls to the same REST
+service.</p>
+<li><p>An ASP.NET Web API implementing the REST service.</p>
+<li><p>ASP.NET Web API making secured calls to MS Graph.</p>
+</ol>
+
+<p>All components are secured by AAD, meaning that end-user sign-in to
+(1) and (2) happens against AAD and with AAD users and that (3)
+receives signed tokens issued by AAD to (1) and (2), and passed along
+with calls to (3). (3) similarly requests a signed token and passes it
+along with calls to (4).</p>
 
 <p>Reading along, keep in mind that OAuth2 is an authorization
 standard. It's OpenID Connect, the layer on top of OAuth2, which
 defines authentication. In other words, an OAuth2 access token is
 passed along from (1) and (2) to (3) and authorizes that (1) and (2)
-can access (3) on the user's behalf and with the permissions consented
-to. OpenID Connect's ID token (see primer on OpenID Connect,
+can access (3) on the end-user's behalf and with the permissions
+consented to by the end-user and possibly an admin user. OpenID
+Connect's ID token (see primer on OpenID Connect,
 parts <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1">1</a>, <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-2">2</a>, <a href="https://developer.okta.com/blog/2017/08/01/oidc-primer-part-3">3</a>),
-a special kind of access token, is what authenticates a user to (1)
-and (2). It holds username, full name, and so on, and is never passed
-along to (3).</p>
+a special kind of access token, is what authenticates an end-user to
+(1) and (2). It holds username, full name, and so on, and is never
+passed along to (3).</p>
 
-<p>Creating a new App registration inside the Azure portal, for the
-application type we have options "Web app/API" and "Native". The
-OAuth2 specification, however, names application types
+<h3>Types of app registrations</h3>
+
+<p>Creating a new App registration inside the Azure portal, for
+application type we have a choice between "Web app/API" and
+"Native". The OAuth2 specification, however, names application types
 <a href="https://tools.ietf.org/html/rfc6749#section-2.1">client
-types</a> and outlines three options: web application,
-user-agent-based application (a fancy term for a browser hosting a
-JavaScript application), and native application.</p>
+types</a> and outlines three: web application, user-agent-based
+application (a fancy term for a browser hosting a JavaScript
+application), and native application.</p>
 
 <p>Inside AAD, user-agent-based application maps to "Web app/API"
 with <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/reference-app-manifest">oauth2AllowImplicitFlow</a>
-turned on in the registration manifest. The meaning of turning on
-oauth2AllowImplicitFlow is that implicit flow is added to the already
-supported flows and that because AAD knows the app requesting access
-to an endpoint, AAD allows implicit flow for whatever endpoint the app
-requests access to. For iOS and Web API, oauth2AllowImplicitFlow is
-left turned off.</p>
+turned on in the registration manifest. Turning on
+oauth2AllowImplicitFlow adds implicit grant type to the already
+supported grant types. Because AAD identifies an app by its client ID,
+AAD enables implicit grant type for whatever endpoint the app requests
+access to. For iOS and Web API, oauth2AllowImplicitFlow is left turned
+off.</p>
 
 <p>From these definitions, it's clear that the iOS app maps to
 "Native" and that both Angular and Web API maps to "Web app/API". But
 does that mean that Angular and Web API should run under the same
 registration?</p>
 
-<h3>Determining the number of app registrations</h3>
+<h3>Number of app registrations</h3>
 
-<p>Perhaps in the name of brevity, many blog posts share the app
+<p>Perhaps due to simple use cases, many blog posts share the app
 registration between Web API and Angular app. But for anything but the
 simplest use cases, reusing an app registration is at best a shortcut
 to avoid an additional app registration and at worst a potential
@@ -78,48 +91,50 @@ security risk:</p>
 <ul>
 
 <li><p>Almost always should the Angular app have its own app
-registration. Only in a small, contained Angular app/Web API use case
-where both are designed to only work with each other as a single unit,
-without integrating with other APIs, is sharing a registration a
-viable option.</p></li>
+registration. Only in a small, contained Angular app/Web API use case,
+where both are designed to only work with each other as one unit,
+without integrating with other APIs, is sharing a registration
+okay.</p></li>
 
-<li><p>Authorization on a per-application basis doesn't apply with
-only one app registration for the Angular app and Web API. With both
-assigned the same permission scope, to a downstream API such as Graph,
-the Angular app and Web API share the same access rights and are
-indistinguishable.</p></li>
+<li><p>Authorization on a per-application basis doesn't apply with one
+app registration shared between Angular app and Web API. With both
+having the same client ID and hence the same permissions, to a
+downstream API such as Graph, the Angular app and Web API share the
+same access rights and are indistinguishable.</p></li>
 
-<li><p>Logically frontend and backend are distinct components of the
+<li><p>Logically frontend and backend are distinct components of an
 application, created with distinct technologies and with distinct
 authorization needs. The two are likely deployed to different Azure
 app service instances and reside in different source code repositories
 with different life-cycles. Having the two share an app registration
-is reminiscent of a time when frontend and backend were intermingled
-in a postback-driven app with occasional JavaScript calls.</p></li>
+is reminiscent of a time when frontend and backend were coupled in a
+postback-driven app with occasional JavaScript calls.</p></li>
 
-<li><p>An Angular app may be consuming multiple endpoints: our Web
-API, Graph, Delve, SharePoint, and Exchange. It isn't tied to one API,
-except perhaps for the convenience of not having to create an
-additional app registration. While the extra app registration may come
-with a small mental cost, its monetary is cost. There's no need to be
+<li><p>An Angular app may be consuming multiple endpoints: one or more
+of our Web APIs and Graph, Delve, SharePoint, or Exchange. It isn't
+tied to one API, except perhaps for the convenience of not creating an
+additional app registration. While the extra app registration may add
+to the mental load, its monetary cost is zero. There's no need to be
 frugal with app registrations.</p></li>
 
 <li><p>App registration metadata differ between an Angular app and a
-Web API. Maybe not in a significant way at first, but in time they're
-likely to drift further apart. At that point, we must either split the
+Web API. Maybe not in a significant way at first, but over time
+they're likely to drift apart. At that point, we must either split the
 registration, maybe forcing users to re-consent, or make the single
 registration contain the settings of both, if possible.</p></li>
 
 <li><p>By design, an Angular app requires
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-implicit-grant-flow">implicit
 grant type</a> (of authorization flow or method to acquire an access
-token) whereas the Web API doesn't. An Angular app also requires reply
+token) whereas Web API doesn't. An Angular app also requires reply
 URLs to be setup as part of the registration (to avoid a rogue app
 requesting a token by passing a non-whitelisted reply URL to the
 authorization server) whereas a Web API doesn't, and over time an
 Angular app will likely access a different set of APIs than any one
-Web API. Thus, an Angular app have registration settings specific to
-it, meaning it should have its own app registration.</p></li>
+Web API. In our use case for instance, only Web API calls MS
+Graph. Thus, Angular app and Web API have registration settings
+specific to each, meaning they should have separate app
+registration.</p></li>
 
 </ul>
 
@@ -173,7 +188,7 @@ transmitted on the front channel by a browser control kicking of the
 flow by connecting to the server's authorization endpoint. ADAL
 registers
 a <a href="https://tools.ietf.org/html/rfc6749#section-9">custom
-schema handler</a> (like http or ftp, but app specific and matching
+scheme handler</a> (like http or ftp, but app specific and matching
 the name setup with AAD) making the app the default for URLs with that
 protocol. When the authorization server redirects the browser to
 myapp://..., the app receives the code as part of the URL. The app
@@ -205,7 +220,53 @@ know that implicit grant type couldn't have been used because
 oauth2AllowImplicitFlow is turned off with the iOS app
 registration.</p>
 
-<h3>ASP.NET Core Web API: token validation</h3>
+<h3>Web API: MS Graph and the client credentials grant type</h3>
+
+<p>Besides being an AAD secured endpoint, and hence the receiver of
+access tokens, Web API itself makes calls to Graph API, another AAD
+secured endpoint. It does so by means of
+the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
+credentials grant type</a>, used by confidential clients for
+service-to-service interaction. Without end-user interaction, to the
+token endpoint, the Web API submits its client ID, a pre-established
+shared client secret (effectively username and password), and the
+resource ID of Graph API. In return the token endpoint provides an
+access token for the Graph API.</p>
+
+<p>The following use cases require Graph API interaction:</p>
+
+<ul>
+<li><p>To lookup security group memberships of the user making a Web
+API call. When Angular requests an access token using the implicit
+grant type and a user is a member of more than five groups, AAD
+substitutes groups claim in ID token and access token with
+a <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js/issues/239">hasgroups
+claim</a> set to true. It's up to Web API
+to <a href="https://stackoverflow.com/questions/45501568/azure-jwt-with-property-hasgroups-true-instead-of-groups-property-object">inspect</a>
+the hasgroups claim and make a call to Graph API to resolve security
+groups. Substitution is due to a limitation in the length of URL by
+which the implicit grant type receives tokens. Similar tokens returned
+to iOS, through the authorization code grant type and therefore the
+response body, aren't subject to the same limitation, and contain a
+groups claim, regardless of the number of groups memberships.</p></li>
+
+<li><p>To have Angular or iOS users provide a username and have Web
+API resolve it to an ObjectID, the AAD equivalent of
+AD's <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
+identifier</a>, which is how Web API identifies and stores user
+information.</p></li>
+</ul>
+
+<p>With AAD, it's possible to grant Angular and iOS applications the
+delegated "Read directory data" permissions to lookup security group
+members and the ObjectID of any user. That would expose directory
+information through a public client, and Web API would still need to
+verify that what Angular and iOS claim is true. Using token
+validation, claims can be verified, but the response of Graph API
+calls made by Angular and iOS cannot. Hence Graph API calls must be
+made by Web API.</p>
+
+<h3>Web API: token validation</h3>
 
 <p>With our use case, the Web API is a receiver of access tokens from
 the Angular and iOS apps. As such, the Web APIs is responsible for
@@ -265,52 +326,6 @@ mode <a href="https://stackoverflow.com/questions/21840983/will-always-on-settin
 idle restarts</a> and periodic restarts isn't an IIS but
 a <a href="https://docs.microsoft.com/en-us/dotnet/framework/wcf/feature-details/hosting-in-windows-process-activation-service">WAS</a>
 feature, unavailable in Azure.</p>
-
-<h3>ASP.NET Core Web API: calling Graph API</h3>
-
-<p>Besides being an AAD secured endpoint, and hence the receiver of
-access tokens, Web API itself makes calls to Graph API, another AAD
-secured endpoint. It does so by means of
-the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
-credentials grant type</a>, used by confidential clients for
-service-to-service interaction. Without end-user interaction, to the
-token endpoint, the Web API submits its client ID, a pre-established
-shared client secret (effectively username and password), and the
-resource ID of Graph API. In return the token endpoint provides an
-access token for the Graph API.</p>
-
-<p>The following use cases require Graph API interaction:</p>
-
-<ul>
-<li><p>To lookup security group memberships of the user making a Web
-API call. When Angular requests an access token using the implicit
-grant type and a user is a member of more than five groups, AAD
-substitutes groups claim in ID token and access token with
-a <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js/issues/239">hasgroups
-claim</a> set to true. It's up to Web API
-to <a href="https://stackoverflow.com/questions/45501568/azure-jwt-with-property-hasgroups-true-instead-of-groups-property-object">inspect</a>
-the hasgroups claim and make a call to Graph API to resolve security
-groups. Substitution is due to a limitation in the length of URL by
-which the implicit grant type receives tokens. Similar tokens returned
-to iOS, through the authorization code grant type and therefore the
-response body, aren't subject to the same limitation, and contain a
-groups claim, regardless of the number of groups memberships.</p></li>
-
-<li><p>To have Angular or iOS users provide a username and have Web
-API resolve it to an ObjectID, the AAD equivalent of
-AD's <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
-identifier</a>, which is how Web API identifies and stores user
-information.</p></li>
-</ul>
-
-<p>With AAD, it's possible to grant Angular and iOS applications the
-delegated "Read directory data" permissions to lookup security group
-members and the ObjectID of any user. That would expose directory
-information through a public client, and Web API would still need to
-verify that what Angular and iOS claim is true. Using token
-validation, claims can be verified, but the response of Graph API
-calls made by Angular and iOS cannot. Hence Graph API calls must be
-made by Web API.</p>
 
 <h3>Additional resources</h3>
 
