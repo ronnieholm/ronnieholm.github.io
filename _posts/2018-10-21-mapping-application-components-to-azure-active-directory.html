@@ -279,11 +279,16 @@ its client ID, a pre-established shared client secret (effectively
 username and password), and the resource ID of MS Graph. In return the
 token endpoint provides an access token for MS Graph.</p>
 
-<p>Within AAD, technically it's possible to grant Angular and iOS apps
-the "Read directory data" permission to lookup security group
-memberships and do username/ObjectID mappings. Not only would that
-expose directory information through a public client, but Web API
-would still need to validate claims made by Angular and iOS.</p>
+<p>Within the Web API app registration, we assign the app
+<a href="https://developer.microsoft.com/en-us/graph/docs/concepts/permissions_reference">Read
+directory data</a> as
+an <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-permissions-and-consent">application
+permission</a>. Application permission implies that Web API can make
+MS Graph calls requiring that permission on its own whereas delegated
+would retrict Web API to make MS Graph calls only on behalf of a
+signed-in user calling Web API. For our purposes, we want to batch
+query AAD in clean-up jobs and not be restricted to only call MS Graph
+on a user's behalf.</p>
 
 <h3>Web API: token validation</h3>
 
