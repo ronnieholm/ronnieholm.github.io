@@ -21,8 +21,8 @@ solution.</p>
 <p>From a real-world use case, this post provides guidance on the type
 and number of app registrations required to support a secure
 architecture. It then details how the use case affects the choice of
-client authentication library and the parts of OAuth2 and OpenID
-Connect at work to support each component.</p>
+client authentication library and deep dives into the parts of OAuth2
+and OpenID Connect at work to support each component.</p>
 
 <h3>Real-world use case</h3>
 
@@ -30,11 +30,11 @@ Connect at work to support each component.</p>
 of components:
 
 <ol>
-<li><p>An Angular app making secured calls to a custom REST
+<li><p>Angular app making secured calls to a custom REST
 service.</p>
-<li><p>A native iOS app also making secured calls to the same REST
+<li><p>Native iOS app also making secured calls to the same REST
 service.</p>
-<li><p>An ASP.NET Web API implementing the REST service.</p>
+<li><p>ASP.NET Web API implementing the REST service.</p>
 <li><p>ASP.NET Web API making secured calls to MS Graph.</p>
 </ol>
 
@@ -53,7 +53,7 @@ consented to by the end-user and possibly an admin user. OpenID
 Connect's ID token (see primer on OpenID Connect,
 parts <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1">1</a>, <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-2">2</a>, <a href="https://developer.okta.com/blog/2017/08/01/oidc-primer-part-3">3</a>),
 is what authenticates an end-user to (1) and (2). It holds username,
-full name, and so on, and is never passed along to (3).</p>
+full name, and so on, but is never passed along to (3).</p>
 
 <h3>Types of app registrations</h3>
 
@@ -168,120 +168,122 @@ differ from that of the Web API.</p>
 <p>Despite
 known <a href="https://tools.ietf.org/html/rfc6749#section-10.16">security
 concerns</a>, ADAL.js implements authorization using the implicit
-grant type, causing only ID token and access token to be transmitted
-on the less secure front channel and stored in the browser. Instead of
-a refresh token, ADAL.js periodically requests new ID tokens and
-on-demand requests new access tokens. A refresh token is by design
-longer lived than an ID token and an access token, and would therefore
-pose a security risk if returned with the implicit grant type.</p>
+grant type, causing only ID token and access token to be returned by
+the authorization endpoint on the less secure front channel, and
+stored in the browser. Instead of a refresh token, ADAL.js
+periodically requests new ID tokens and on-demand requests new access
+tokens. A refresh token is by design longer lived than an ID token and
+an access token, and would therefore pose a security risk if returned
+with the implicit grant type.</p>
 
-<p>Without prompting the user, ADAL.js accomplishes periodic ID token
-refresh by dynamically adding an invisible iframe element to the DOM,
-pointing it's source at the authorization endpoint. Inside the iframe,
-an authorization request is made, causing any cookies for the domain,
-such as the authorization server's session cookie (actually a number
-of cookies) returned during initial login, to be included. As during
-user prompted login, within the iframe, the authorization server
-directs the browser back to provided redirect URL. At this point,
-ADAL.js code runs inside the iframe, saving off the new ID token to
-browser storage. For as long as the session cookie is valid, and kept
-alive, ADAL.js can request new tokens without prompting the
-user. On-demand access token refresh follows the same procedure,
-resulting in a new access token saved to browser storage.</p>
+<p>Without prompting the user for login, ADAL.js accomplishes periodic
+ID token refresh by dynamically adding an invisible iframe element to
+the DOM, pointing it's source at the authorization endpoint. Inside
+the iframe, an authorization request is made, causing any cookies for
+the domain, such as the authorization server's session cookie
+(actually a number of cookies) returned during initial login, to be
+included. As during user prompted login, within the iframe, the
+authorization server directs the browser back to provided redirect
+URL. At this point, ADAL.js code runs inside the iframe, saving off
+the new ID token to browser storage. Access token refresh follows the
+same procedure, but not on a schedule because having valid access
+tokens around for no reason is a security risk. For as long as the
+session cookie is valid, and kept alive, ADAL.js can request new
+tokens without prompting the user. </p>
 
 <p>Keeping the Angular application idle while having Chrome developer
 tools open, we can observe the refresh procedure kicking in. ADAL.js
-has it hardcoded to kick off every 3,600 seconds, taking into account
-the ID token lifetime of 3,900 seconds.</p>
+has it hardcoded to every 3,600 seconds, taking into account ID token
+lifetime of 3,900 seconds.</p>
 
 <h3>iOS: ADAL for Objective C and the authorization code grant type</h3>
 
 <p>Compare the implicit grant type to
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-protocols-oauth-code">authorization
 code grant type</a> used by the iOS app (implemented
-by <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc">ADAL
-for Objective C</a>). Only the short-lived authorization code grant is
-transmitted on the front channel by a browser control kicking of the
-flow by connecting to the server's authorization endpoint. ADAL
-registers
+through <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc">ADAL
+for Objective C</a>). Here only a single use, short-lived
+authorization code is transmitted on the front channel via a browser
+control connected to the authorization server endpoint. ADAL registers
 a <a href="https://tools.ietf.org/html/rfc6749#section-9">custom
-scheme handler</a> (like http or ftp, but app specific and matching
-the name setup with AAD) making the app the default for URLs with that
-protocol. When the authorization server redirects the browser to
-myapp://..., the app receives the code as part of the URL. The app
-then switches to using the more secure back channel to connect to the
-authorization server's token endpoint to exchange the short lived,
-single use authorization code (and later refresh token), for access
-and refresh tokens.</p>
+scheme handler</a> with the control. Like http or ftp, but specific to
+the iOS app and matching the scheme registered with AAD. When the
+authorization server redirects the browser to myapp://..., the app
+receives the code as part of the URL. It then switches to using the
+more secure back channel to connect to the authorization server's
+token endpoint to exchange the authorization code (and later refresh
+token), for ID token, access token, and refresh token.</p>
 
 <p>Like with the implicit grant, because the authorization code grant
 originates from a public client
 (see <a href="https://tools.ietf.org/html/rfc6749#section-2.1">OAuth2
 client types</a>), not even on the back channel does the client
 authenticate with the authorization server. Any client in possession
-of the code can exchange it for access and refresh tokens. Client
-authentication would involve submitting with the code and client ID a
-previously agreed upon client secret. But since anyone would be able
-to discover the secret of a public client, and it cannot easily be
-changed after deployment, public client authentication is
-meaningless. Only confidential clients, code running on a server,
-authenticate using a secret shared between themselves and the
-authorization server.</p>
+of the code can exchange it for tokens. Client authentication would
+involve submitting with the code and client ID a pre-established
+client secret. But since anyone would be able to discover the secret
+of a public client, and it cannot easily be changed after deployment,
+public client authentication is meaningless. Only a confidential
+client, code running on a server, authenticates using a secret shared
+between the client and the authorization server.</p>
 
 <p>To convince ourselves that iOS is using the authorization code
 grant type, we
 can <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc#diagnostics">turn
 on diagnostics logging</a> to see the custom protocol URL and
-authorization code and its conversion to tokens. Otherwise, we'd only
-know that implicit grant type couldn't have been used because
+authorization code and exchange for tokens. Otherwise, we'd only know
+that implicit grant type couldn't have been used because
 oauth2AllowImplicitFlow is turned off with the iOS app
 registration.</p>
 
 <h3>Web API: MS Graph and the client credentials grant type</h3>
 
-<p>Besides being an AAD secured endpoint, and hence the receiver of
-access tokens, Web API itself makes calls to Graph API, another AAD
-secured endpoint. It does so by means of
-the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
-credentials grant type</a>, used by confidential clients for
-service-to-service interaction. Without end-user interaction, to the
-token endpoint, the Web API submits its client ID, a pre-established
-shared client secret (effectively username and password), and the
-resource ID of Graph API. In return the token endpoint provides an
-access token for the Graph API.</p>
-
-<p>The following use cases require Graph API interaction:</p>
+<p>Besides Web API being an AAD secured endpoint, and hence the
+receiver of access tokens, for the following reasons, Web API itself
+makes REST calls to MS Graph, another AAD secured endpoint:</p>
 
 <ul>
 <li><p>To lookup security group memberships of the user making a Web
-API call. When Angular requests an access token using the implicit
-grant type and a user is a member of more than five groups, AAD
-substitutes groups claim in ID token and access token with
+API call for Web API permission control. When Angular requests an ID
+token and access token using the implicit grant type and a user is a
+member of more than (currently) five security groups, AAD by design
+substitutes the groups claim for
 a <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js/issues/239">hasgroups
-claim</a> set to true. It's up to Web API
+claim</a> with a value of true. It's up to Web API
 to <a href="https://stackoverflow.com/questions/45501568/azure-jwt-with-property-hasgroups-true-instead-of-groups-property-object">inspect</a>
-the hasgroups claim and make a call to Graph API to resolve security
-groups. Substitution is due to a limitation in the length of URL by
-which the implicit grant type receives tokens. Similar tokens returned
-to iOS, through the authorization code grant type and therefore the
-response body, aren't subject to the same limitation, and contain a
-groups claim, regardless of the number of groups memberships.</p></li>
+the hasgroups claim and retrieve the user's security groups from MS
+Graph.</p></li>
 
-<li><p>To have Angular or iOS users provide a username and have Web
-API resolve it to an ObjectID, the AAD equivalent of
-AD's <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
-identifier</a>, which is how Web API identifies and stores user
-information.</p></li>
+<li><p>To lookup the ObjectID of any username provided by Angular or
+iOS, such as when one user assigns another user to a part of the
+app. Within AAD, ObjectID is the equivalent of an
+AD <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
+identifier</a>, i.e., a GUID by which Web API identifies a user and a
+key by which it stores local user information.</p></li>
 </ul>
 
-<p>With AAD, it's possible to grant Angular and iOS applications the
-delegated "Read directory data" permissions to lookup security group
-members and the ObjectID of any user. That would expose directory
-information through a public client, and Web API would still need to
-verify that what Angular and iOS claim is true. Using token
-validation, claims can be verified, but the response of Graph API
-calls made by Angular and iOS cannot. Hence Graph API calls must be
-made by Web API.</p>
+<p>Claim substitution is due to a limitation in the length of the URL
+by which the implicit grant type transmits tokens. Tokens come back
+base 64 encoded in a URL fragment and the more memberships the larger
+the token becomes. Tokens returned to iOS, through the authorization
+code grant type, aren't subject to the same URL size limitation. These
+tokens are transmitted within the response body and therefore contain
+a groups claim, regardless of the number of memberships.</p>
+
+<p>The nature of these MS Graph calls are service-to-service,
+originating from a confidential client without user interaction, and
+are therefore authorized using
+the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
+credentials grant type</a>. The Web API submits to the token endpoint
+its client ID, a pre-established shared client secret (effectively
+username and password), and the resource ID of MS Graph. In return the
+token endpoint provides an access token for MS Graph.</p>
+
+<p>Within AAD, technically it's possible to grant Angular and iOS apps
+the "Read directory data" permission to lookup security group
+memberships and do username/ObjectID mappings. Not only would that
+expose directory information through a public client, but Web API
+would still need to validate claims made by Angular and iOS.</p>
 
 <h3>Web API: token validation</h3>
 
@@ -291,12 +293,12 @@ validating both the token's claims and its signature. Each token
 consists of
 a <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens#claims-in-access-tokens">header,
 payload, and signature</a>. From the payload, the issuer (iss) claim
-must be AAD as defined in the
+must be our AAD tenant as defined in the
 <a href="https://login.microsoftonline.com/common/.well-known/openid-configuration">OpenID
 Connect federation metadata document</a> and the audience (aud) claim,
-the intended recipient, must be Web API. As for the token's lifetime,
-the not before (nbf) and expiration time (exp) claims must be
-valid.</p>
+the intended recipient, must be our Web API. As for the token's
+lifetime, the not before (nbf) and expiration time (exp) claims must
+be valid.</p>
 
 <p>Signature validation must adhere to
 <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens#validating-the-signature">AAD's
@@ -316,29 +318,27 @@ the <a href="https://login.microsoftonline.com/common/discovery/keys">location</
 of the <a href="https://tools.ietf.org/html/rfc7517">JSON Web Key
 Set</a>, the public keys to verify the signature. Web API must use the
 header's algorithm (alg) and Key ID (kid) claims to locate the public
-key and perform validation. For all the X509 certificate details, we
-can paste the value of each x5c into
+key and perform validation. For X509 key details, such as expiration
+date, we can paste the value of each x5c into
 an <a href="https://redkestrel.co.uk/products/decoder">online</a>
 decoder.</p>
 
-<p><a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">This</a>
-post introduces token validation with ASP.NET Core, but not how to
-reload metadata on a regular basis. For that we require a periodically
-executing method or perhaps the Web API already makes use
-of <a href="https://www.hangfire.io">Hangfire</a>. Otherwise, we risk
-the Web API failing token validation following
+<p>This <a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">tutorial</a>
+introduces token validation with ASP.NET Core, but not how to reload
+metadata on a regular basis. For that we must implement a periodically
+executing method or use <a href="https://www.hangfire.io">Hangfire</a>
+or similar. Otherwise, we risk Web API failing token validation
+following
 a <a href="https://openid.net/specs/openid-connect-core-1_0.html#RotateSigKeys">key
-rotation</a> and before the Web API is restarted. Even worse,
-validation failure will appear sporadic and will eventually disappear
-without intervention.</p>
+rotation</a> and before next Web API restart. Even worse, validation
+failure will appear sporadic and eventually resolve itself.</p>
 
 <p>With on-premise Web API hosting, we can rely
 on <a href="https://weblogs.asp.net/owscott/why-is-the-iis-default-app-pool-recycle-set-to-1740-minutes">idle
 and periodic app pool restarts</a> to keep metadata up to
 date. Although by default the app pool recycles at least every 29
 hours, exceeding AAD's 24 hour policy, both periods are
-configurable. With Azure App Service, however, running a site in
-"Always on"
+configurable. With Azure App Service, running a site in "Always on"
 mode <a href="https://stackoverflow.com/questions/21840983/will-always-on-setting-prevent-both-idletimeout-and-periodicrestart">prevents
 idle restarts</a> and periodic restarts isn't an IIS but
 a <a href="https://docs.microsoft.com/en-us/dotnet/framework/wcf/feature-details/hosting-in-windows-process-activation-service">WAS</a>
@@ -364,16 +364,16 @@ when frontend should have immediate access to short-lived ID token
 while backend exchanges authorization code for longer lived refresh
 token). The talk introduces
 <a href="https://www.getpostman.com">Postman</a>
-and <a href="https://www.telerik.com/fiddler">Fiddler</a> (until AAD
-starts rolling
+and <a href="https://www.telerik.com/fiddler">Fiddler</a> (the latter
+useful until AAD starts rolling
 out <a href="https://en.wikipedia.org/wiki/Transport_Layer_Security#Certificate_pinning">certificate
 pinning</a>) with
 the <a href="https://github.com/vibronet/OInspector/tree/dev">OpenID
 Connect Inspector (dev branch)</a> plugin to peek inside tokens. The
 talk examines in detail requests, responses, and consents. At 40m03s,
 a Fiddler breakpoint is set to modify the response from AAD before
-it's passed to the app. This enables verifying that the app implements
-proper token validation.</p></li>
+it's passed to the app to verify that the app implements proper token
+validation.</p></li>
 
 <li><p><a href="https://www.youtube.com/watch?v=996OiexHze0">OAuth 2.0
 and OpenID Connect (in plain English)</a>. Covers the history and use
@@ -392,6 +392,6 @@ the future, we ended up with three app registrations. Besides details
 of registration, to fully understand what's going on as part of app
 authentication and authorization, relevant parts of OAuth2 and OpenID
 Connect standards were outlined. Without such knowledge, debugging
-amounts to time consuming guess work.</p>
+often amounts to time consuming guess work.</p>
 
 </div>
