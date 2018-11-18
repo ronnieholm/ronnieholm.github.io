@@ -284,11 +284,11 @@ token endpoint provides an access token for MS Graph.</p>
 directory data</a> as
 an <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-permissions-and-consent">application
 permission</a>. Application permission implies that Web API can make
-MS Graph calls requiring that permission on its own whereas delegated
-would retrict Web API to make MS Graph calls only on behalf of a
-signed-in user calling Web API. For our purposes, we want to batch
-query AAD in clean-up jobs and not be restricted to only call MS Graph
-on a user's behalf.</p>
+MS Graph calls requiring that permission on its own. Delegated would
+retrict Web API to make MS Graph calls only on behalf of a signed-in
+user calling Web API. For our purposes, we want to batch query AAD in
+clean-up jobs and not be restricted to calling MS Graph on a user's
+behalf.</p>
 
 <h3>Web API: token validation</h3>
 
