@@ -19,10 +19,11 @@ standards, it's tricky to arrive at a secure and extensible
 solution.</p>
 
 <p>From a real-world use case, this post provides guidance on the type
-and number of app registrations required to support a secure
-architecture. It then details how the use case affects the choice of
-client authentication libraries and deep-dives into the parts of
-OAuth2 and OpenID Connect at work to support each component.</p>
+and number of app registrations required to support a secure and
+evolving architecture. It then details how the use case affects the
+choice of client authentication library and the parts of OAuth2 and
+OpenID Connect at work. Its focus is on adding perspective, not to
+provide a tutorial.</p>
 
 <h3>Real-world use case</h3>
 
@@ -122,7 +123,7 @@ they're likely to drift apart. At that point, we must either split the
 registration, maybe forcing users to re-consent, or make the single
 registration contain the settings of both, if possible.</p></li>
 
-<li><p>By design, an Angular app requires
+<li><p>By design, an Angular app uses
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-implicit-grant-flow">implicit
 grant type</a> (of authorization flow or method to acquire an access
 token) whereas Web API doesn't. An Angular app also requires reply
@@ -168,33 +169,32 @@ differ from that of the Web API.</p>
 <p>Despite
 known <a href="https://tools.ietf.org/html/rfc6749#section-10.16">security
 concerns</a>, ADAL.js implements authorization using the implicit
-grant type, causing only ID token and access token to be returned by
-the authorization endpoint on the less secure front channel, and
-stored in the browser. Instead of a refresh token, ADAL.js
-periodically requests new ID tokens and on-demand requests new access
-tokens. A refresh token is by design longer lived than an ID token and
-an access token, and would therefore pose a security risk if returned
-with the implicit grant type.</p>
+grant type. Only ID token and access token are returned by the
+authorization endpoint on the less secure front channel and stored in
+the browser. Instead of a refresh token, ADAL.js periodically requests
+new ID tokens and on-demand requests new access tokens. A refresh
+token is by design longer lived than both ID token and access token,
+and would pose a security risk if returned with the implicit grant
+type.</p>
 
 <p>Without prompting the user for login, ADAL.js accomplishes periodic
 ID token refresh by dynamically adding an invisible iframe element to
-the DOM, pointing it's source at the authorization endpoint. Inside
-the iframe, an authorization request is made, causing any cookies for
-the domain, such as the authorization server's session cookie
-(actually a number of cookies) returned during initial login, to be
-included. As during user prompted login, within the iframe, the
-authorization server directs the browser back to provided redirect
-URL. At this point, ADAL.js code runs inside the iframe, saving off
-the new ID token to browser storage. Access token refresh follows the
-same procedure, but not on a schedule because having valid access
-tokens around for no reason is a security risk. For as long as the
-session cookie is valid, and kept alive, ADAL.js can request new
-tokens without prompting the user. </p>
+the DOM, pointing its source at the authorization endpoint. An
+authorization request is submitted, causing any cookies for the domain
+to be included. Cookies include the authorization server's session
+cookie, actually a collection of cookies, received during earlier
+login. The authorization server then directs the browser (inside the
+iframe) back to the redirect URL. At this point, ADAL.js saves the new
+ID token to browser storage. Access token refresh follows the same
+procedure, but on-demand, as always valid access tokens stored in the
+browser would be a security risk. For as long as the session cookie is
+valid, and kept alive, ADAL.js can request new tokens without user
+interaction.</p>
 
-<p>Keeping the Angular application idle while having Chrome developer
-tools open, we can observe the refresh procedure kicking in. ADAL.js
-has it hardcoded to occur every 3,600 seconds, taking into account ID
-token lifetime of 3,900 seconds.</p>
+<p>Keeping the Angular application idle with having Chrome developer
+tools open, we can observe the refresh procedure. ADAL.js has it
+hardcoded to occur every 3,600 seconds, taking into account ID token
+lifetime of 3,900 seconds.</p>
 
 <h3>iOS: ADAL for Objective C and the authorization code grant type</h3>
 
@@ -264,11 +264,11 @@ key by which it stores local user information.</p></li>
 
 <p>Claim substitution is due to a limitation in the length of the URL
 by which the implicit grant type transmits tokens. Tokens come back
-base 64 encoded in a URL fragment and the more memberships the larger
-the token becomes. Tokens returned to iOS, through the authorization
-code grant type, aren't subject to the same URL size limitation. These
-tokens are transmitted within the response body and therefore contain
-a groups claim, regardless of the number of memberships.</p>
+base 64 encoded in the URL fragment and the more memberships the
+larger the token. Tokens returned to iOS, through the authorization
+code grant type, aren't subject to this URL size limitation. They're
+transmitted within the response body and therefore contain a groups
+claim, regardless of the number of memberships.</p>
 
 <p>The nature of these MS Graph calls are service-to-service,
 originating from a confidential client without user interaction, and
