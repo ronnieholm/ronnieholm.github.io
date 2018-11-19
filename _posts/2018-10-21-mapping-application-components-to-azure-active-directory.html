@@ -173,7 +173,7 @@ grant type. Only ID token and access token are returned by the
 authorization endpoint on the less secure front channel and stored in
 the browser. Instead of a refresh token, ADAL.js periodically requests
 new ID tokens and on-demand requests new access tokens. A refresh
-token is by design longer lived than both ID token and access token,
+token is by design longer lived than both ID token and access token
 and would pose a security risk if returned with the implicit grant
 type.</p>
 
@@ -182,7 +182,7 @@ ID token refresh by dynamically adding an invisible iframe element to
 the DOM, pointing its source at the authorization endpoint. An
 authorization request is submitted, causing any cookies for the domain
 to be included. Cookies include the authorization server's session
-cookie, actually a collection of cookies, received during earlier
+cookie, actually a collection of cookies, received during previous
 login. The authorization server then directs the browser (inside the
 iframe) back to the redirect URL. At this point, ADAL.js saves the new
 ID token to browser storage. Access token refresh follows the same
@@ -193,8 +193,8 @@ interaction.</p>
 
 <p>Keeping the Angular application idle with having Chrome developer
 tools open, we can observe the refresh procedure. ADAL.js has it
-hardcoded to occur every 3,600 seconds, taking into account ID token
-lifetime of 3,900 seconds.</p>
+hardcoded to occur every 3,600 seconds, considering ID token lifetime
+of 3,900 seconds.</p>
 
 <h3>iOS: ADAL for Objective C and the authorization code grant type</h3>
 
@@ -285,7 +285,7 @@ directory data</a> as
 an <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-permissions-and-consent">application
 permission</a>. Application permission implies that Web API can make
 MS Graph calls requiring that permission on its own. Delegated would
-retrict Web API to make MS Graph calls only on behalf of a signed-in
+restrict Web API to make MS Graph calls only on behalf of a signed-in
 user calling Web API. For our purposes, we want to batch query AAD in
 clean-up jobs and not be restricted to calling MS Graph on a user's
 behalf.</p>
@@ -342,7 +342,7 @@ failure will appear sporadic and eventually resolve itself.</p>
 on <a href="https://weblogs.asp.net/owscott/why-is-the-iis-default-app-pool-recycle-set-to-1740-minutes">idle
 and periodic app pool restarts</a> to keep metadata up to
 date. Although by default the app pool recycles at least every 29
-hours, exceeding AAD's 24 hour policy, both periods are
+hours, exceeding AAD's 24-hour policy, both periods are
 configurable. With Azure App Service, running a site in "Always on"
 mode <a href="https://stackoverflow.com/questions/21840983/will-always-on-setting-prevent-both-idletimeout-and-periodicrestart">prevents
 idle restarts</a> and periodic restarts isn't an IIS but
