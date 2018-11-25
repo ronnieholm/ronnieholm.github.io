@@ -246,10 +246,11 @@ registration.</p>
 <p>Besides Web API being an AAD secured endpoint, and hence the
 receiver of access tokens, for the requirements below, Web API itself
 makes REST calls to MS Graph, another AAD secured endpoint. Following
-each requirement is the permission type required to satisfy
-it. Application means that Web API makes service-to-service MS Graph
-calls as itself. Delegated that Web API makes service-to-service MS
-Graph calls on behalf of the signed-in user calling Web API:</p>
+each requirement is the permission (actually a permission type or
+grouping as it's a container for actual permissions) required to
+satisfy it. Application means that Web API makes service-to-service MS
+Graph calls as itself. Delegated that Web API makes service-to-service
+MS Graph calls on behalf of the signed-in user calling Web API:</p>
 
 <ul>
 <li><p>To lookup security group memberships of the user making a Web
@@ -290,8 +291,8 @@ within the response body and therefore contain a groups claim,
 regardless of the number of memberships.</p>
 
 <p>Two of the requirements may be satisfied by either application or
-delegated permission type and one only by application. Whether to
-setup fine-grained access and mix application and delegated types is a
+delegated permission and one only by application. Whether to setup
+fine-grained access and mix application and delegated permissions is a
 matter of preference. Mixing means sticking to the principle of least
 privilege. On the other hand, both require admin consent, the Web API
 is a confidential client, and it requires application permission
