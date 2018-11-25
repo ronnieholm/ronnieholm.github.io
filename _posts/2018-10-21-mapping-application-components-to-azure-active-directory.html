@@ -239,56 +239,80 @@ registration.</p>
 <h3>Web API: MS Graph and the client credentials grant type</h3>
 
 <p>Besides Web API being an AAD secured endpoint, and hence the
-receiver of access tokens, for the following reasons, Web API itself
-makes REST calls to MS Graph, another AAD secured endpoint:</p>
+receiver of access tokens, for requirements below, Web API itself
+makes REST calls to MS Graph, another AAD secured endpoint. Following
+each requirement is the permission type required to satisfy the
+requirement. Application means that Web API can make MS Graph calls as
+itself. Delegated that Web API to make MS Graph calls only on behalf
+of a signed-in user calling Web API:</p>
 
 <ul>
 <li><p>To lookup security group memberships of the user making a Web
-API call for Web API permission control. When Angular requests an ID
-token and access token using the implicit grant type and a user is a
-member of more than (currently) five security groups, AAD by design
-substitutes the groups claim for
+API call. When Angular requests an ID token and access token using the
+implicit grant type and the user is a member of more than (currently)
+five security groups, AAD by design substitutes the groups claim for
 a <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js/issues/239">hasgroups
 claim</a> with a value of true. It's up to Web API
 to <a href="https://stackoverflow.com/questions/45501568/azure-jwt-with-property-hasgroups-true-instead-of-groups-property-object">inspect</a>
 the hasgroups claim and retrieve the user's security groups from MS
-Graph.</p></li>
+Graph. (Required delegated or application permission.)</p></li>
 
-<li><p>To lookup the ObjectID of any username provided by Angular or
-iOS, such as when one user assigns another user to a part of the
-app. Within AAD, ObjectID is the equivalent of an
+<li><p>To lookup the ObjectID of a username provided by Angular or
+iOS, such as when one user assigns another user access to a part of
+the app. Within AAD, ObjectID is the equivalent of an
 AD <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
-identifier</a>, i.e., a GUID by which Web API identifies a user and a
-key by which it stores local user information.</p></li>
+identifier</a>, i.e., a GUID by which Web API identifies the user and
+a key by which it stores user information. If the user is removed from
+AAD, the app shouldn't end up with a dangling reference. Besides
+ObjectID, it stores the user's display name as well. (Requires
+delegated or application permission.)</p></li>
+
+<li><p>To periodically execute batch queries against AAD to identify
+disabled users. With hundreds of users of the app, no one can keep
+track of when user's are disabled. A notification mechanism is needed,
+showing active tasks assigned to disabled users that may require
+re-assignment. Also, if AAD queries triggered by each Web API request
+turn out to be a bottleneck, either batch querying or caching group
+memberships may be an option, too. (Requires application
+permission.)</p></li>
 </ul>
 
 <p>Claim substitution is due to a limitation in the length of the URL
 by which the implicit grant type transmits tokens. Tokens come back
-base 64 encoded in the URL fragment and the more memberships the
-larger the token. Tokens returned to iOS, through the authorization
-code grant type, aren't subject to this URL size limitation. They're
-transmitted within the response body and therefore contain a groups
-claim, regardless of the number of memberships.</p>
+base 64 encoded in a URL fragment and more memberships leads to a
+larger token. Tokens returned through the authorization code grant
+type aren't subject to the URL length limitation. They're transmitted
+within the response body and therefore contain a groups claim,
+regardless of the number of memberships.</p>
 
-<p>The nature of these MS Graph calls are service-to-service,
-originating from a confidential client without user interaction, and
-are therefore authorized using
+<p>Two of the requirements may be satisfied by either application or
+delegated permission type and one only by application. Whether to
+setup fine-grained access and mix application and delegated types is a
+matter of preference. Mixing means sticking to the principle of least
+privilege. On the other hand, both require admin consent, the Web API
+is a confidential client, and it requires application permission
+anyway. To keep the setup manageable, we define all MS Graph calls as
+service-to-service, authorized using
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
-credentials grant type</a>. The Web API submits to the token endpoint
-its client ID, a pre-established shared client secret (effectively
-username and password), and the resource ID of MS Graph. In return the
-token endpoint provides an access token for MS Graph.</p>
+credentials grant type</a>.</p>
 
-<p>Within the Web API app registration, we assign the app
-<a href="https://developer.microsoft.com/en-us/graph/docs/concepts/permissions_reference">Read
+<p>The Web API submits to the token endpoint its client ID, a
+pre-established shared client secret (effectively username and
+password), and the resource ID of MS Graph. In return the token
+endpoint provides an access token for MS Graph. Had we used delegated
+permissions, we'd have to use
+the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-on-behalf-of-flow">on-behalf-of
+grant type</a> for the delegated calls. Web API would have to exchange
+the user provided access token for one supporting delegation as
+shown <a href="https://joonasw.net/view/azure-ad-on-behalf-of-aspnet-core">here</a>,
+complicating Web API logic.</p>
+
+<p>In terms of setup, within the Web API app registration, under
+required permissions, we add MS Graph and enable its
+<a href="https://developer.microsoft.com/en-us/graph/docs/concepts/permissions_r<eference">Read
 directory data</a> as
 an <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-permissions-and-consent">application
-permission</a>. Application permission implies that Web API can make
-MS Graph calls requiring that permission on its own. Delegated would
-restrict Web API to make MS Graph calls only on behalf of a signed-in
-user calling Web API. For our purposes, we want to batch query AAD in
-clean-up jobs and not be restricted to calling MS Graph on a user's
-behalf.</p>
+permission</a>.</p>
 
 <h3>Web API: token validation</h3>
 
