@@ -22,8 +22,8 @@ solution.</p>
 and number of app registrations required to support a secure and
 evolving architecture. It then details how the use case affects the
 choice of client authentication library and the parts of OAuth2 and
-OpenID Connect at work. Its focus is on adding perspective, not to
-provide a tutorial.</p>
+OpenID Connect at work. Its focus is on adding perspective, not to be
+a setup guide. Instead, links to setup guides are provided.</p>
 
 <h3>Real-world use case</h3>
 
@@ -45,13 +45,14 @@ receives signed tokens issued by AAD to (1) and (2), and passed along
 with calls to (3). (3) similarly requests a signed token and passes it
 along with calls to (4).</p>
 
-<p>Reading along, keep in mind that OAuth2 is an authorization
-standard. It's OpenID Connect, the layer on top of OAuth2, which
-defines authentication. In other words, an OAuth2 access token is
-passed along from (1) and (2) to (3) and authorizes that (1) and (2)
-can access (3) on the end-user's behalf and with the permissions
-consented to by the end-user and possibly an admin user. OpenID
-Connect's ID token (see primer on OpenID Connect,
+<p>Reading along, keep in mind that authorization is orthogonal to
+authentication but that authorization requires authentication. OAuth2
+is an authorization standard. It's OpenID Connect, the layer on top of
+OAuth2, which defines authentication. In other words, an OAuth2 access
+token is passed along from (1) and (2) to (3) and authorizes that (1)
+and (2) can access (3) on the end-user's behalf and with the
+permissions consented to by the end-user and possibly an admin
+user. OpenID Connect's ID token (see primer on OpenID Connect,
 parts <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1">1</a>, <a href="https://developer.okta.com/blog/2017/07/25/oidc-primer-part-2">2</a>, <a href="https://developer.okta.com/blog/2017/08/01/oidc-primer-part-3">3</a>),
 is what authenticates an end-user to (1) and (2). It holds username,
 full name, and so on, but is never passed along to (3).</p>
@@ -100,7 +101,10 @@ okay.</p></li>
 app registration shared between Angular app and Web API. With both
 having the same client ID and hence the same permissions, to a
 downstream API such as Graph, the Angular app and Web API share the
-same access rights and are indistinguishable.</p></li>
+same access rights and are indistinguishable. To support delegated
+permissions, Web API must implement
+the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-on-behalf-of-flow">on-behalf-of
+grant type</a> which requires separate registrations.</p></li>
 
 <li><p>Logically frontend and backend are distinct components of an
 application, created with distinct technologies and with distinct
@@ -120,8 +124,9 @@ frugal with app registrations.</p></li>
 <li><p>App registration metadata differ between an Angular app and a
 Web API. Maybe not in a significant way at first, but over time
 they're likely to drift apart. At that point, we must either split the
-registration, maybe forcing users to re-consent, or make the single
-registration contain the settings of both, if possible.</p></li>
+registration, requiring end-users consent once again or admin consent
+on their behalf, or make the single registration contain the settings
+of both, if possible.</p></li>
 
 <li><p>By design, an Angular app uses
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-implicit-grant-flow">implicit
@@ -242,9 +247,9 @@ registration.</p>
 receiver of access tokens, for the requirements below, Web API itself
 makes REST calls to MS Graph, another AAD secured endpoint. Following
 each requirement is the permission type required to satisfy
-it. Application means that Web API makes MS Graph calls as itself as
-service-to-service calls. Delegated that Web API make MS Graph calls
-on behalf of the signed-in user calling Web API:</p>
+it. Application means that Web API makes service-to-service MS Graph
+calls as itself. Delegated that Web API makes service-to-service MS
+Graph calls on behalf of the signed-in user calling Web API:</p>
 
 <ul>
 <li><p>To lookup security group memberships of the user making a Web
@@ -267,13 +272,13 @@ AAD, the app shouldn't end up with a dangling reference. Besides
 ObjectID, it stores the user's display name as well. (Requires
 delegated or application permission.)</p></li>
 
-<li><p>To periodically execute batch queries against AAD to identify
-disabled users. With hundreds of users of the app, a notification
-mechanism is needed, showing disabled users and their active tasks
-that may require re-assignment. Also, if AAD queries triggered by each
-Web API request turn out to be a bottleneck, batch querying or caching
-group memberships may be an option, too. (Requires application
-permission.)</p></li>
+<li><p>To periodically execute non-interactive batch queries against
+AAD to identify disabled users. With hundreds of users of the app, a
+notification mechanism is needed, showing disabled users and their
+active tasks that may require re-assignment. Also, if AAD queries
+triggered by each Web API request turn out to be a bottleneck, batch
+querying or caching group memberships may be an option, too. (Requires
+application permission.)</p></li>
 </ul>
 
 <p>Claim substitution is due to a limitation in the length of the URL
@@ -290,10 +295,11 @@ setup fine-grained access and mix application and delegated types is a
 matter of preference. Mixing means sticking to the principle of least
 privilege. On the other hand, both require admin consent, the Web API
 is a confidential client, and it requires application permission
-anyway. To keep the setup manageable, we define all MS Graph calls as
-service-to-service, authorized using
+anyway. To keep the setup manageable, we collectively define every MS
+Graph call as made on Web API's behalf, authorized using
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
-credentials grant type</a>.</p>
+credentials grant type</a> (regardless if it's an application or
+delegated call, it's still service-to-service).</p>
 
 <p>The Web API submits to the token endpoint its client ID, a
 pre-established shared client secret (effectively username and
@@ -301,8 +307,9 @@ password), and the resource ID of MS Graph. In return the token
 endpoint provides an access token for MS Graph. Had we used delegated
 permissions, we'd have to use
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-on-behalf-of-flow">on-behalf-of
-grant type</a> for the delegated calls. Web API would have to exchange
-the user provided access token for one supporting delegation as
+grant type</a> for the delegated calls. Before calling MS Graph, Web
+API would have to call the token endpoint to exchange the user
+provided access token for one supporting delegation as
 shown <a href="https://joonasw.net/view/azure-ad-on-behalf-of-aspnet-core">here</a>,
 complicating Web API logic.</p>
 
