@@ -353,26 +353,39 @@ details, such as expiration date, we can paste the value of each x5c
 into an <a href="https://redkestrel.co.uk/products/decoder">online</a>
 decoder.</p>
 
-<p>This <a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">tutorial</a>
-introduces token validation with ASP.NET Core, but not how to reload
-metadata on a regular basis. For that we must implement a periodically
-executing method or use <a href="https://www.hangfire.io">Hangfire</a>
-or similar. Otherwise, we risk Web API failing token validation
-following
-a <a href="https://openid.net/specs/openid-connect-core-1_0.html#RotateSigKeys">key
-rotation</a> and before next Web API restart. Even worse, validation
-failure will appear sporadic and eventually resolve itself.</p>
+<p>To get started with ASP.NET Core token validation,
+this <a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">tutorial</a>
+and
+this <a href="https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/issues/1010">Github
+issue</a> provide good starting points. Key to robust token validation
+is to acknowledge that the authorization server will rotate keys
+regularly and that the app must check for updated keys
+regularly. Configuring the JwtBearer middleware with a URL to the
+metadata discovery document, it auto-configures and support key
+rotation as well.
+</blockquote>
 
-<p>With on-premise Web API hosting, we can rely
-on <a href="https://weblogs.asp.net/owscott/why-is-the-iis-default-app-pool-recycle-set-to-1740-minutes">idle
-and periodic app pool restarts</a> to keep metadata up to
-date. Although by default the app pool recycles at least every 29
-hours, exceeding AAD's 24-hour policy, both periods are
-configurable. With Azure App Service, running a site in "Always on"
-mode <a href="https://stackoverflow.com/questions/21840983/will-always-on-setting-prevent-both-idletimeout-and-periodicrestart">prevents
-idle restarts</a> and periodic restarts isn't an IIS but
-a <a href="https://docs.microsoft.com/en-us/dotnet/framework/wcf/feature-details/hosting-in-windows-process-activation-service">WAS</a>
-feature, unavailable in Azure.</p>
+<p>To understand how the JWT middleware
+supports <a href="https://openid.net/specs/openid-connect-core-1_0.html#RotateSigKeys">key
+rotation</a>, two classes are essential: (1)
+the <a href="https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/blob/master/src/Microsoft.IdentityModel.Protocols/Configuration/ConfigurationManager.cs#L177">ConfigurationManager</a>
+class and its GetConfigurationAsync method. The tutorial calls it in
+Startup.cs to HTTP GET the metadata discovery URL and through it the
+keys URL. Both JSON payloads are parsed and cached inside
+ConfigurationManager for one day as per its default
+DefaultAutomaticRefreshInterval value, (2) the JwtBearerHandler class
+implementing the JwtBearer middleware calls GetConfigurationAsync on
+each token validation. When validation
+<a href="https://github.com/aspnet/Security/blob/master/src/Microsoft.AspNetCore.Authentication.JwtBearer/JwtBearerHandler.cs#L111-L119">fails
+due to a key missing</a>, it asks ConfigurationManager to refresh its
+cache, subject to a default 30 seconds cache duration as per the
+DefaultRefreshInterval value.</p>
+
+<p>In other words, regular key rotation with at least one day notice
+before use is covered by the DefaultAutomaticRefreshInterval logic and
+never causes token validation to fail. Emergency key rotation is
+covered by the DefaultRefreshInterval logic and does cause token
+validation to fail for worst case 30 seconds.</p>
 
 <h3>Additional resources</h3>
 
