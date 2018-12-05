@@ -49,7 +49,7 @@ authentication and that authorization requires authentication. OAuth2
 is an authorization standard. It's OpenID Connect, the layer on top of
 OAuth2, which implements authentication. In other words, an OAuth2
 access token is passed along from (1) and (2) to (3)
-and <i>authorizes</i> that (1) and (2) is allowed to access (3) on the
+and <i>authorizes</i> that (1) and (2) can access (3) on the
 end-user's behalf, with the permissions consented to by the end-user
 and possibly an admin user. The OpenID Connect ID token (see primer on
 OpenID Connect,
@@ -112,7 +112,7 @@ postback-driven app, perhaps with occasional JavaScript
 calls.</p></li>
 
 <li><p>An Angular app may be consuming multiple endpoints: one or more
-of our Web APIs and MS Graph, SharePoint, an so on. It isn't tied to
+of our Web APIs and MS Graph, SharePoint, and so on. It isn't tied to
 one API, except perhaps for the convenience of not creating an
 additional app registration. While the extra app registration may add
 slightly to the mental load, its monetary cost is zero, leaving no
@@ -193,8 +193,8 @@ tokens without user interaction.</p>
 
 <p>We can observe the refresh procedure by keeping the Angular
 application idle and Chrome developer tools Network tab open. ADAL.js
-has refresh hardcoded to occur every 3,600 seconds, taking into
-account the ID token lifetime of 3,900 seconds.</p>
+has refresh hardcoded to occur every 3,600 seconds, considering the ID
+token lifetime of 3,900 seconds.</p>
 
 <h3>iOS: ADAL for Objective C and the authorization code grant type</h3>
 
@@ -289,7 +289,7 @@ response body.</p>
 
 <p>Two of the requirements above may be satisfied by either
 application or delegated permission and one only by
-application. Whether to go with fine-grained permissions, and adhering
+application. Whether to go with fine-grained permissions and adhering
 to the principle of least privilege by mixing application and
 delegated permissions, or configuring only application permissions is
 a matter of preference. The Web API is a confidential client, both
@@ -362,31 +362,31 @@ is to acknowledge that the authorization server
 will <a href="https://openid.net/specs/openid-connect-core-1_0.html#RotateSigKeys">rotate
 keys</a> regularly and that Web API must check for updated keys
 regularly. Configuring the JwtBearer middleware with the metadata
-discovery URL, it auto-configures and support key rotation as well.
+discovery URL, it auto-configures and supports key rotation as well.
 </blockquote>
 
 <p>To understand how the JWT middleware supports key rotation, two
 pieces are essential: (1)
 the <a href="https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/blob/master/src/Microsoft.IdentityModel.Protocols/Configuration/ConfigurationManager.cs#L177">ConfigurationManager</a>
 class and its GetConfigurationAsync method. The tutorial shows calling
-it in Startup.cs to HTTP GET the metadata discovery URL and through it
-the jwks_uri. Both JSON payloads are parsed and cached inside
-ConfigurationManager for one day as per its default
+the method in Startup.cs to HTTP GET the metadata discovery URL and
+through it the jwks_uri URL. Both JSON payloads are parsed and cached
+inside ConfigurationManager for one day as per its default
 DefaultAutomaticRefreshInterval value, (2)
 the <a href="https://github.com/aspnet/Security/blob/master/src/Microsoft.AspNetCore.Authentication.JwtBearer/JwtBearerHandler.cs">JwtBearerHandler</a>
 class implementing the JwtBearer middleware calls
 GetConfigurationAsync on each token validation. When validation
 <a href="https://github.com/aspnet/Security/blob/master/src/Microsoft.AspNetCore.Authentication.JwtBearer/JwtBearerHandler.cs#L111-L119">fails
-due to a key missing</a>, it asks ConfigurationManager to refresh its
-cache, subject to a default 30 seconds cache duration as per the
-DefaultRefreshInterval value.</p>
+due to a missing key</a>, the middleware asks ConfigurationManager to
+refresh its cache, subject to a default 30 seconds cache duration as
+per the DefaultRefreshInterval value.</p>
 
 <p>In other words, regular key rotation with at least one day notice
 before use is covered by the DefaultAutomaticRefreshInterval logic and
 never causes token validation to fail. Emergency key rotation is
 covered by the DefaultRefreshInterval logic and does cause token
-validation to fail for worst case 30 seconds. Given that it's
-emergency, that's acceptable.</p>
+validation to fail for up to 30 seconds. Given that it's an emergency,
+that's acceptable.</p>
 
 <h3>Additional resources</h3>
 
