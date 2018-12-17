@@ -21,56 +21,63 @@ date: 2018-09-01 12:00 UTC
     notes and supplement the book.
   </p>  
   <p>
-    In this part, we focus on computing 2D line-circle intersection by
-    hand and
-    in <a href="/blog/2018/09/03/ray-tracing-computing-ray-sphere-intersections">Part
-    2</a> we extend the approach to 3D. Computing possible positions
-    of intersection is useful when tracing a ray from the eye, or
-    camera position, through a pixel on the screen, or image plane,
-    and into the scene. As the ray travels through the scene, we want
-    to know if it hits, or intersects with, the circle, or scene
-    object, and if so at which positions. Whether the ray intersects
-    with a scene object and where determines the image plane's color
-    at that pixel.
+    In this part and the next, we focus on probably the most central
+    aspect of ray tracing: computing 2D line-circle and 3D line-sphere
+    intersections. Their points of intersection are what enables us
+    trace a ray from the eye, or camera position, through a pixel on
+    the screen, or image plane, and into the scene. As the ray travels
+    through the scene, we want to know if it hits, or intersects with,
+    a scene object such as a circle, and if so at which points in
+    space. If, where, and with which scene object the ray intersects
+    determines the image plane's color at that pixel.
   </p>
   <p>
-    We start out with line-circle intersections in 2D because it's
-    simpler to visualize and because once its scalar math is worked
-    out, it generalizes nicely to 3D and vector math.
-  </p>
-  <p>
-    The concept of intersection in 3D space, and what we're working
-    toward, is nicely illustrated in the Wikipedia article
+    We start out with 2D line-circle intersections because it's
+    simpler to visualize and because once the scalar math is worked
+    out, it generalizes nicely to 3D line-sphere intersection and
+    vector math. What we're working toward is nicely illustrated in
+    the Wikipedia article
     on <a href="https://en.wikipedia.org/wiki/Ray_tracing_(graphics)">ray
     tracing</a>:
   </p>
   <p>    
     <img src="/content/ray-trace-diagram.svg" width="300px"/>
   </p>
+
+  <p>
+    As a supplement to the
+    illustration, <a href="https://www.youtube.com/watch?v=frLwRLS_ZR0">Disney's
+    Practical Guide to Path Tracing</a> provides a humourous
+    non-technical overview
+    and <a href="https://www.youtube.com/watch?v=hWANIFgssWg">Painting
+    With Light</a> adds both historical context and more in-depth.
+  </p>
+
   
   <h3>Circle centered around origin</h3>
   <p>
     A circle may be defined in terms of the position of its center and
     its radius. To start simple, assume the circle is centered around
     the origin at \((0,0)\). The circle equation, or circle on
-    standard form as it's also called, then becomes
+    standard form, then becomes
 
     $$x^2 + y^2 = r^2$$
 
     The way to read the circle equation is that for any point
     \((x,y)\), if \(x^2 + y^2 = r^2\), then the point is on the
-    circle, otherwise it's not. The circle equation follows from the
+    circle, otherwise it's not. This circle equation follows from the
     <a href="https://en.wikipedia.org/wiki/Pythagorean_theorem">Pythagorean
-    theorem</a>, or distance formula. To visualize the relationship
-    between the circle equation and the Pythagorean theorem, consider
-    a point \((x,y)\) on the circle shown below:
+    theorem</a>, or distance formula. We can visualize the
+    relationship between the circle equation and the Pythagorean
+    theorem by considering a point \((x,y)\) on the circle shown
+    below:
   </p>
   <p>
     <img src="/content/circle-equation.gif" width="350px"/>
   </p>
   <p>
-    For this right-sided triangle and point on circle, \(\sqrt{x^2 +
-    y^2} = r\). By squaring both sides we get rid of the square root
+    For this right-sided triangle and the point on circle, \(\sqrt{x^2
+    + y^2} = r\). By squaring both sides we get rid of the square root
     and end up with the circle equation.
   </p>
 
@@ -83,46 +90,18 @@ date: 2018-09-01 12:00 UTC
     (x - c_x)^2 + (y - c_y)^2 = r^2 & & \textrm{or} & & \sqrt{(x - c_x)^2 + (y - c_y)^2} = r
     \end{eqnarray*}$$
     
-    For instance, imagine the circle's center being to the right and
-    up with respect to origin. For the circle equation to still hold
-    true, \((x,y)\) points on the circle must have greater values of
-    \(x\) and \(y\) than when the circle was centered at origin.
+    To make sense of this equation, imagine we want a circle with its
+    center shifted along the \(x\) axis to the right of origin. As we
+    subtract \(c_x\) from \(x\), for the circle equation to hold, and
+    points to be on the circle, its \(x\) component must be greater to
+    compensate for \(c_x\), shifting its center. Say we take the
+    circle above and shift its center to \(2,0\), then a point on the
+    circle would be \(2 - 2)^2 + (3 - 0)^2 = r^2\).
   </p>
   <p>
     To keep the following examples short, we assume the circle is
     centered at \((0,0)\) such that \(c_x\) and \(c_y\) may be
     ignored.
-  </p>
-
-  <h3>Circle from point on circle</h3>
-  <p>
-    Circle equation in hand, if provided with a point \((x,y) =
-    (-3,4)\) known to be on the circle, and assuming the circle is
-    centered around origin, its circle equation can be determined:
-
-    $$\begin{eqnarray*}
-    x^2 + y^2 = r^2\\
-    (-3)^2 + 4^2 = r^2\\
-    9 + 16 = r^2\\
-    5 = r
-    \end{eqnarray*}$$
-
-    meaning the circle's equation is
-    
-    $$x^2 + y^2 = 5^2$$
-  </p>
-
-  <h3>Points inside, on, or outside circle</h3>
-  <p>
-    The distance of a point to the center of a circle is defined by
-    \(x^2 + y^2 = 5^2\). Thus any point may be determined as either
-    inside, outside, or on the circle:
-
-    $$\begin{eqnarray*}
-    (2,-3): \sqrt{2^2 + (-3)^2} = \sqrt{13} \approx 3.6 & & \textrm{\{inside circle\}}\\
-    (-4,-3): \sqrt{(-4)^2 + (-3)^2} = \sqrt{25} = 5 & & \textrm{\{on circle\}}\\
-    (1,5): \sqrt{1^2 + 5^2} = \sqrt{26} \approx 5.1 & & \textrm{\{outside circle\}}
-    \end{eqnarray*}$$
   </p>
 
   <h3>Line and circle intersections</h3>
@@ -217,22 +196,6 @@ date: 2018-09-01 12:00 UTC
 
     and so the points of intersection of the line and the circle are
     at \((0,3)\) and \((3,0)\).
-  </p>
-
-  <h3>Additional references</h3>
-  <p>
-    <ul>
-      <li><a href="https://www.youtube.com/watch?v=frLwRLS_ZR0">Disney's
-	  Practical Guide to Path Tracing</a> for a non-technical
-	  overview of ray tracing.</li>
-      <li><a href="https://www.youtube.com/watch?v=hWANIFgssWg">Painting
-	With Light</a> conference talk for the historical and in-depth
-	introduction.</li>
-      <li><a href="http://wolframalpha.com">Wolfram Alpha</a>
-	and <a href="https://www.desmos.com/calculator">similar</a>
-	sites are good to develop a visual understanding for the
-	math.</li>
-    </ul>
   </p>
   
   <h3>Summary</h3>
