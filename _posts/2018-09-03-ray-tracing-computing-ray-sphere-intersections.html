@@ -70,8 +70,8 @@ date: 2018-09-03 12:00 UTC
   <p>
     As an example, we can find the parametric equation of the line
     passing through \((1,-1,4)\), the position of the camera, in the
-    direction of \((3,5,-1)\), a scene object. We do so by plugging
-    the two vectors into the vector equation for a line:
+    direction of \((3,5,-1)\), a scene object. We do so by
+    substituting the two vectors into the vector equation for a line:
 
     $$\begin{eqnarray*}
     \vec p = (1,-1,4) + t(3,5,-2)\\
@@ -81,8 +81,8 @@ date: 2018-09-03 12:00 UTC
     
     For ray-sphere intersections, we're after values of \(t\)
     describing points of intersection. Once we have those values, we
-    can plug those into the parametric equation of a line to get the
-    \((x,y,z)\) coordinate of intersections.
+    can substitute those into the parametric equation of a line to get
+    the \((x,y,z)\) coordinate of intersections.
   </p>
   
   <h3>Line and sphere intersections, scalar edition</h3>
@@ -90,12 +90,12 @@ date: 2018-09-03 12:00 UTC
     As an example, suppose we have the parametric equation of a line
     \((10 + 2t, 5 + t, 2)\) and the equation of a sphere \(x^2 + y^2 +
     z^2 = 9\) on standard form. As with 2D intersections, we're after
-    values for \(x\), \(y\), and \(z\) that when plugged into both
-    equations make those equations equal. We can plug in what we know
+    values for \(x\), \(y\), and \(z\) that when substituted into both
+    equations make those equations equal. We can put in what we know
     about the unknowns of one equation into the other:
 
     $$\begin{eqnarray*}
-    (10 + 2t)^2 + (5 + t)^2 + (2)^2 = 9 & & \textrm{\{plug in line equation\}}\\
+    (10 + 2t)^2 + (5 + t)^2 + (2)^2 = 9 & & \textrm{\{substitute in line equation\}}\\
     (10 + 2t)(10 + 2t) + (5 + t)(5 + t) + 4 = 9 & & \textrm{\{expand squares\}}\\
     100 + 20t + 20t + 4t^2 + 25 + 5t + 5t + t^2 + 4 = 9 & & \textrm{\{expand parenthesis\}}\\
     5t^2 + 50t + 129 = 9 & & \textrm{\{simplify and arrange in \(t^2\), \(t\), and constants order\}}\\
@@ -114,8 +114,9 @@ date: 2018-09-03 12:00 UTC
     t_2 = \dfrac{-50 - \sqrt{100}}{2(5)} = \dfrac{-50 - 10}{10} = \dfrac{-60}{10} = -6\\
     \end{eqnarray*}$$     
 
-    Plugging these \(t\) values into the parametric vector equation of
-    the line, we arrive at the points of line-sphere intersection:
+    Substituting these \(t\) values into the parametric vector
+    equation of the line, we arrive at the points of line-sphere
+    intersection:
 
     $$\begin{eqnarray*}
     \vec{p_1} = (x_1,y_1,z_1) = (10 + 2(-4), 5 + (-4), 2) = (2,1,2)\\
