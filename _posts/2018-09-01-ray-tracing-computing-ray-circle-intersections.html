@@ -1,5 +1,5 @@
 ---
-layout: post
+layout:post
 title: "Ray tracing: Computing ray-circle intersections"
 date: 2018-09-01 12:00 UTC
 ---
@@ -87,7 +87,7 @@ date: 2018-09-01 12:00 UTC
     any point \((c_x, c_y)\), extending the circle equation:
     
     $$\begin{eqnarray*}
-    (x - c_x)^2 + (y - c_y)^2 = r^2 & & \textrm{or} & & \sqrt{(x - c_x)^2 + (y - c_y)^2} = r
+    (x - c_x)^2 + (y - c_y)^2 = r^2
     \end{eqnarray*}$$
     
     To make sense of this equation, imagine we want a circle with its
@@ -116,7 +116,7 @@ date: 2018-09-01 12:00 UTC
   <p>
     As an example, let's go with the circle \(x^2 + y^2 = 3^2\) and
     the line \(y = -x + 3\). If the two intersect, it implies that for
-    some value of \(x\) and for some value of \(y\), plugging those
+    some value of \(x\) and for some value of \(y\), substituting those
     <i>same</i> values into both equations, each equation holds. It
     doesn't imply that the left side of one equation equals the right
     side of the other, but that the left and right side of each
@@ -125,14 +125,15 @@ date: 2018-09-01 12:00 UTC
   <p>
     At a point of intersection, the value of \(x\) and the value of
     \(y\) in the two equations are the same. Thus, either \(y = -x +
-    3\) or \(x = -y + 3\) of the line equation may be plugged into the
-    circle equation. Plugging in \(y\) yields a new equation:
+    3\) or \(x = -y + 3\) of the line equation may be substituted into
+    the circle equation. Substituting in \(y\) yields a new equation:
 
     $$x^2 + (-x + 3)^2 = 3^2$$
 
-    The goal of plugging one equation into the other is that instead
-    of one circle equation with two variables (\(x\) and \(y\)), out
-    comes one quadratic equation with one variable (\(x\)):
+    The goal of substituting one equation into the other is that
+    instead of one circle equation with two variables (\(x\) and
+    \(y\)), out comes one quadratic equation with one variable
+    (\(x\)):
 
     $$\begin{eqnarray*}
     x^2 + (-x + 3)(-x + 3) = 3^2 & & \textrm{\{expand \(y = -x + 3\)\}}\\
@@ -156,9 +157,10 @@ date: 2018-09-01 12:00 UTC
     <img src="/content/circle-line-intersection-example.gif" width="550px"/>
   </p>
   <p>
-    The standard method for solving algebraically involves plugging
-    the coefficients of \(ax^2 + bx + c\), that is \(a\), \(b\), and
-    \(c\), into the equation below, with \(d\) being the discriminant:
+    The standard method for solving algebraically involves
+    substituting the coefficients of \(ax^2 + bx + c\), that is \(a\),
+    \(b\), and \(c\), into the equation below, with \(d\) being the
+    discriminant:
 
     $$\begin{eqnarray*}
     x = \dfrac{-b \pm \sqrt{d}}{2a} \textrm{, where \(d = b^2 - 4ac\)}
@@ -175,7 +177,7 @@ date: 2018-09-01 12:00 UTC
   <p>
     $$d = (-6)^2 - 4(2)(0) = 36$$
 
-    Computing the discriminant without plugging it into the larger
+    Computing the discriminant without substituting it into the larger
     equation is useful only as a means to determine the number of
     solutions in advance. For the actual solutions, the points of
     intersection, the larger equation is required:
