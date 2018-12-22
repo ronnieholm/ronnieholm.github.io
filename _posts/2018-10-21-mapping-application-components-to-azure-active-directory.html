@@ -47,7 +47,7 @@ similarly requests a signed token and passes it with calls to (4).</p>
 <p>Reading along, keep in mind that authorization is orthogonal to
 authentication and that authorization requires authentication. OAuth2
 is an authorization standard. It's OpenID Connect, the layer on top of
-OAuth2, which implements authentication. In other words, an OAuth2
+OAuth2 that implements authentication. In other words, an OAuth2
 access token is passed along from (1) and (2) to (3)
 and <i>authorizes</i> that (1) and (2) can access (3) on the
 end-user's behalf, with the permissions consented to by the end-user
@@ -253,15 +253,15 @@ to <a href="https://stackoverflow.com/questions/45501568/azure-jwt-with-property
 the hasgroups claim and retrieve the user's groups from MS
 Graph. (Required delegated or application permissions.)</p></li>
 
-<li><p>To lookup the ObjectID given a username provided by Angular
-when one user assigns another user access to a part of the app. Within
-AAD, ObjectID is the equivalent of an
+<li><p>To lookup an ObjectID given a username provided by Angular when
+a user assigns another access to the app. Within AAD, ObjectID is the
+equivalent of an
 AD <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
 identifier</a>, i.e., both a GUID by which Web API identifies the user
-and a key by which it stores user information. If the user is removed
-from AAD, Web API shouldn't end up with a dangling user reference
-which is why, besides ObjectID, it stores the user's account and
-display names as well. (Requires delegated or application
+and a key by which it stores user information. If a user is removed
+from AAD, Web API shouldn't end up with a dangling user
+reference. That's why, besides ObjectID, it also stores the user's
+account and display names. (Requires delegated or application
 permissions.)</p></li>
 
 <li><p>To periodically execute non-interactive batch queries against
@@ -347,7 +347,7 @@ the public keys used by Azure AD is every 24 hours.
 <p>Within the metadata document, jwks_uri points to
 the <a href="https://login.microsoftonline.com/common/discovery/keys">location</a>
 of the <a href="https://tools.ietf.org/html/rfc7517">JSON Web Key
-Set</a>, the public keys needed to verify the signature. Which key to
+Set</a>, the public keys needed to verify the signature. The key to
 use is defined by the header's Key ID (kid) claim. For the X509 key
 details, such as expiration date, we can paste the value of each x5c
 into an <a href="https://redkestrel.co.uk/products/decoder">online</a>
