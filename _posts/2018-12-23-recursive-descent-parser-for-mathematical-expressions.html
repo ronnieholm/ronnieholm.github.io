@@ -27,24 +27,25 @@ Integer = Digit | Integer Digit
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
 </pre>
     
-<p>The Integer and Digit rules are handled by the lexer and included
-for completeness. The lexer generally handles rules which can be
-defined by a regular language, i.e., one for which a regular
-expression can be defined.</p>
+<p>The <code>Integer</code> and <code>Digit</code> rules are handled
+by the lexer and included for completeness. The lexer generally
+handles rules which can be defined by a regular language, i.e., one
+for which a regular expression can be defined.</p>
 
 <p>It might help to brush up on terminology from
-<a href="https://study.com/academy/lesson/parts-of-an-expression-terms-factors-coefficients.html">[algebra</a>:
+<a href="https://study.com/academy/lesson/parts-of-an-expression-terms-factors-coefficients.html">algebra</a>:
 terms are the parts of an expression connected with addition and
 subtraction and factors are the parts of an expression connected with
 multiplication or division.</p>
 
 <p>Studying the grammar above, it appears as if the rules are
-off-by-one. The Expression rule describes addition and subtraction,
-the Term rule multiplication and division, and so on. This is how an
-expression grammar tends to show up in the literature. It's written on
-this form for brevity. If we expand the first rule into two, we end up
-with the grammar below. Since we introduced an extra level, we need a
-new name for the last rule, here named Primary:</p>
+off-by-one. The <code>Expression</code> rule describes addition and
+subtraction, the <code>Term</code> rule multiplication and division,
+and so on. This is how an expression grammar tends to show up in the
+literature. It's written on this form for brevity. If we expand the
+first rule into two, we end up with the grammar below. Since we
+introduced an extra level, we need a new name for the last rule, here
+named <code>Primary</code>:</p>
 
 <pre>
 Expression = Term
@@ -58,32 +59,33 @@ Primary = Integer | "(" Expression ")"
 rewritten as <code>A = B | C | D</code>.</p>
 
 <p>Rule names doesn't matter. Their inter-relationships do. Names
-might as well read Expression0 to ExpressionN, denoting the level of
-precedense for operators in the rule. In a recursive descent parser
-the only way to define operator precedence is by recursive
-sub-rules. These define what part of the input will be grouped
-together.</p>
+might as well read <code>Expression0</code>
+to <code>ExpressionN</code>, denoting the level of precedense for
+operators in the rule. In a recursive descent parser the only way to
+define operator precedence is by recursive sub-rules. These define
+what part of the input will be grouped together.</p>
 
 <p>Because the rule's self-reference appears on the left side, as in
-Expression "+" Term, the rule is left recursive and hence expresses
-left associativity by design, e.g., "a - b - c = (a - b) - c". Right
-associative operators, such as unary - or ^, would require making the
-rule right recursive. Sometimes grammars communicate left and right
-operator associativity, sometimes they keep all rules left associative
-for readability. Regardless, the Factor rule above must be implemented
-as if it reads Factor = Power | Factor "^" Factor.</p>
+<code>Expression "+" Term</code>, the rule is left recursive and hence
+expresses left associativity by design, e.g., <code>a - b - c = (a -
+b) - c</code>. Right associative operators, such as unary - or ^,
+would require making the rule right recursive. Sometimes grammars
+communicate left and right operator associativity, sometimes they keep
+all rules left associative for readability. Regardless,
+the <code>Factor</code> rule above must be implemented as if it reads
+<code>Factor = Power | Factor "^" Factor</code>.</p>
 
 <p>Unfortunately, recursive descent parsers cannot handle left
-recursion. Suppose it were to parse Expression = Expression "+"
-Term. In order to parse Expression it would have to recurse into
-itself, leading to an infinite loop.</p>
+recursion. Suppose it were to parse <code>Expression = Expression "+"
+Term</code>. In order to parse <code>Expression</code> it would have
+to recurse into itself, leading to an infinite loop.</p>
 
 <p>That's where
 <a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">EBNF</a>
-comes in. Instead of left recursion "{ x }" syntax is introduced to
-express zero or more repetitions. Such a representation is well
-suitable for coding since the repetition can be expressed naturally
-with a loop.</p>
+comes in. Instead of left recursion <code>{ x }</code> syntax is
+introduced to express zero or more repetitions. Such a representation
+is well suitable for coding since the repetition can be expressed
+naturally with a loop.</p>
 
 <p><b>Side note</b>: a recursive descent parser has no issue with
 right recursive rules. So instead of expressing left recursive rules
@@ -104,8 +106,9 @@ Primary = Integer | "(" Expression ")"
     
 <p>Favoring readability over compactness, and extending the grammar
 with unary minus and float support, we end up with the final grammar
-below. Naming a rules Addition, Multiplication, Power is short for
-operators with addition, multiplication, and power-like
+below. Naming a
+rule <code>Addition</code>, <code>Multiplication</code>, <code>Power</code>
+is short for operators with addition, multiplication, and power-like
 precedence.</p>
 
 <pre>
