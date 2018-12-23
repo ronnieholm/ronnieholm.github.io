@@ -133,7 +133,7 @@ is both useful in debugging the parser and illustrates the close
 relationship between a grammar and a recursive descent parser.</p>
 
 <p><b>Side note</b>: using additional EBNF syntax and the Kleene star,
-the grammar cound be further simplified.</p>
+the grammar could be further simplified.</p>
 
 <p>Instead of evaluating the expression as we parse it, we could've
 returned AST nodes from each parse method. We know that the evaluation
@@ -144,30 +144,32 @@ interpreter would no longer be one-pass but two-pass.</p>
 <h4>Additional references</h4>
 
 <ul>
-<li>Niklaus Wirth's [Compiler
-construction](https://www.inf.ethz.ch/personal/wirth/CompilerConstruction/CompilerConstruction1.pdf),
-Chapter 2 through to Section 4.1 (12 pages). With examples, these
-pages cover almost everything required to write a recursive descent
-parser.</li>
+<li>Niklaus
+Wirth's <a href="https://www.inf.ethz.ch/personal/wirth/CompilerConstruction/CompilerConstruction1.pdf">Compiler
+construction</a>, Chapter 2 through to Section 4.1 (12 pages). With
+examples, these pages cover almost everything required to write a
+recursive descent parser for any language.</li>
 
-<li>Per Vognsen's [Programming an x64 compiler from scratch - part
-2](https://www.youtube.com/watch?v=Mx29YQ4zAuM), offsets 2h30m to
-3h28m. Implements a simple expression parser in C. Also [Bitwise, Day
-2: C Programming &
-Parsing](https://www.youtube.com/watch?v=0woxSWjWsb8) and [Bitwise,
-Day 3: More Programming &
-Parsing](https://www.youtube.com/watch?v=L4P98pGhpnE) are worth a
-look, though with some overlap.</li>
+<li>Per
+Vognsen's <a href="https://www.youtube.com/watch?v=Mx29YQ4zAuM">Programming
+an x64 compiler from scratch - part 2"</a>, offsets 2h30m to 3h28m,
+implements a simple expression parser in
+C. Also, <a href="https://www.youtube.com/watch?v=0woxSWjWsb8">Bitwise,
+Day 2: C Programming & Parsing</a>
+and <a href="https://www.youtube.com/watch?v=L4P98pGhpnE">Bitwise, Day
+3: More Programming & Parsing</a> are worth a look, though they have
+some overlap.</li>
 
-<li>Bob Nystrom's [Crafting
-Interpreters](http://craftinginterpreters.com/parsing-expressions.html),
-Chapter 6. Details how to modify an expression grammar to encode
-precedence levels.</li>
+<li>Bob
+Nystrom's <a href="http://craftinginterpreters.com/parsing-expressions.html">Crafting
+Interpreters</a>, Chapter 6 details how to modify an expression
+grammar to encode precedence levels.</li>
 
-<li>Eli Bendersky's [Some problems of recursive descent
-parsers](https://eli.thegreenplace.net/2009/03/14/some-problems-of-recursive-descent-parsers). Details
-how to transform a right recursive grammar into repetitions and how to
-handle left and right associative operators.</li>
+<li>Eli
+Bendersky's <a href="https://eli.thegreenplace.net/2009/03/14/some-problems-of-recursive-descent-parsers">Some
+problems of recursive descent parsers</a> details how to transform a
+right recursive grammar into repetitions and how to handle left and
+right associative operators.</li>
 </ul>
 
 <h4>Summary</h4>
