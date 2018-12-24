@@ -25,7 +25,7 @@ because it's less obvious how to parse some operators (binary -, +, *,
 associative. It turns out that applying a neat trick in the parser can
 make it seamlessly handle both.</p>
 
-<h4>Initial grammar</h4>
+<h3>Textbook grammar</h3>
 
 <p>The
 <a href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">BNF
@@ -52,7 +52,7 @@ term is a part of an expression connected with addition and
 subtraction and a factor is the part of an expression connected with
 multiplication or division.</p>
 
-<h4>xxx</h4>
+<h3>Clearer grammar</h3>
 
 <p>Looking at the grammar, it appears the rules are off-by-one:
 the <code>Expression</code> rule describes addition and subtraction,
@@ -100,7 +100,7 @@ recursion. Suppose it were to parse <code>Term = Term "+"
 Factor</code>. In order to parse <code>Term</code>, it would have to
 recurse into itself, leading to an infinite loop.</p>
 
-<h4>Eliminating left recursion with EBNF</h4>
+<h3>Eliminating left recursion with EBNF</h3>
 
 <p>That's where
 <a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">EBNF</a>
@@ -166,7 +166,7 @@ correct with respect to associativity and precedence, so the AST would
 be correct intermediate representation. Writing an evaluator for the
 AST, the interpreter would no longer be one-pass but two-pass.</p>
 
-<h4>Comparison of recursive descent, Shunting Yard, and Pratt parsers</h4>
+<h3>Comparison of recursive descent, Shunting Yard, and Pratt parsers</h3>
 
 <p>The recursive descent approach to parsing is probably the easiest
 and most intuitive way of parsing a program. The translation from
@@ -190,7 +190,7 @@ operator.</p>
 parser for statements and a Pratt parser for expressions, take a look
 at <a href="https://github.com/ronnieholm/MonkeyLang">MonkeyLang</a>.</p>
 
-<h4>Additional references</h4>
+<h3>Additional references</h3>
 
 <ul>
 <li><p>Niklaus
@@ -221,7 +221,7 @@ right recursive grammar into repetitions and how to handle left and
 right associative operators.</p></li>
 </ul>
 
-<h4>Summary</h4>
+<h3>Summary</h3>
 
 <p>Summary.</p>
 
