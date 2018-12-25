@@ -96,17 +96,17 @@ Primary = Integer | "(" Expression ")"
 rewritten as <code>A = B | C | D</code>. Both grammars define the same
 language.</p>
 
-<p>Rule names could be replaced
-by <code>Rule0</code>, <code>Rule1</code>,
+<p>Replacing rule names by <code>Rule0</code>, <code>Rule1</code>,
 <code>RuleN</code>, where N is the precedence level for the rule's
-operator(s). Within a grammar, precedence arises by one rule
-referencing the next in increasing order of precedence.</p>
+operator(s) makes no difference. Within a grammar, precedence arises
+by one rule referencing the next in increasing order of
+precedence.</p>
 
 <p>Because in the grammar above, the rule's self-reference appears on
 the left, as in
 <code>Term = Term "+" Factor</code>, it's left recursive and parses
 left associative operators, e.g., <code>a - b - c parses as (a - b) -
-c</code>. Right associative operators require right recursive rules as
+c</code>. Right associative operators dictate right recursive rules as
 in <code>Primary "^" Power</code>. Unfortunately, recursive descent
 parsers cannot work with left recursion. To parse <code>Term = Term
 "+" Factor</code>, it would recurse into itself, leading to an
@@ -124,7 +124,7 @@ right recursive rules. Thus, instead of substituting left recursive
 with iterations, we could rewrite the grammar into right recursive
 form and applying a transformation on
 the <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">Abstract
-Syntax Tree</a> (AST) nodes for left associative operators. It's just
+Syntax Tree</a> (AST) nodes for left associative operators. It's
 simpler to eliminating left recursion.</p>
 
 <pre>
@@ -170,14 +170,14 @@ rule. This is useful in debugging the parser and goes to show the
 one-to-one relationship between grammar and recursive descent
 parser.</p>
 
-<p>To keep the code simple,
-the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">implementation</a>,
-evaluates expressions during parsing. Alternatively, each parse method
-could return AST nodes as with
+<p>To keep
+the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">implementation</a>
+focused on parsing, evaluation happens during parsing. Each parse
+method could've returned AST nodes as with
 the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/ShuntingYardParser.CSharp">Shunting
-Yard implementation</a> and add an AST tree walking interpreter. Both
-solutions work because the evaluation order is correct with respect to
-associativity and precedence.</p>
+Yard implementation</a> and we could've added an AST tree walking
+interpreter. Both solutions work because the evaluation order is
+correct with respect to associativity and precedence.</p>
 
 <p>Below is the trace output from parsing an expression. The trace
 reflects the parser's call stack with each Enter marking an entry into
@@ -232,24 +232,24 @@ Exit: Value: 47
 
 <p>Because the parser and the grammar rules map one-to-one, following
 the grammar rules by hand, we'd arrive at the same order. Constructing
-a parser from a grammar rules is a largely mechanical process.</p>
+a parser from a grammar rules is a mechanical process.</p>
 
 <h3>Comparing recursive descent, Shunting Yard, and Pratt parsers</h3>
 
 <p>The recursive descent approach to parsing is most intuitive of
 parsers. Known since the 60s, but at the time impractical to
-implement. Back then, the call stack was novel concept, function calls
-were expensive, and memory for the stack scarce. The Shunting Yard
-algorithm was invented to overcome these limitations. On modern
-computers, method calls are fast and memory cheap. So unless we're
-parsing large programs with many precedence levels, recursive descent
-is a good starting point.</p>
+implement. Back then, the call stack was still a novel concept,
+function calls were expensive, and memory scarce, leading Dijkstra to
+develop the Shunting Yard algorithm. On modern hardware, method calls
+are fast and memory cheap. So unless we're parsing large programs with
+many precedence levels, recursive descent is a good starting
+point.</p>
 
-<p>In 1973, the <a href="https://tdop.github.io">Pratt parser</a>, or
-Top Down Operator Precedence parser, was introduced. It was an
-improvement on Shunting Yard in that a Pratt parser requires only a
-single parse method call regardless of precedence level, making it
-efficient for grammars with many levels of precedence. It's also
+<p>In 1973, Pratt developed the <a href="https://tdop.github.io">Top
+Down Operator Precedence parser</a>, later called the Pratt parser. It
+was an improvement on Shunting Yard in that a Pratt parser requires
+only a single parse method call regardless of precedence level, making
+it efficient for grammars with many levels of precedence. It's also
 useful in language with the ability to add new operators at any
 position in the precedence hierarchy and with any associativity. We
 could replace or supplement the fixed rules of recursive descent with
