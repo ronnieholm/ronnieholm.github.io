@@ -50,13 +50,10 @@ grammar for our parser to implement. Each part of the parser can
 easily be traced back to such grammar rules:</p>
 
 <pre>
-// Parser rules
 Expression = Term | Expression "+" Term | Expression "-" Term
 Term = Factor | Term "*" Factor | Term "/" Factor 
 Factor = Power | Factor "^" Power
 Power = Integer | "(" Expression ")"
-
-// Lexer rules
 Integer = Digit | Integer Digit    
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
 </pre>
@@ -77,7 +74,7 @@ term refers to the operands part of an expression involving addition
 or subtraction operators. A factor refers to the operands part of an
 expression involving multiplication or division operators.</p>
 
-<h3>Adjusting grammar for off-by-one</h3>
+<h3>Adjusting grammar for off-by-one naming</h3>
 
 <p>Looking at the textbook expression grammar, the rules appear
 off-by-one: the <code>Expression</code> rule is about addition and
@@ -123,8 +120,8 @@ loop.</p>
 <p>That's where
 <a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">EBNF</a>
 comes in. Instead of left recursion, <code>{ x }</code> syntax is
-introduced to express zero or more repetitions, naturally expressed
-with a loop rather than infinite recursion.</p>
+introduced to express zero or more repetitions, expressed with a loop
+rather than recursion.</p>
 
 <p><b>Side note</b>: a recursive descent parser has no issue with
 right recursive rules. So instead of substituting left recursive with
@@ -161,15 +158,13 @@ rules <code>Addition</code>, <code>Multiplication</code>, <code>Power</code>
 is short for operators with addition, multiplication, and power-like
 precedence.</p>
 
-<p><b>Side node</b>: a lot of languages that are LL(1) at the token
-level aren't LL(1) at the character level. One reason to separate the
-lexer and parser is to allow the parser to be LL(1). Lexing an integer
-or float provides one such example. Prior to lexing a integer or
-float, the lexer bookmarks its current position. It then starts
-scanning the input until it encounters either a whitespace or a
-dot. Once it knows whether the next token is a float or an integer, it
-backtracks to the bookmark position and calls the appropriate integer
-or float lexer method.</p>
+<p><b>Side node</b>: lots of languages are LL(1) at the token level
+but not the character level. In fact, one reason to separate the lexer
+and parser is to allow the parser to be LL(1). For instance, prior to
+lexing a integer or float, the lexer bookmarks its current
+position. It then scans the input until it encounters either a
+whitespace or a dot, before it backtracks to the bookmark and calls
+the appropriate integer or float lexer method.</p>
 
 <h3>From grammar rules to parser</h3>
 
@@ -183,20 +178,20 @@ parser.</p>
 <p>To keep the code simple,
 the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">implementation</a>,
 evaluates expressions during parsing. We might also have returned AST
-nodes from each parse method as in
+nodes from each parse method as with
 the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/ShuntingYardParser.CSharp">Shunting
 Yard implementation</a> and add an AST tree walking interpreter. Both
 solutions work because the evaluation order is correct with respect to
 associativity and precedence.</p>
 
-<p>Here's an example of parsing an involved expression. Adhering to
-common precedence rules, makes the example equal
-to <code>2+(3^(4^0.5)*5)</code>. The trace reflects the parser's call
-stack, each Enter marking a parse method called, 20 calls in all, and
-the value of the current token. Each Exit marks the result of the
-parse method, i.e., what the parse method returns to its caller.</p>
+<p>Below is the trace output from parsing an expression. The trace
+reflects the parser's call stack with each Enter marking an entry into
+a parse method, 20 in all, and the value of the current token. Exit
+marks includes what each parse method returns up the call chain to its
+caller.</p>
 
 <pre>
+// Equivalent to 2+(3^(4^0.5)*5)
 > 2+3^4^0.5*5
 Enter: Parse, Value: 2
     Enter: ParseExpression, Value: 2
@@ -258,9 +253,10 @@ descent is a good starting point.</p>
 <p>In 1973, the <a href="https://tdop.github.io">Pratt parser</a>, or
 Top Down Operator Precedence parser, was introduced. It was an
 improvement on Shunting Yard in that a Pratt parser requires only a
-single method call regardless of precedence level, making it efficient
-for grammars with many levels of precedence. At runtime, it also has
-the ability to add new operators at any position in the hierarchy. A
+single parse method call regardless of precedence level, making it
+efficient for grammars with many levels of precedence. It's also
+useful in language with the ability to add new operators at any
+position in the precedence hierarchy and with any associativity. A
 recursive descent parsers is fixed unless we replace of supplement
 existing rules with a dynamic lookup table or parse methods to
 call.</p>
