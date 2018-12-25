@@ -4,10 +4,6 @@ title: "Recursive descent parsing of mathematical expressions with C#"
 date: 2018-12-23 12:00 UTC
 ---
 
-<!--
-See ParsePower() for how to reverse associativity from default left to right on a per-operator basis.
--->
-
 <div id="post">
 
 <p><a href="/blog/2015/08/05/lexing-and-parsing-mathematical-expressions-with-fsharp">Part1: Lexing and parsing mathematical expressions with F#</a><br>
@@ -81,7 +77,7 @@ term refers to the operands part of an expression involving addition
 or subtraction operators. A factor refers to the operands part of an
 expression involving multiplication or division operators.</p>
 
-<h3>Adjusting the grammar for off-by-one</h3>
+<h3>Adjusting grammar for off-by-one</h3>
 
 <p>Looking at the textbook expression grammar, the rules appear
 off-by-one: the <code>Expression</code> rule is about addition and
@@ -141,151 +137,136 @@ iterations:</p>
 
 <pre>
 Expression = Term
-Term = Factor | { "+" Factor } | { "-" Factor }
-Factor = Power | { "*" Power } | { "/" Power }
-Power = Primary | { "^" Primary }
+Term = Factor { ("+" | "-") Factor }
+Factor = Power { ("*" | "/")  Power }
+Power = Primary { "^" Primary }
 Primary = Integer | "(" Expression ")"
 </pre>
     
-<p>Favoring readability over compactness, and extending the grammar
-with unary minus and float support, we end up with this final
+<p>Favoring readability over compactness, and extending the grammar to
+include unary minus and float support, we end up with this final
 grammar:</p>
 
 <pre>
-// Parser rules
 Expression = Addition
-Addition = Multiplication | { "+" Multiplication } | { "-" Multiplication }
-Multiplication = Power | { "*" Power } | { "/" Power }    
-Power = Unary | { "^" Power }
+Addition = Multiplication { ("+" | "-") Multiplication }
+Multiplication = Power { ("*"|"/") Power }
+Power = Unary { "^" Power }
 Unary = '-' Unary | Primary
 Primary = Integer | Float | "(" Expression ")"
-
-// Lexer rules
-Float = Integer "." Integer
-Integer = Digit | { Digit }
-Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"    
 </pre>
 
-<p>When we name a
-rule <code>Addition</code>, <code>Multiplication</code>, <code>Power</code>
-it's short for operators with addition, multiplication, and power-like
+<p>Naming
+rules <code>Addition</code>, <code>Multiplication</code>, <code>Power</code>
+is short for operators with addition, multiplication, and power-like
 precedence.</p>
 
-<!--
-                    // Once we know whether we're at a float or an integer,
-                    // we'll backtrack using the bookmark and call the
-                    // appropriate lexer method. Note that LL(1) refers to one
-                    // token lookahead at the parser level, not the lexer. A lot
-                    // of languages that are LL(1) at the token level aren't
-                    // LL(1) at the character level. One reason to separate the
-                    // lexer and parser is to allow the parser to be LL(1).
-  -->
+<p><b>Side node</b>: a lot of languages that are LL(1) at the token
+level aren't LL(1) at the character level. One reason to separate the
+lexer and parser is to allow the parser to be LL(1). Lexing an integer
+or float provides one such example. Prior to lexing a integer or
+float, the lexer bookmarks its current position. It then starts
+scanning the input until it encounters either a whitespace or a
+dot. Once it knows whether the next token is a float or an integer, it
+backtracks to the bookmark position and calls the appropriate integer
+or float lexer method.</p>
 
 <h3>From grammar rules to parser</h3>
 
-<p>Inside the parser, each rule is matched by a corresponding Parse
+<p>Organizing the parser, each rule becomes a corresponding Parse
 method. Placing a breakpoint inside one of these methods, the call
 stack shows the path from <code>Expression</code> to the current
-rule. This is useful in debugging the parser and illustrates the
-one-to-one relationship between a grammar and a recursive descent
+rule. This is useful in debugging the parser and goes to show the
+one-to-one relationship between grammar and recursive descent
 parser.</p>
 
-<p><b>Side note</b>: using additional EBNF syntax and the Kleene star,
-the grammar could be further simplified, but we'll forgo that
-part.</p>
+<p>To keep the code simple,
+the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">implementation</a>,
+evaluates expressions during parsing. We might also have returned AST
+nodes from each parse method as in
+the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/ShuntingYardParser.CSharp">Shunting
+Yard implementation</a> and add an AST tree walking interpreter. Both
+solutions work because the evaluation order is correct with respect to
+associativity and precedence.</p>
 
-<p>In the example parser, we evaluate the expression as we parse it.
-We might also have returned AST nodes from each parse method as with
-the Shunting Yard example. We know that the evaluation order is
-correct with respect to associativity and precedence, so the AST would
-be correct intermediate representation. Writing an evaluator for the
-AST, the interpreter would no longer be one-pass but two-pass.</p>
-
-<h3>Example</h3>
-
-<p>Here's an example of parsing a somewhat involved mathematical
-expression. Precedence and associativity makes the example equal to
-<code>2+((3^(4^0.5))*5)</code>. The trace output shows the parser's
-call stack, each Rule marking a parse method called, 20 calls in all,
-and the value of the current token. Result is result of applying the
-rule, i.e., what the parse method returns to its caller.</p>
+<p>Here's an example of parsing an involved expression. Adhering to
+common precedence rules, makes the example equal
+to <code>2+(3^(4^0.5)*5)</code>. The trace reflects the parser's call
+stack, each Enter marking a parse method called, 20 calls in all, and
+the value of the current token. Each Exit marks the result of the
+parse method, i.e., what the parse method returns to its caller.</p>
 
 <pre>
 > 2+3^4^0.5*5
-Rule: Parse, Value: 2
-    Rule: ParseExpression, Value: 2
-        Rule: ParseAddition, Value: 2
-            Rule: ParseMultiplication, Value: 2
-                Rule: ParsePower, Value: 2
-                    Rule: ParseUnary, Value: 2
-                        Rule: ParsePrimary, Value: 2
-                        Result: 2
-                    Result: 2
-                Result: 2
-            Result: 2
-            Rule: ParseMultiplication, Value: 3
-                Rule: ParsePower, Value: 3
-                    Rule: ParseUnary, Value: 3
-                        Rule: ParsePrimary, Value: 3
-                        Result: 3
-                    Result: 3
-                    Rule: ParsePower, Value: 4
-                        Rule: ParseUnary, Value: 4
-                            Rule: ParsePrimary, Value: 4
-                            Result: 4
-                        Result: 4
-                        Rule: ParsePower, Value: 0.5
-                            Rule: ParseUnary, Value: 0.5
-                                Rule: ParsePrimary, Value: 0.5
-                                Result: 0.5
-                            Result: 0.5
-                        Result: 0.5
-                    Result: 2
-                Result: 9
-                Rule: ParsePower, Value: 5
-                    Rule: ParseUnary, Value: 5
-                        Rule: ParsePrimary, Value: 5
-                        Result: 5
-                    Result: 5
-                Result: 5
-            Result: 45
-        Result: 47
-    Result: 47
-Result: 47
+Enter: Parse, Value: 2
+    Enter: ParseExpression, Value: 2
+        Enter: ParseAddition, Value: 2
+            Enter: ParseMultiplication, Value: 2
+                Enter: ParsePower, Value: 2
+                    Enter: ParseUnary, Value: 2
+                        Enter: ParsePrimary, Value: 2
+                        Exit: Value: 2
+                    Exit: Value: 2
+                Exit: Value: 2
+            Exit: Value: 2
+            Enter: ParseMultiplication, Value: 3
+                Enter: ParsePower, Value: 3
+                    Enter: ParseUnary, Value: 3
+                        Enter: ParsePrimary, Value: 3
+                        Exit: Value: 3
+                    Exit: Value: 3
+                    Enter: ParsePower, Value: 4
+                        Enter: ParseUnary, Value: 4
+                            Enter: ParsePrimary, Value: 4
+                            Exit: Value: 4
+                        Exit: Value: 4
+                        Enter: ParsePower, Value: 0.5
+                            Enter: ParseUnary, Value: 0.5
+                                Enter: ParsePrimary, Value: 0.5
+                                Exit: Value: 0.5
+                            Exit: Value: 0.5
+                        Exit: Value: 0.5
+                    Exit: Value: 2
+                Exit: Value: 9
+                Enter: ParsePower, Value: 5
+                    Enter: ParseUnary, Value: 5
+                        Enter: ParsePrimary, Value: 5
+                        Exit: Value: 5
+                    Exit: Value: 5
+                Exit: Value: 5
+            Exit: Value: 45
+        Exit: Value: 47
+    Exit: Value: 47
+Exit: Value: 47
 </pre>
 
-<p>Manually following the grammar rules, we'd arrive at the same
-transition from one rule to another, which goes to show how grammar
-rules and parser methods map one-to-one in a recursive descent
-parser. Constructing a parser from grammar rules is a large mechanical
-process.</p>
+<p>Because the parser and the grammar rules map one-to-one, following
+the grammar rules by hand, we'd arrive at the same order. Constructing
+a parser from a grammar rules is a large mechanical process.</p>
 
 <h3>Comparison of recursive descent, Shunting Yard, and Pratt parsers</h3>
 
 <p>The recursive descent approach to parsing is probably the easiest
-and most intuitive way of parsing a program. The translation from
-grammar to parser straightforward. It's just that in the 60s, it was
-impractical to implement because the idea of the call stack was new,
-function calls slow, and memory scarce. Shunting Yard was invented to
-overcome these limitations. Instead of recursion, Shunting Yard loops
-over an operator stack, consulting lookup tables of operator
-precedence and associativity, while reading operands from the operand
-stack.</p>
+and most intuitive of all. It's been known at least since the 60s, but
+was impractical to implement. At that time, the idea of a call stack
+was novel, function calls slow, and memory for the stack scarce. The
+Shunting Yard algorithm was invented to overcome these limitations. On
+modern computers, method calls are fast and memory cheap. So unless
+we're parsing large programs with many precedence levels, recursive
+descent is a good starting point.</p>
 
-<p>In 1973, the <a href="https://tdop.github.io">Pratt parser</a>,
-also called Top Down Operator Precedence parser, was presented. It
-remained largely unknown till around 2005. Regardless of an operator's
-precedence level, the Pratt parser always requires only a single
-lookup to process the operator, making it efficient for grammars with
-many levels of precedence. It also has the ability to dynamically, at
-runtime, adding new operators at any position in the
-hierarchy. Recursive descent is fixed, although image a recursive
-descent parser that dynamically looks up the next method to call from
-a table, and it would have the same dynamic ability as the Pratt
-parser.</p>
+<p>In 1973, the <a href="https://tdop.github.io">Pratt parser</a>, or
+Top Down Operator Precedence parser, was introduced. It was an
+improvement on Shunting Yard in that a Pratt parser requires only a
+single method call regardless of precedence level, making it efficient
+for grammars with many levels of precedence. At runtime, it also has
+the ability to add new operators at any position in the hierarchy. A
+recursive descent parsers is fixed unless we replace of supplement
+existing rules with a dynamic lookup table or parse methods to
+call.</p>
 
-<p>For an example of a hybrid of a traditional recursive descent
-parser for statements and a Pratt parser for expressions, take a look
+<p>For an example of a hybrid of a recursive descent parser for
+statements and a Pratt parser for expressions, take a look
 at <a href="https://github.com/ronnieholm/MonkeyLang">MonkeyLang</a>.</p>
 
 <h3>Additional references</h3>
