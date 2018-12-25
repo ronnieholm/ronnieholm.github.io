@@ -4,14 +4,28 @@ title: "Recursive descent parsing of mathematical expressions with C#"
 date: 2018-12-23 12:00 UTC
 ---
 
+<!--
+                    // Once we know whether we're at a float or an integer,
+                    // we'll backtrack using the bookmark and call the
+                    // appropriate lexer method. Note that LL(1) refers to one
+                    // token lookahead at the parser level, not the lexer. A lot
+                    // of languages that are LL(1) at the token level aren't
+                    // LL(1) at the character level. One reason to separate the
+                    // lexer and parser is to allow the parser to be LL(1).
+  -->
+
+<!--
+See ParsePower() for how to reverse associativity from default left to right on a per-operator basis.
+-->
+
 <div id="post">
 
-<p><a href="/blog/2015/08/05/lexing-and-parsing-mathematical-expressions-with-fsharp">Part
-1: Lexing and parsing mathematical expressions with F#</a><br>
-  <a href="/blog/2015/08/14/evaluating-mathematical-expressions-using-shunting-yard-and-fsharp">Part 2: Evaluating mathematical expressions using Shunting Yard and F#</a><br>
+<p><a href="/blog/2015/08/05/lexing-and-parsing-mathematical-expressions-with-fsharp">Part1: Lexing and parsing mathematical expressions with F#</a><br>
+<a href="/blog/2015/08/14/evaluating-mathematical-expressions-using-shunting-yard-and-fsharp">Part 2: Evaluating mathematical expressions using Shunting Yard and F#</a><br>
   Part 3: Recursive descent parsing of mathematical expressions with C#</p>
 
-<p>The code in this post is available
+<p>The source code for this post is extensively commented and is
+available
 <a href="https://github.com/ronnieholm/ExpressionParsers/blob/master/ShuntingYardParser.FSharp/SeparateLexerParserStages.fs">here</a>.</p>
   
 <p>This post is about implementing a backtracking lexer and a
@@ -25,7 +39,7 @@ because it's less obvious how to parse some operators (binary -, +, *,
 associative. It turns out that applying a neat trick in the parser can
 make it seamlessly handle both.</p>
 
-<h3>Textbook grammar</h3>
+<h3>Initial textbook grammar</h3>
 
 <p>The
 <a href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">BNF
@@ -97,8 +111,8 @@ grammar reads
 
 <p>Unfortunately, recursive descent parsers cannot handle left
 recursion. Suppose it were to parse <code>Term = Term "+"
-Factor</code>. In order to parse <code>Term</code>, it would have to
-recurse into itself, leading to an infinite loop.</p>
+Factor</code>. In order to parse <code>Term</code>, it would recurse
+into itself, leading to an infinite loop.</p>
 
 <h3>Eliminating left recursion with EBNF</h3>
 
@@ -180,11 +194,15 @@ stack.</p>
 
 <p>In 1973, the <a href="https://tdop.github.io">Pratt parser</a>,
 also called Top Down Operator Precedence parser, was presented. It
-remained largely unknown till around 2005. Pratt's paper is hard to
-follow and maybe could've used a few more examples. What the Pratt
-parser adds is ability that regardless of an operator's precedence
-level, it always requires only a single lookup to process the
-operator.</p>
+remained largely unknown till around 2005. Regardless of an operator's
+precedence level, the Pratt parser always requires only a single
+lookup to process the operator, making it efficient for grammars with
+many levels of precedence. It also has the ability to dynamically, at
+runtime, adding new operators at any position in the
+hierarchy. Recursive descent is fixed, although image a recursive
+descent parser that dynamically looks up the next method to call from
+a table, and it would have the same dynamic ability as the Pratt
+parser.</p>
 
 <p>For an example of a hybrid of a traditional recursive descent
 parser for statements and a Pratt parser for expressions, take a look
