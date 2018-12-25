@@ -5,16 +5,6 @@ date: 2018-12-23 12:00 UTC
 ---
 
 <!--
-                    // Once we know whether we're at a float or an integer,
-                    // we'll backtrack using the bookmark and call the
-                    // appropriate lexer method. Note that LL(1) refers to one
-                    // token lookahead at the parser level, not the lexer. A lot
-                    // of languages that are LL(1) at the token level aren't
-                    // LL(1) at the character level. One reason to separate the
-                    // lexer and parser is to allow the parser to be LL(1).
-  -->
-
-<!--
 See ParsePower() for how to reverse associativity from default left to right on a per-operator basis.
 -->
 
@@ -26,111 +16,128 @@ See ParsePower() for how to reverse associativity from default left to right on 
 
 <p>The source code for this post is extensively commented and is
 available
-<a href="https://github.com/ronnieholm/ExpressionParsers/blob/master/ShuntingYardParser.FSharp/SeparateLexerParserStages.fs">here</a>.</p>
+<a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">here</a>.</p>
   
 <p>This post is about implementing a backtracking lexer and a
-recursive descent LL(1) parser for mathematical expressions. Using
-operator precedence climbing, the parser handles associativity and
-precedence for unary -, binary +, -, *, /, ^ operators, and
-parenthesis. Many examples exist, parsing all operators and either
-left associative operators or right associative, but not both. Perhaps
-because it's less obvious how to parse some operators (binary -, +, *,
-/) as left associative and as others (unary -, binary ^) as right
-associative. It turns out that applying a neat trick in the parser can
-make it seamlessly handle both.</p>
+recursive
+descent <a href="https://en.wikipedia.org/wiki/LL_parser">LL(1)</a>
+parser for mathematical expressions. The LL(1) part refers to parsing
+an expression left to right, performing left-most derivations of
+tokens, using a single token lookahead. For mathematical expressions,
+left-most derivation implies that any operator becomes left
+associative and single token lookahead implies that taking into
+account the next token only, we can determine which parsing rule to
+apply next. By organizing the rules by which the parser operates from
+lowest to highest precedence, the parser does operator precedence
+climbing to support proper operator precedence for unary -, binary +,
+-, *, /, ^ operators and parenthesis.</p>
 
-<h3>Initial textbook grammar</h3>
+<p>The Internet is full of mathematical expression parsers because
+it's the simplest non-linear parsing problem. But parsers tend to
+focus on precedence only. That isn't a problem as long as we leave out
+right associate operators such as unary - and binary ^. Parsing even
+simple mathematical expressions, however, requires supporting both
+left and right associative operators.</p>
 
-<p>The
+<p>If we can create a parser for mathematical expression supporting
+operators with varying precedence <i>and</i> operators with both left
+and right associativity, we can reuse the patterns to parse any
+language with a single token lookahead without resorting to
+third-party parsing frameworks.</p>
+
+<h3>Textbook expression grammar</h3>
+
+<p>Below is a textbook example of a
 <a href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">BNF
-grammar</a> below is our textbook starting point. We'll evolve it into
-a more readable and capable version which we'll implement:</p>
+grammar</a> for expressions. We'll evolve it into a more capable
+grammar for our parser to implement. Each part of the parser can
+easily be traced back to such grammar rules:</p>
 
 <pre>
+// Parser rules
 Expression = Term | Expression "+" Term | Expression "-" Term
 Term = Factor | Term "*" Factor | Term "/" Factor 
 Factor = Power | Factor "^" Power
 Power = Integer | "(" Expression ")"
+
+// Lexer rules
 Integer = Digit | Integer Digit    
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
 </pre>
 
 <p>The <code>Integer</code> and <code>Digit</code> rules are handled
-by the lexer and included for completeness. The lexer generally
-handles rules which can be defined by a regular language, i.e., one
-for which a regular expression can be defined.</p>
+by the lexer and included for completeness sake only. The lexer
+operates at the character level whereas the parser operates and the
+token level, and generally handles rules expressed by a regular
+language, i.e., one for which a regular expression can be
+defined. When we talk about single token lookahead, we're referring to
+the operation of the parser and not the lexer. The lexer may look any
+number of characters ahead.</p>
 
-<p>To read the grammar, it may help to brush up on terminology from
+<p>To understand the grammar, it may help to brush up on terminology
+from
 <a href="https://study.com/academy/lesson/parts-of-an-expression-terms-factors-coefficients.html">algebra</a>. A
-term is a part of an expression connected with addition and
-subtraction and a factor is the part of an expression connected with
-multiplication or division.</p>
+term refers to the operands part of an expression involving addition
+or subtraction operators. A factor refers to the operands part of an
+expression involving multiplication or division operators.</p>
 
-<h3>Clearer grammar</h3>
+<h3>Adjusting the grammar for off-by-one</h3>
 
-<p>Looking at the grammar, it appears the rules are off-by-one:
-the <code>Expression</code> rule describes addition and subtraction,
-the <code>Term</code> rule multiplication and division, and so
-on. It's written this way for brevity rather than clarity. If we
-expand the first rule into two, we end up with the grammar
-below. Since we introduced an extra level, we need a new name for the
-last rule, here named <code>Primary</code> (we leave out lexer
+<p>Looking at the textbook expression grammar, the rules appear
+off-by-one: the <code>Expression</code> rule is about addition and
+subtraction, the <code>Term</code> rule about multiplication and
+division, and so on. If instead, we rewrite, or expand, the first rule
+into two, we end up with the grammar below where Terms, Factors, and
+so match with their definition. Since we introduced an extra level, we
+name the last rule <code>Primary</code> (and leave out lexer
 rules):</p>
 
 <pre>
 Expression = Term
 Term = Factor | Term "+" Factor | Term "-" Factor
 Factor = Power | Factor "*" Power | Factor "/" Power
-Power = Primary | Factor "^" Primary
+Power = Primary | Power "^" Primary
 Primary = Integer | "(" Expression ")"
 </pre>
  
 <p>In general, a grammar <code>A = B, B = C | D</code> can be
-rewritten as <code>A = B | C | D</code> and still represent the same
+rewritten as <code>A = B | C | D</code>. Both grammars define the same
 language.</p>
 
-<p>In principle, rule names doesn't matter. Their inter-relationships
-do. They might as well
-be <code>Expression0</code>, <code>Expression1</code>,
-<code>ExpressionN</code>, perhaps to denote the level of precedence
-for operators in the rule. In a recursive descent parser, the only way
-to define operator precedence is by recursive sub-rules. These define
-what part of the input will be grouped together.</p>
+<p>In principle, rule names doesn't matter. We might as well designate
+rules as <code>Rule0</code>, <code>Rule1</code>,
+<code>RuleN</code> with N denoting the precedence level for the rule's
+operator(s). Within a grammar, and hence within recursive descent
+parsers, precedence is defined by one rule referencing another in
+increasing order of precedence.</p>
 
-<p>Because a rule's self-reference appears on the left, as in
-<code>Term = Term "+" Factor</code>, the rule is said to be left
-recursive and parses left associativity operators by default,
-e.g., <code>a - b - c = (a - b) - c</code>. A right associative
-operator would require making the rule right recursive. Sometimes
-grammars communicate both left and right operator associativity,
-sometimes they keep all rules left associative for readability, and
-implement associative outside the grammar. Regardless,
-the <code>Factor</code> rule above must be implemented as if the
-grammar reads
-<code>Factor = Power | Factor "^" Factor</code>.</p>
+<p>Because in the grammar above, the rule's self-reference appears on
+the left, as in
+<code>Term = Term "+" Factor</code>, the rule is left recursive and
+parses left associative operators, e.g., <code>a - b - c parses as (a
+- b) - c</code>. Right associative operators would require making the
+rule right recursive as in <code>Primary "^"
+Power</code>. Unfortunately, recursive descent parsers cannot work
+with left recursion. In order to parse <code>Term = Term "+"
+Factor</code>, it would recurse into itself, leading to an infinite
+loop.</p>
 
-<p>Unfortunately, recursive descent parsers cannot handle left
-recursion. Suppose it were to parse <code>Term = Term "+"
-Factor</code>. In order to parse <code>Term</code>, it would recurse
-into itself, leading to an infinite loop.</p>
-
-<h3>Eliminating left recursion with EBNF</h3>
+<h3>Eliminating left recursion with EBNF rule rewriting</h3>
 
 <p>That's where
 <a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">EBNF</a>
-comes in. Instead of left recursion <code>{ x }</code> syntax is
-introduced to express zero or more repetitions. Such a representation
-is well suitable for coding since the repetition can be expressed
-naturally with a loop.</p>
+comes in. Instead of left recursion, <code>{ x }</code> syntax is
+introduced to express zero or more repetitions, naturally expressed
+with a loop rather than infinite recursion.</p>
 
 <p><b>Side note</b>: a recursive descent parser has no issue with
-right recursive rules. So instead of expressing left recursive rules
-as loops, an alternative might be to change the original grammar to
-become right recursive and retain the recursive calls. A
-transformation may then be applied on the
+right recursive rules. So instead of substituting left recursive with
+iterations, an alternative is to rewrite the grammar to become all
+right recursive. A transformation may then be applied on the
 constructed <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">Abstract
-Syntax Tree</a> (AST) node for left associative operations. But that's
-overly complex compared to rewriting the grammar to the one below:</p>
+Syntax Tree</a> (AST) node for left associative operators. While it
+would work, it's overly complex compared to rewriting to
+iterations:</p>
 
 <pre>
 Expression = Term
@@ -141,11 +148,8 @@ Primary = Integer | "(" Expression ")"
 </pre>
     
 <p>Favoring readability over compactness, and extending the grammar
-with unary minus and float support, we end up with the final grammar
-below. When we name a
-rule <code>Addition</code>, <code>Multiplication</code>, <code>Power</code>
-it's short for operators with addition, multiplication, and power-like
-precedence.</p>
+with unary minus and float support, we end up with this final
+grammar:</p>
 
 <pre>
 // Parser rules
@@ -161,8 +165,25 @@ Float = Integer "." Integer
 Integer = Digit | { Digit }
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9"    
 </pre>
-    
-<p>In the parser, each rule is matched by a corresponding Parse
+
+<p>When we name a
+rule <code>Addition</code>, <code>Multiplication</code>, <code>Power</code>
+it's short for operators with addition, multiplication, and power-like
+precedence.</p>
+
+<!--
+                    // Once we know whether we're at a float or an integer,
+                    // we'll backtrack using the bookmark and call the
+                    // appropriate lexer method. Note that LL(1) refers to one
+                    // token lookahead at the parser level, not the lexer. A lot
+                    // of languages that are LL(1) at the token level aren't
+                    // LL(1) at the character level. One reason to separate the
+                    // lexer and parser is to allow the parser to be LL(1).
+  -->
+
+<h3>From grammar rules to parser</h3>
+
+<p>Inside the parser, each rule is matched by a corresponding Parse
 method. Placing a breakpoint inside one of these methods, the call
 stack shows the path from <code>Expression</code> to the current
 rule. This is useful in debugging the parser and illustrates the
