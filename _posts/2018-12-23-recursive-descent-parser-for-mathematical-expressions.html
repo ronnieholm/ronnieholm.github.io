@@ -201,6 +201,62 @@ correct with respect to associativity and precedence, so the AST would
 be correct intermediate representation. Writing an evaluator for the
 AST, the interpreter would no longer be one-pass but two-pass.</p>
 
+<h3>Example</h3>
+
+<p>Here's an example of parsing a somewhat involved mathematical
+expression. The trace output shows the call stack with each line
+containing a rule marking the parse method called, 20 calls in all,
+and the value of the current token. The result is output value after
+evaluating the rule, i.e., what the parse method returns to its
+caller.</p>
+
+<pre>
+> 2+3^4^0.5*5
+Rule: Parse, Value: 2
+    Rule: ParseExpression, Value: 2
+        Rule: ParseAddition, Value: 2
+            Rule: ParseMultiplication, Value: 2
+                Rule: ParsePower, Value: 2
+                    Rule: ParseUnary, Value: 2
+                        Rule: ParsePrimary, Value: 2
+                        Result: 2
+                    Result: 2
+                Result: 2
+            Result: 2
+            Rule: ParseMultiplication, Value: 3
+                Rule: ParsePower, Value: 3
+                    Rule: ParseUnary, Value: 3
+                        Rule: ParsePrimary, Value: 3
+                        Result: 3
+                    Result: 3
+                    Rule: ParsePower, Value: 4
+                        Rule: ParseUnary, Value: 4
+                            Rule: ParsePrimary, Value: 4
+                            Result: 4
+                        Result: 4
+                        Rule: ParsePower, Value: 0.5
+                            Rule: ParseUnary, Value: 0.5
+                                Rule: ParsePrimary, Value: 0.5
+                                Result: 0.5
+                            Result: 0.5
+                        Result: 0.5
+                    Result: 2
+                Result: 9
+                Rule: ParsePower, Value: 5
+                    Rule: ParseUnary, Value: 5
+                        Rule: ParsePrimary, Value: 5
+                        Result: 5
+                    Result: 5
+                Result: 5
+            Result: 45
+        Result: 47
+    Result: 47
+Result: 47
+</pre>
+
+<p>Manually following the grammar rules, we'd arrive at the same order
+because the parser maps one-to-one to the rules.</p>
+
 <h3>Comparison of recursive descent, Shunting Yard, and Pratt parsers</h3>
 
 <p>The recursive descent approach to parsing is probably the easiest
