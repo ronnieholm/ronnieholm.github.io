@@ -204,11 +204,11 @@ AST, the interpreter would no longer be one-pass but two-pass.</p>
 <h3>Example</h3>
 
 <p>Here's an example of parsing a somewhat involved mathematical
-expression. The trace output shows the call stack with each line
-containing a rule marking the parse method called, 20 calls in all,
-and the value of the current token. The result is output value after
-evaluating the rule, i.e., what the parse method returns to its
-caller.</p>
+expression. Precedence and associativity makes the example equal to
+<code>2+((3^(4^0.5))*5)</code>. The trace output shows the parser's
+call stack, each Rule marking a parse method called, 20 calls in all,
+and the value of the current token. Result is result of applying the
+rule, i.e., what the parse method returns to its caller.</p>
 
 <pre>
 > 2+3^4^0.5*5
@@ -254,8 +254,11 @@ Rule: Parse, Value: 2
 Result: 47
 </pre>
 
-<p>Manually following the grammar rules, we'd arrive at the same order
-because the parser maps one-to-one to the rules.</p>
+<p>Manually following the grammar rules, we'd arrive at the same
+transition from one rule to another, which goes to show how grammar
+rules and parser methods map one-to-one in a recursive descent
+parser. Constructing a parser from grammar rules is a large mechanical
+process.</p>
 
 <h3>Comparison of recursive descent, Shunting Yard, and Pratt parsers</h3>
 
@@ -297,8 +300,7 @@ recursive descent parser for any language.</p></li>
 <li><p>Per
 Vognsen's <a href="https://www.youtube.com/watch?v=Mx29YQ4zAuM">Programming
 an x64 compiler from scratch - part 2"</a>, offsets 2h30m to 3h28m,
-implements a simple expression parser in
-C. Also, <a href="https://www.youtube.com/watch?v=0woxSWjWsb8">Bitwise,
+implements a simple expression parser in C. Also, <a href="https://www.youtube.com/watch?v=0woxSWjWsb8">Bitwise,
 Day 2: C Programming & Parsing</a>
 and <a href="https://www.youtube.com/watch?v=L4P98pGhpnE">Bitwise, Day
 3: More Programming & Parsing</a> are worth a look, though they have
@@ -310,8 +312,7 @@ Interpreters</a>, Chapter 6 details how to modify an expression
 grammar to encode precedence levels.</p></li>
 
 <li><p>Eli
-Bendersky's <a href="https://eli.thegreenplace.net/2009/03/14/some-problems-of-recursive-descent-parsers">Some
-problems of recursive descent parsers</a> details how to transform a
+Bendersky's <a href="https://eli.thegreenplace.net/2009/03/14/some-problems-of-recursive-descent-parsers">Some problems of recursive descent parsers</a> details how to transform a
 right recursive grammar into repetitions and how to handle left and
 right associative operators.</p></li>
 </ul>
