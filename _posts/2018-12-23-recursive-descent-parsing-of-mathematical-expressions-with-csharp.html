@@ -7,7 +7,18 @@ date: 2018-12-23 12:00 UTC
 <!-- Wirth book gives simple recipe for translating EBNF into actual code -->
 <!-- Precedence mirrors the call tree -->
 <!-- Create an extensible grammar by setting up a table -->
-<!-- Called precedence climbing because it goes through all the precedence levels -->
+<!-- Called precedence climbing because it goes through all the precedence levels 
+     We going downwards but if flip the order we'd climb upwards -->
+<!-- Power one is left right recursive. Could have more right
+recursive operators that could call each other like the left recursive
+ones -->
+<!-- left fold iteration rather than left fold recursion -->
+
+<!-- Using Kleene start and terse notation for character classes, we
+     can actually write rules as expr0 = expr1 ([+-] expr1)*-->
+<!-- Grammar is isomorphic to code -->
+<!-- Grammer is both directly and indrectly recursive. Power calls itself and last rule ends up calling first rule on parenthesis -->
+<!-- Dynamic set of operators ... -->
 
 <div id="post">
 
@@ -271,12 +282,13 @@ recursive descent parser for any language.</p></li>
 
 <li><p>Per
 Vognsen's <a href="https://www.youtube.com/watch?v=Mx29YQ4zAuM">Programming
-an x64 compiler from scratch - part 2"</a>, offsets 2h30m to 3h28m,
-implements a simple expression parser in C. Also, <a href="https://www.youtube.com/watch?v=0woxSWjWsb8">Bitwise,
-Day 2: C Programming & Parsing</a>
+an x64 compiler from scratch - part 2"</a>, from 2h30m to 3h28m,
+implements a simple expression parser in
+C. Also, <a href="https://www.youtube.com/watch?v=0woxSWjWsb8">Bitwise,
+Day 2: C Programming & Parsing</a> from 1h00m
 and <a href="https://www.youtube.com/watch?v=L4P98pGhpnE">Bitwise, Day
-3: More Programming & Parsing</a> are worth a look, though they have
-some overlap.</p></li>
+3: More Programming & Parsing</a> from 1h10m to 1h40m are worth a
+look, though they have some overlap.</p></li>
 
 <li><p>Bob
 Nystrom's <a href="http://craftinginterpreters.com/parsing-expressions.html">Crafting
