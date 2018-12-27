@@ -29,40 +29,41 @@ ones -->
 <p>The commented source code for this post is
 available <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">here</a>.</p>
   
-<p>This post is about implementing a backtracking lexer and a
-recursive
+<p>This post is about how to construct a backtracking lexer and a
+combined recursive
 descent <a href="https://en.wikipedia.org/wiki/LL_parser">LL(1)</a>
-parser for mathematical expressions. The LL(1) part refers to parsing
-an expression left to right,
-performing <a href="https://en.wikipedia.org/wiki/Context-free_grammar#Derivations_and_syntax_trees">leftmost
-derivations</a> of tokens, using a single token lookahead. For
-mathematical expressions, leftmost derivation implies that any
-operator becomes left associative and single token lookahead implies
-that taking into account the next token only, we can determine which
-parsing rule to apply next. By organizing the rules by which the
-parser operates from lowest to highest precedence, the parser does
-operator precedence climbing to support proper operator precedence for
-unary -, binary +, -, *, /, ^ operators and parenthesis.</p>
+parser and evaluator for mathematical expressions. For arbitrary
+precedence and associativity, we could switch to Shunting Yard or Top
+Down Operator Precedence algorithms (or to Yacc and family), but the
+post shows how it's possible to stay with recursive descent. All
+that's required is a very small change to the grammar and parser for
+it to support both left and right associative operators. With
+recursive descent, the parser and grammar rules follow from each other
+-- they're isomorphic -- which leads to easy to understand, easy to
+debug, easy to extend parsers.</p>
 
-<p>The Internet is full of mathematical expression parsers because
-it's the simplest non-linear parsing problem. But parsers tend to
-focus on precedence only. That isn't a problem as long as we leave out
-right associate operators such as unary - and binary ^. But parsing
-even simple mathematical expressions requires supporting both left and
-right associative operators.</p>
-
-<p>If we can create a parser for mathematical expression supporting
-operators with varying precedence <i>and</i> operators with both left
-and right associativity, we can reuse the patterns to parse any
-language with a single token lookahead without resorting to
-third-party parsing frameworks.</p>
+<p>That the parser is LL(1) refers to how it parses the expression,
+reading tokens left to right and when a list of tokens match a rule,
+it does
+a <a href="https://en.wikipedia.org/wiki/Context-free_grammar#Derivations_and_syntax_trees">leftmost
+derivations</a> of the tokens, i.e., produces a result, such as adding
+two numbers. Leftmost derivations corresponds to left associativity so
+for operators like unary minus and power we reverse it. The number one
+refers to how rules crafted in such a way that looking at most one
+token ahead, without consuming it, the parser can unambiguously decide
+on one rule among many to apply. Organizing these rules from lowest to
+highest precedence, with one recursively calling the next enables
+precedence climbing which in turn enables support for conventional
+precedence and associativity.</p>
 
 <h3>Textbook expression grammar</h3>
 
-<p>Below is a textbook example of a
+<p>Below is a starting point
 <a href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">BNF
 grammar</a> for expressions. We'll evolve it into a more capable
-grammar for our parser to implement:</p>
+grammar with additional precedence levels, support for both left and
+right associative operators, and support for integers and
+floats. That's what our parser will end up supporting:</p>
 
 <pre>
 Expression = Term | Expression "+" Term | Expression "-" Term
@@ -73,18 +74,22 @@ Integer = Digit | Integer Digit
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
 </pre>
 
-<p>In our case, the lexer would handle the <code>Integer</code>
-and <code>Digit</code> rules. The lexer operates at the character
-level whereas the parser operates and the token level, and generally
-handles rules expressed by regular expressions. When we talk about
-single token lookahead, it refers to the operation of the parser and
-not the lexer. The lexer may look any number of characters ahead.</p>
+<p>The lexer operates at the character level, grouping characters into
+tokens, and would typically implement the <code>Integer</code>
+and <code>Digit</code> rules. When we talk about a single token
+lookahead, it refers to the operation of the parser and not the
+lexer. The lexer may look any number of characters ahead. In fact,
+that's a common reason for separating lexing and parsing, simplifying
+the parser.</p>
 
-<p>Some grammar rule names stem
-from <a href="https://study.com/academy/lesson/parts-of-an-expression-terms-factors-coefficients.html">algebra</a>:
+<p>Rules are typically named after the domain described by grammar; in
+this
+case <a href="https://study.com/academy/lesson/parts-of-an-expression-terms-factors-coefficients.html">algebra</a>. Here
 terms are the operands in an expression involving addition or
-subtraction, factors are the operands in an expression involving
-multiplication or division.</p>
+subtraction and factors the operands in an expression involving
+multiplication or division. It's convention, but the rules might as
+well be called <code>Addition</code>
+and <code>Multiplication</code>.</p>
 
 <h3>Adjusting grammar for off-by-one naming</h3>
 
