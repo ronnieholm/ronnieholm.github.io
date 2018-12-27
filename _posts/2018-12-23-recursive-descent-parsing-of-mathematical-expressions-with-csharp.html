@@ -42,20 +42,6 @@ recursive descent, the parser and grammar rules follow from each other
 -- they're isomorphic -- which leads to easy to understand, easy to
 debug, easy to extend parsers.</p>
 
-<p>That the parser is LL(1) refers to how it parses the expression,
-reading tokens left to right and when a list of tokens match a rule,
-it does
-a <a href="https://en.wikipedia.org/wiki/Context-free_grammar#Derivations_and_syntax_trees">leftmost
-derivations</a> of the tokens, i.e., produces a result, such as adding
-two numbers. Leftmost derivations corresponds to left associativity so
-for operators like unary minus and power we reverse it. The number one
-refers to how rules crafted in such a way that looking at most one
-token ahead, without consuming it, the parser can unambiguously decide
-on one rule among many to apply. Organizing these rules from lowest to
-highest precedence, with one recursively calling the next enables
-precedence climbing which in turn enables support for conventional
-precedence and associativity.</p>
-
 <h3>Textbook expression grammar</h3>
 
 <p>Below is a starting point
@@ -73,6 +59,20 @@ Power = Integer | "(" Expression ")"
 Integer = Digit | Integer Digit    
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
 </pre>
+
+<p>That the parser is LL(1) refers to how it parses the expression,
+reading tokens left to right and when a list of tokens match a rule,
+it does
+a <a href="https://en.wikipedia.org/wiki/Context-free_grammar#Derivations_and_syntax_trees">leftmost
+derivations</a> of the tokens, i.e., produces a result, such as adding
+two numbers. Leftmost derivations corresponds to left associativity so
+for operators like unary minus and power we reverse it. The number one
+refers to how rules crafted in such a way that looking at most one
+token ahead, without consuming it, the parser can unambiguously decide
+on one rule among many to apply. Organizing these rules from lowest to
+highest precedence, with one recursively calling the next enables
+precedence climbing which in turn enables support for conventional
+precedence and associativity.</p>
 
 <p>The lexer operates at the character level, grouping characters into
 tokens, and would typically implement the <code>Integer</code>
