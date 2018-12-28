@@ -4,14 +4,6 @@ title: "Recursive descent parsing of mathematical expressions with C#"
 date: 2018-12-23 12:00 UTC
 ---
 
-<!-- Wirth book gives simple recipe for translating EBNF into actual code -->
-<!-- Create an extensible grammar by setting up a table -->
-<!-- Called precedence climbing because it goes through all the precedence levels 
-     We going downwards but if flip the order we'd climb upwards -->
-<!-- Power one is left right recursive. Could have more right
-recursive operators that could call each other like the left recursive
-ones -->
-
 <div id="post">
 
 <p><a href="/blog/2015/08/05/lexing-and-parsing-mathematical-expressions-with-fsharp">Part 1: Lexing and parsing mathematical expressions with F#</a><br>
@@ -62,9 +54,10 @@ for an operator like power we must somehow reverse it. The number one
 refers to how rules are crafted in such a way that looking at most one
 token ahead, without consuming it, the parser can unambiguously decide
 on one rule among many to apply. Organizing these rules from lowest to
-highest precedence, with one recursively calling the next enables
-precedence climbing which in turn enables support for conventional
-precedence and associativity.</p>
+highest precedence, enabling precedence climbing and support for
+precedence and associativity (for the above grammar, if we flip the
+order, we'd go up, or climb the rules, with higher precedence
+operators).</p>
 
 <p>Rules are typically named after the domain described by grammar; in
 this
@@ -142,8 +135,9 @@ Syntax Tree</a> (AST) nodes, depending on the parser's output). While
 it would work, it's simpler to eliminating left recursion.</p>
 
 <p>We're extending the grammar to include unary minus and float
-support, and also make use of EBNF character groups and Kleene star
-syntax. Naming
+support, and also make use of EBNF character groups
+and <a href="https://en.wikipedia.org/wiki/Kleene_star">Kleene
+star</a> syntax. Naming
 rules <code>Addition</code>, <code>Multiplication</code>, <code>Power</code>
 is short for operators with addition, multiplication, and power-like
 precedence:</p>
@@ -172,10 +166,12 @@ float.</p>
 
 <p>A two-way mapping exists between the grammar and parser. Each rule
 becomes its own Parse method and the inside of each Parse method
-follows from that rule's definition as per Wirth's guidelines. With a
-breakpoint inside one such method, the call stack shows the path
-from <code>Expression</code> to that rule, illustrating the one-to-one
-relationship between grammar and recursive descent parser.</p>
+follows from that rule's definition as per Wirth's recipe for
+translating EBNF into actual code (see Additional references
+below). With a breakpoint inside one such method, the call stack shows
+the path from <code>Expression</code> to that rule, illustrating the
+one-to-one relationship between grammar and recursive descent
+parser.</p>
 
 <p>To keep
 the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">implementation</a>
@@ -243,8 +239,6 @@ alone. Precedence and associativity is mirrored in the call tree.</p>
 
 <h3>Comparing recursive descent, Shunting Yard, and Pratt parsers</h3>
 
-<!-- Dynamic set of operators ... -->
-
 <p>In parsing, recursive descent is the most intuitive and simplest to
 implement. It dates back to the 60s, but back then it was impractical
 to implement. The call stack was still a novel concept, function calls
@@ -259,11 +253,11 @@ improves on the performance of recursive descent and Shunting Yard in
 that regardless of precedence level, a Pratt parser requires only a
 single parse method call. This makes Pratt parsers efficient for
 grammars with many levels of precedence. It's also useful for
-languages with support for dynamic operators. The programmer may add
-new operators anywhere in the precedence hierarchy and with any
-associativity. For recursive descent, a similar feature could be
-supported by replacing or supplementing the fixed rules hardcoded as
-method calls with a lookup table.</p>
+languages with support for dynamic operators. A programmer may add new
+operators anywhere in the precedence hierarchy and with any
+associativity. For recursive descent, a similar extensible grammar
+could be supported by replacing or supplementing fixed rules hardcoded
+as method calls with a lookup table.</p>
 
 <p>As an example of a hybrid of a recursive descent parser for
 statements and a Pratt parser for expressions, have a look at
@@ -300,8 +294,8 @@ right recursive grammar into repetitions and how to handle left and
 right associative operators.</p></li>
 </ul>
 
-<h3>Summary</h3>
+<!--<h3>Summary</h3>
 
-<p>Summary.</p>
+<p></p>-->
 
 </div>
