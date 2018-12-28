@@ -31,9 +31,9 @@ debug, easy to extend parsers.</p>
 <p>Below is a starting point
 <a href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">BNF
 grammar</a> for expressions. We'll evolve it into a more capable
-grammar with additional precedence levels, support for both left and
-right associative operators, and support for integers and
-floats. That's what our parser will end up supporting:</p>
+grammar with more precedence levels, support for both left and right
+associative operators, and support for integers and floats. That's
+what our parser will end up supporting:</p>
 
 <pre>
 Expression = Term | Expression "+" Term | Expression "-" Term
@@ -51,9 +51,9 @@ a <a href="https://en.wikipedia.org/wiki/Context-free_grammar#Derivations_and_sy
 derivations</a> of the tokens, i.e., produces a result, such as adding
 two numbers. Leftmost derivations corresponds to left associativity so
 for an operator like power we must somehow reverse it. The number one
-refers to how rules are crafted in such a way that looking at most one
-token ahead, without consuming it, the parser can unambiguously decide
-on one rule among many to apply. Organizing these rules from lowest to
+refers to crafting rules in such a way that looking at most one token
+ahead, without consuming it, the parser can unambiguously decide on
+one rule among many to apply. Organizing these rules from lowest to
 highest precedence, enabling precedence climbing and support for
 precedence and associativity (for the above grammar, if we flip the
 order, we'd go up, or climb the rules, with higher precedence
@@ -64,9 +64,8 @@ this
 case <a href="https://study.com/academy/lesson/parts-of-an-expression-terms-factors-coefficients.html">algebra</a>. Here
 terms are the operands in an expression involving addition or
 subtraction and factors the operands in an expression involving
-multiplication or division. It's convention, but the rules might as
-well be called <code>Addition</code>
-and <code>Multiplication</code>.</p>
+multiplication or division. It's convention, and might as well have
+ben <code>Addition</code> and <code>Multiplication</code>.</p>
 
 <p>The lexer operates at the character level, grouping characters into
 tokens, and would typically implement the <code>Integer</code>
@@ -101,20 +100,20 @@ by <code>Rule0</code>, <code>Rule1</code>,
 difference to language it describes.</p>
 
 <p>In the grammar, a rule's self-reference appears on the left, as in
-<code>Term "+" Factor</code>. This feature is why it correctly deals
+<code>Term "+" Factor</code>. This feature is how it correctly deals
 with left associative operators. For right associative operators, the
 rule needs rearranging to <code>Primary "^"
 Power</code>. Unfortunately, a recursive descent parser cannot work
 with left recursion. It causes the parser to enter an infinite loop as
 it recurses into itself.</p>
 
-<h3>Eliminating left recursion with EBNF rule rewriting</h3>
+<h3>Eliminating left recursion through EBNF rule rewriting</h3>
 
 <p>That's where
 <a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">EBNF</a>
 comes into play by introducing <code>{ x }</code> rule syntax for zero
-or more repetitions of <code>x</code>. In a parser this repetition can
-be expressed with loop rather than left recursion. We've gone from
+or more repetitions of <code>x</code>. In a parser repetition is
+expressed with a loop rather than left recursion. We're going from
 left fold recursion to left fold iteration.</p>
 
 <pre>
@@ -127,9 +126,9 @@ Primary = Integer | "(" Expression ")"
 
 <p><b>Side note</b>: a recursive descent parser has no problem with
 right recursive rules. Instead of substituting left recursion with
-iterations, we could rewrite the grammar as entirely right
-recursive. A transformation could be applied on the left associative
-operators (or
+iterations, we could rewrite the grammar as all right recursive. The
+parser could apply a transformation on the left associative operators
+(or
 the <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">Abstract
 Syntax Tree</a> (AST) nodes, depending on the parser's output). While
 it would work, it's simpler to eliminating left recursion.</p>
@@ -180,8 +179,8 @@ parsing. Instead of each parse method returning an AST node as with
 the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/ShuntingYardParser.CSharp">Shunting
 Yard implementation</a>, they return the actual result of the
 computation. Returning AST nodes, and supplementing the implementation
-with as AST walking evaluator, is independent of parsing, yielding
-equally correct results for associativity and precedence.</p>
+with as AST walking evaluator, is independent of parsing, also
+yielding correct results for associativity and precedence.</p>
 
 <p>Below is the trace from parsing an expression. Enter marks an entry
 into a parse method (20 in all) and the value of the current
@@ -235,7 +234,7 @@ Exit: Value: 47
 
 <p>With grammar rules mapping one-to-one to Parse methods, it should
 be easy to reconstruct the hierarchy looking at input and grammar
-alone. Precedence and associativity is mirrored in the call tree.</p>
+alone. The call tree mirrors precedence and associativity.</p>
 
 <h3>Comparing recursive descent, Shunting Yard, and Pratt parsers</h3>
 
@@ -255,9 +254,9 @@ single parse method call. This makes Pratt parsers efficient for
 grammars with many levels of precedence. It's also useful for
 languages with support for dynamic operators. A programmer may add new
 operators anywhere in the precedence hierarchy and with any
-associativity. For recursive descent, a similar extensible grammar
-could be supported by replacing or supplementing fixed rules hardcoded
-as method calls with a lookup table.</p>
+associativity. Recursive descent could support a similar extensible
+grammar through replacing or supplementing the fixed rules with a
+lookup table.</p>
 
 <p>As an example of a hybrid of a recursive descent parser for
 statements and a Pratt parser for expressions, have a look at
