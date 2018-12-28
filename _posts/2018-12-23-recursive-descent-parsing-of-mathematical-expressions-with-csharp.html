@@ -65,7 +65,7 @@ case <a href="https://study.com/academy/lesson/parts-of-an-expression-terms-fact
 terms are the operands in an expression involving addition or
 subtraction and factors the operands in an expression involving
 multiplication or division. It's convention, and might as well have
-ben <code>Addition</code> and <code>Multiplication</code>.</p>
+been <code>Addition</code> and <code>Multiplication</code>.</p>
 
 <p>The lexer operates at the character level, grouping characters into
 tokens, and would typically implement the <code>Integer</code>
@@ -112,9 +112,9 @@ it recurses into itself.</p>
 <p>That's where
 <a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">EBNF</a>
 comes into play by introducing <code>{ x }</code> rule syntax for zero
-or more repetitions of <code>x</code>. In a parser repetition is
-expressed with a loop rather than left recursion. We're going from
-left fold recursion to left fold iteration.</p>
+or more repetitions of <code>x</code>. A parser would implement
+repetition with a loop rather than left recursion, going from left
+fold recursion to left fold iteration.</p>
 
 <pre>
 Expression = Term
@@ -124,11 +124,10 @@ Power = Primary { "^" Primary }
 Primary = Integer | "(" Expression ")"
 </pre>
 
-<p><b>Side note</b>: a recursive descent parser has no problem with
-right recursive rules. Instead of substituting left recursion with
-iterations, we could rewrite the grammar as all right recursive. The
-parser could apply a transformation on the left associative operators
-(or
+<p>A recursive descent parser has no problem with right recursive
+rules. Instead of substituting left recursion with iterations, we
+could rewrite the grammar as all right recursive. The parser could
+apply a transformation on the left associative operators (or
 the <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">Abstract
 Syntax Tree</a> (AST) nodes, depending on the parser's output). While
 it would work, it's simpler to eliminating left recursion.</p>
@@ -150,15 +149,15 @@ Unary = '-' Unary | Primary
 Primary = Integer | Float | "(" Expression ")"
 </pre>
 
-<p><b>Side node</b>: lots of languages are LL(1) at the token level
-but not the character level. In fact, one reason to separate lexing
-and parsing is to allow the parser to be LL(1). For instance, lexing
-isn't LL(1) when determining whether a number is an integer or
-float. It bookmarks its current input position, and starts scanning
-the input until it encounters either a whitespace or a dot. It then
-backtracks to the bookmark and calls the appropriate integer or float
-lexer method. While inside a number, only looking at the next digit,
-the lexer has no way to tell whether the number is an integer or
+<p>As a side note, lots of languages are LL(1) at the token level but
+not the character level. In fact, one reason to separate lexing and
+parsing is to allow the parser to be LL(1). For instance, lexing isn't
+LL(1) when determining whether a number is an integer or float. It
+bookmarks its current input position, and starts scanning the input
+until it encounters either a whitespace or a dot. It then backtracks
+to the bookmark and calls the appropriate integer or float lexer
+method. While inside a number, only looking at the next digit, the
+lexer has no way to tell whether the number is an integer or
 float.</p>
 
 <h3>From grammar rules to parser</h3>
