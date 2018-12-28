@@ -7,8 +7,8 @@ date: 2018-12-23 12:00 UTC
 <div id="post">
 
 <p><a href="/blog/2015/08/05/lexing-and-parsing-mathematical-expressions-with-fsharp">Part 1: Lexing and parsing mathematical expressions with F#</a><br>
-<a href="/blog/2015/08/14/evaluating-mathematical-expressions-with-shunting-yard-and-fsharp">Part 2: Evaluating mathematical expressions with Shunting Yard and F#</a><br>
-  Part 3: Recursive descent parsing of mathematical expressions with C#</p>
+<a href="/blog/2015/08/14/evaluating-mathematical-expressions-with-shunting-yard-fsharp-and-csharp">Part 2: Evaluating mathematical expressions with Shunting Yard, F#, and C#</a><br>
+Part 3: Recursive descent parsing of mathematical expressions with C#</p>
 
 <p>The commented source code for this post is
 available <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">here</a>.</p>
@@ -249,7 +249,7 @@ with many precedence levels, recursive descent is a good starting
 point.</p>
 
 <p>In 1973, Pratt developed the <a href="https://tdop.github.io">Top
-Down Operator Precedence parser</a>, later called the Pratt parser. It
+Down Operator Precedence parser</a>, later called Pratt parser. It
 improves on the performance of recursive descent and Shunting Yard in
 that regardless of precedence level, a Pratt parser requires only a
 single parse method call. This makes Pratt parsers efficient for

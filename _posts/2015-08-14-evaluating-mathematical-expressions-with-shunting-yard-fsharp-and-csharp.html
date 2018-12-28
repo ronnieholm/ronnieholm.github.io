@@ -1,18 +1,21 @@
 ---
 layout: post
-title: "Evaluating mathematical expressions with Shunting Yard and F#"
+title: "Evaluating mathematical expressions with Shunting Yard, F#, and C#"
 date: 2015-08-14 12:00 UTC
 ---
 
 <div id="post"> 
 
 <p><a href="/blog/2015/08/05/lexing-and-parsing-mathematical-expressions-with-fsharp">Part 1: Lexing and parsing mathematical expressions with F#</a><br>
-  Part 2: Evaluating mathematical expressions with Shunting Yard and F#<br>
+  Part 2: Evaluating mathematical expressions with Shunting Yard, F#, and C#<br>
 <a href="/blog/2018/12/23/recursive-descent-parsing-of-mathematical-expressions-with-csharp">Part 3: Recursive descent parsing of mathematical expressions with C#</a></p>
 
-<p>The code in this post is available in its entirety from
-<a
-href="https://github.com/ronnieholm/ExpressionParsers/blob/master/ShuntingYardParser.FSharp/SeparateLexerParserStages.fs">here</a>.</p>
+<p>Code for this post is available on Github. There's both
+an <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/ShuntingYardParser.FSharp">F#</a>
+and
+a <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/ShuntingYardParser.CSharp">C#</a>
+version. The C# version constructs an Abstract Syntax Tree and
+implementing a tree-walking interpreter.</p>
 
 <p>In the
 <a href="/blog/2015/08/05/parsing-mathematical-expressions-by-hand-with-fsharp/">previous</a>
