@@ -29,8 +29,8 @@ debug, easy to extend parsers.</p>
 <h3>Textbook expression grammar</h3>
 
 <p>Below is a starting point
-<a href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">BNF
-grammar</a> for expressions. We'll evolve it into a more capable
+<a href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">Backus-Naur
+Form grammar</a> for expressions. We'll evolve it into a more capable
 grammar with more precedence levels, support for both left and right
 associative operators, and support for integers and floats. That's
 what our parser will end up supporting:</p>
@@ -110,9 +110,9 @@ it recurses into itself.</p>
 <h3>Eliminating left recursion through EBNF rule rewriting</h3>
 
 <p>That's where
-<a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">EBNF</a>
-comes into play by introducing <code>{ x }</code> rule syntax for zero
-or more repetitions of <code>x</code>. A parser would implement
+<a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">Extended
+BNF</a> comes in by introducing <code>{ x }</code> rule syntax for
+zero or more repetitions of <code>x</code>. A parser would implement
 repetition with a loop rather than left recursion, going from left
 fold recursion to left fold iteration.</p>
 
