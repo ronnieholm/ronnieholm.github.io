@@ -21,10 +21,13 @@ precedence and associativity, we could switch to Shunting Yard or Top
 Down Operator Precedence algorithms (or to Yacc and family), but the
 post shows how it's possible to stay with recursive descent. All
 that's required is a very small change to the grammar and parser for
-it to support both left and right associative operators. With
-recursive descent, the parser and grammar rules follow from each other
--- they're isomorphic -- which leads to easy to understand, easy to
-debug, easy to extend parsers.</p>
+it to support both left and right associative operators.</p>
+
+<p>With recursive descent, grammar rules and parser follow from each
+other -- they're isomorphic -- which leads to easy to understand, easy
+to debug, and easy to extend parsers. Once we know how to parse an
+expression with operators of different precedence and associativity,
+the same techniques may be applied to parse almost everything.</p>
 
 <h3>Textbook expression grammar</h3>
 
