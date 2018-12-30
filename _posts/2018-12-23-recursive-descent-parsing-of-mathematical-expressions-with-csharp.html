@@ -114,17 +114,22 @@ it recurses into itself.</p>
 
 <p>That's where
 <a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">Extended
-BNF</a> comes in by introducing <code>{ x }</code> rule syntax for
-zero or more repetitions of <code>x</code>. A parser would implement
-repetition with a loop rather than left recursion, going from left
-fold recursion to left fold iteration.</p>
+BNF</a> notation comes in. It introduces <code>{ x }</code> rule
+syntax for zero or more repetitions of <code>x</code>. A parser would
+implement repetition with a loop rather than left recursion. Rewriting
+from recursion to repetition, and including unary minus and float
+support, we end up with the grammar below. Names such
+as <code>Addition</code>, <code>Multiplication</code>, <code>Power</code>
+are short for operators with addition, multiplication, and power-like
+precedence:</p>
 
 <pre>
-Expression = Term
-Term = Factor { ("+" | "-") Factor }
-Factor = Power { ("*" | "/")  Power }
-Power = Primary { "^" Primary }
-Primary = Integer | "(" Expression ")"
+Expression = Addition
+Addition = Multiplication (("+" | "+") Multiplication)*
+Multiplication = Power (("*" | "/") Power)*
+Power = Unary ("^" Power)*
+Unary = '-' Unary | Primary
+Primary = Integer | Float | "(" Expression ")"
 </pre>
 
 <p>A recursive descent parser has no problem with right recursive
@@ -134,23 +139,6 @@ apply a transformation on the left associative operators (or
 the <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">Abstract
 Syntax Tree</a> (AST) nodes, depending on the parser's output). While
 it would work, it's simpler to eliminating left recursion.</p>
-
-<p>We're extending the grammar to include unary minus and float
-support, and also make use of EBNF character groups
-and <a href="https://en.wikipedia.org/wiki/Kleene_star">Kleene
-star</a> syntax. Naming
-rules <code>Addition</code>, <code>Multiplication</code>, <code>Power</code>
-is short for operators with addition, multiplication, and power-like
-precedence:</p>
-
-<pre>
-Expression = Addition
-Addition = Multiplication ([+-] Multiplication)*
-Multiplication = Power ([*/] Power)*
-Power = Unary ("^" Power)*
-Unary = '-' Unary | Primary
-Primary = Integer | Float | "(" Expression ")"
-</pre>
 
 <p>As a side note, lots of languages are LL(1) at the token level but
 not the character level. In fact, one reason to separate lexing and
@@ -241,12 +229,12 @@ alone. The call tree mirrors precedence and associativity.</p>
 <h3>Comparing recursive descent, Shunting Yard, and Pratt parsers</h3>
 
 <p>In parsing, recursive descent is the most intuitive and simplest to
-implement. It dates back to the 60s, but back then it was impractical
-to implement. The call stack was still a novel concept, function calls
-were expensive, and memory scarce, leading Dijkstra to develop the
-Shunting Yard algorithm. Today, unless we're parsing large programs
-with many precedence levels, recursive descent is a good starting
-point.</p>
+implement. It dates back to the 1960s, but back then it was
+impractical to implement. The call stack was still a novel concept,
+function calls were expensive, and memory scarce, leading Dijkstra to
+develop the Shunting Yard algorithm. Today, unless we're parsing large
+programs with many precedence levels, recursive descent is a good
+starting point.</p>
 
 <p>In 1973, Pratt developed the <a href="https://tdop.github.io">Top
 Down Operator Precedence parser</a>, later called Pratt parser. It
