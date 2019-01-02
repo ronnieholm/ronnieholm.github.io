@@ -330,12 +330,12 @@ be valid.</p>
 key rotation policy</a>, stating that</p>
 
 <blockquote>
-At any given point in time, Azure AD may sign an id_token [the OpenID
-Connect token or an access token] using any one of a certain set of
-public-private key pairs. Azure AD rotates the possible set of keys on
-a periodic basis, so your app should be written to handle those key
-changes automatically. A reasonable frequency to check for updates to
-the public keys used by Azure AD is every 24 hours.
+At any time, Azure AD may sign an id_token [the OpenID Connect token
+or an access token] using any one of a certain set of public-private
+key pairs. Azure AD rotates the possible set of keys on a periodic
+basis, so your app should be written to handle those key changes
+automatically. A reasonable frequency to check for updates to the
+public keys used by Azure AD is every 24 hours.
 </blockquote>
 
 <p>Within the metadata document, jwks_uri points to
