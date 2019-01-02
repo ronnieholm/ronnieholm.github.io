@@ -40,9 +40,9 @@ service.</p>
 </ol>
 
 <p>Components secured by AAD, end-users sign-in or authenticate to (1)
-and (2) using their AAD credentials and are issued a signed token. (1)
-and (2) passed the token with calls to (3) which similarly requests a
-signed token and passes it with calls to (4).</p>
+and (2) with their AAD credentials. AAD issues signed tokens which (1)
+and (2) passed along with calls to (3) which similarly requests a
+signed token and passes along with calls to (4).</p>
 
 <p>Reading along, keep in mind that authorization is orthogonal to
 authentication and that authorization requires authentication. OAuth2
@@ -71,7 +71,8 @@ with <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/re
 turned on in the registration manifest (it doesn't disable other grant
 types). Because AAD identifies an app by its client ID, AAD enables
 implicit grant type for whatever endpoint the app requests access
-to. For iOS and Web API, oauth2AllowImplicitFlow is turned off.</p>
+to. During configuration, however, we don't enable
+oauth2AllowImplicitFlow in the manifest for iOS and Web API.</p>
 
 <p>From these definitions, it's clear that the iOS app maps to
 "Native" and that both Angular and Web API maps to "Web app/API". But
@@ -89,9 +90,9 @@ potential security risk:</p>
 <ul>
 
 <li><p>Almost always should the Angular app have its own app
-registration. Only in a small, self-contained Angular app + Web API,
-designed to only work with each other, without integrating with other
-APIs, should the registration be shared.</p></li>
+registration. Only a small, self-contained Angular app + Web API,
+designed to work only with each other, without integrating with other
+APIs, should share a registration.</p></li>
 
 <li><p>Authorization on a per-application basis doesn't apply when
 Angular app and Web API share a single app registration. With both
@@ -99,20 +100,18 @@ having the same client ID and hence the same permissions, to a
 downstream API such as MS Graph, Angular app and Web API share access
 rights and are indistinguishable.</p></li>
 
-<li><p>Logically frontend and backend are distinct components of an
-application, created with distinct technologies, and with distinct
-authorization needs. The two are likely deployed to different Azure
-app service instances and reside in different source code repositories
-and have separate life-cycles. Having the two share an app
-registration is reminiscent of postback-driven apps with occasional
+<li><p>Frontend and backend are distinct components of an application,
+created with distinct technologies, and with distinct authorization
+needs. The two are likely deployed to different Azure app service
+instances and live in different source code repositories and have
+separate life-cycles. Having the two share an app registration is
+reminiscent of postback-driven apps with occasional
 JavaScript.</p></li>
 
 <li><p>An Angular app may be consuming many endpoints: one or more of
-our Web APIs and MS Graph, SharePoint, and so on. It isn't necessarily
-tied to one API, except for the convenience of not creating an
-additional app registration. While the extra app registration might
-increase the mental load, its monetary cost is zero. The additional
-app registration should be favored as a longer term solution.</p></li>
+our Web APIs and MS Graph, SharePoint, and so on. In this case, we
+shouldn't tie Angular to any one API. Especially since the monetary
+cost of app registrations is zero.</p></li>
 
 <li><p>App registration metadata differ between an Angular app and a
 Web API. Maybe not in a significant way at first, but over time
@@ -254,14 +253,14 @@ equivalent of an
 AD <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
 identifier</a>, i.e., both a GUID by which Web API identifies a user
 and a key by which it stores user information. In Web API, we want to
-avoid dangling user references when inactive users are removed from
-AD. That's why, besides ObjectID, Web API also stores the user's
-account and display names. (Requires delegated or application
-permissions.)</p></li>
+prevent dangling user references as users leave the company and thus
+are removed from AD. That's why, besides ObjectID, Web API also stores
+the user's account and display names. (Requires delegated or
+application permissions.)</p></li>
 
 <li><p>To periodically execute non-interactive batch queries against
-AAD to identify disabled users. With hundreds of users of the app, a
-notification mechanism is needed to re-assign disabled users' active
+AAD to identify disabled users. With hundreds of users of the app, we
+require a notification mechanism to re-assign disabled users' active
 tasks. Also, time will tell if MS Graph queries triggered by each Web
 API request becomes a bottleneck, in which case batch querying or
 caching users and groups becomes an option. (Requires application
@@ -282,14 +281,15 @@ the tokens. Tokens returned through the authorization code grant type
 aren't subject to the URL length limitation as they're returned in the
 response body.</p>
 
-<p>Both application and delegated permissions satisfy two of the
+<p>Both application and delegated permissions meet two of the
 requirements and application only one. Whether to go with fine-grained
 permissions and adhering to the principle of least privilege by mixing
 application and delegated permissions, or configuring only application
-permissions is a matter of preference. The Web API is a confidential
-client, both options require admin consent, and application is needed
-to satisfy all. Thus, we stick with application and issue MS Graph
-calls as Web API, authorized using
+permissions is a matter of preference. Web API is a confidential
+client, both application and delegated require admin consent in this
+case, and Web API needs application permissions to meet all
+requirements. Thus, we stick with application and issue MS Graph calls
+as Web API, authorized using
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
 credentials grant type</a> (regardless if it's an application or
 delegated call, it's still service-to-service).</p>
@@ -379,8 +379,9 @@ per the DefaultRefreshInterval value.</p>
 regular key rotation with at least one day notice before use and never
 causes token validation to fail. Logic around DefaultRefreshInterval
 covers emergency key rotation and does cause token validation to fail
-for up to 30 seconds. That's acceptable since old keys are compromised
-and the application could be accessible to an unknown third-party.</p>
+for up to 30 seconds. An acceptable period of downtime given that keys
+may have been compromised, potentially leaving the application open to
+a third-party.</p>
 
 <h3>Additional resources</h3>
 
@@ -428,9 +429,9 @@ concepts work together.</p></li>
 
 <p>To support the diverse needs of our components, now and in the
 future, we ended up with three app registrations. Besides registration
-details, to fully understand what's going on as part of each
-component's authentication and authorization cycle, the post outlined
-relevant parts of OAuth2 and OpenID Connect standards. Without such
-knowledge, debugging often amounts to time consuming guess work.</p>
+details, to understand what's going on as part of each component's
+authentication and authorization cycle, the post outlined relevant
+parts of OAuth2 and OpenID Connect standards. Without such knowledge,
+debugging often amounts to time consuming guess work.</p>
 
 </div>
