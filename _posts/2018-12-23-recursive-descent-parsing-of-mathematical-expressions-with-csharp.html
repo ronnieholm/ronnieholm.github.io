@@ -13,30 +13,34 @@ Part 3: Recursive descent parsing of mathematical expressions with C#</p>
 <p>(Code for this post is available
 on <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">Github</a>.)</p>
   
-<p>This post is about how to construct a backtracking lexer and a
-combined recursive
+<p>This post describes a backtracking lexer and combined recursive
 descent <a href="https://en.wikipedia.org/wiki/LL_parser">LL(1)</a>
-parser and evaluator for mathematical expressions. For arbitrary
-precedence and associativity, we could switch to Shunting Yard or Top
-Down Operator Precedence algorithms (or to Yacc and family), but the
-post shows how it's possible to stay with recursive descent. All
-that's required is a very small change to the grammar and parser for
-it to support both left and right associative operators.</p>
+parser and evaluator for mathematical expressions. We show how to stay
+with recursive descent, even for arbitrary precedence and
+associativity. No need to switch
+to <a href="https://en.wikipedia.org/wiki/Shunting-yard_algorithm">Shunting
+Yard</a>
+or <a href="https://en.wikipedia.org/wiki/Pratt_parser">Pratt</a>
+parsing algorithms or
+to <a href="https://en.wikipedia.org/wiki/Yacc">Yacc</a> and
+family. All that's required is a small change to the grammar and
+parser for recursive descent to support left and right associative
+operators and precedence levels.</p>
 
-<p>With recursive descent, grammar rules and parser follow from each
-other -- they're isomorphic -- which leads to easy to understand, easy
-to debug, and easy to extend parsers. Once we know how to parse an
-expression with operators of different precedence and associativity,
-the same techniques may be applied to parse almost everything.</p>
+<p>With recursive descent, grammar and parser follow from each
+other. The two are isomorphic, leading to easy to understand, easy to
+debug, and easy to extend parsers. Once we know how to parse an
+expression with precedence and associativity rules, the techniques
+apply to more involved grammars like those of programming
+languages.</p>
 
 <h3>Textbook expression grammar</h3>
 
-<p>Below is a starting point
+<p>Below is a starting
 <a href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">Backus-Naur
-Form grammar</a> for expressions. We'll evolve it into a more capable
-grammar with more precedence levels, support for both left and right
-associative operators, and support for integers and floats. That's
-what our parser will end up supporting:</p>
+Form</a> grammar for expressions. We'll evolve it into a grammar and
+parser with support for more precedence levels, for left and right
+associative operators, and for integers and floats:</p>
 
 <pre>
 Expression = Term | Expression "+" Term | Expression "-" Term
@@ -47,45 +51,43 @@ Integer = Digit | Integer Digit
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
 </pre>
 
-<p>That the parser is LL(1) refers to how it parses the expression,
-reading tokens left to right and when a list of tokens match a rule,
-it does
+<p>The grammar is LL(1) meaning that a parser consumes tokens left to
+right. When a list of tokens match a grammar rule, the parser groups
+these tokens in
 a <a href="https://en.wikipedia.org/wiki/Context-free_grammar#Derivations_and_syntax_trees">leftmost
-derivations</a> of the tokens, i.e., produces a result, such as adding
-two numbers. Leftmost derivations corresponds to left associativity so
-for an operator like power we must somehow reverse it. The number one
-refers to crafting rules in such a way that looking at most one token
-ahead, without consuming it, the parser can unambiguously decide on
-one rule among many to apply. Organizing these rules from lowest to
-highest precedence, enabling precedence climbing and support for
-precedence and associativity (for the above grammar, if we flip the
-order, we'd go up, or climb the rules, with higher precedence
-operators).</p>
+derivation</a> corresponding to left associativity. For right
+associative operators, like power, we must construct the rightmost
+derivation. The number one in parentheses refers to grammar rules
+defined such that looking one token ahead, but without consuming it,
+the parser can unambiguously identify one matching grammar
+rule. Organizing these rules by order of precedence enables support
+for precedence and associativity.</p>
 
-<p>Rules are typically named after the domain described by grammar; in
-this
-case <a href="https://study.com/academy/lesson/parts-of-an-expression-terms-factors-coefficients.html">algebra</a>. Here
-terms are the operands in an expression involving addition or
-subtraction and factors the operands in an expression involving
-multiplication or division. It's convention, and might as well have
-been <code>Addition</code> and <code>Multiplication</code>.</p>
+<p>Rule names come from the domain described by the
+grammar. Here <a href="https://study.com/academy/lesson/parts-of-an-expression-terms-factors-coefficients.html">algebra</a>
+where a term is an operand involving addition or subtraction and
+factor an operand involving multiplication or division. Names might as
+well have been <code>Addition</code>
+and <code>Multiplication</code> or <code>Rule0</code>, <code>Rule1</code>,
+<code>RuleN</code> with N being the rule's precedence level.</p>
 
-<p>The lexer operates at the character level, grouping characters into
-tokens, and would typically implement the <code>Integer</code>
-and <code>Digit</code> rules. When we talk about a single token
-lookahead, it refers to the operation of the parser and not the
-lexer. The lexer may look any number of characters ahead. In fact,
-that's a common reason for separating lexing and parsing, simplifying
-the parser.</p>
+<p>A lexer operates at the character level, grouping characters into
+tokens, and would typically handle the <code>Integer</code>
+and <code>Digit</code> rules. Single token lookahead refers to the
+operation of the parser and not the lexer. The lexer may look many
+characters ahead. While inside a number, only looking at the next
+digit, the lexer has no way to tell whether the number is an integer
+or float. In fact, that's a common reason for separating lexing and
+parsing, simplifying the parser.</p>
 
 <h3>Adjusting grammar for off-by-one naming</h3>
 
-<p>In the grammar above, rules appear off-by-one:
+<p>Grammar rules appear off-by-one:
 <code>Expression</code> is about addition and subtraction,
 <code>Term</code> about multiplication and division, and so on. If
-instead we rewrite, or expand, the first rule into two, we end up with
-aligned Terms, Factors, and so on. As we've introduced an extra level,
-we name the new rule <code>Primary</code>:</p>
+instead we expand the first rule into two, we end up with Term,
+Factor, and so on aligned. The extra rule we
+name <code>Primary</code>:</p>
 
 <pre>
 Expression = Term
@@ -95,33 +97,30 @@ Power = Primary | Power "^" Primary
 Primary = Integer | "(" Expression ")"
 </pre>
  
-<p>The rewriting is valid because a grammar with rules <code>A =
-B</code> and <code>B = C | D</code> describes the same language
-as <code>A = B | C | D</code>. Also, replacing rule names
-by <code>Rule0</code>, <code>Rule1</code>,
-<code>RuleN</code> with N being the rule's precedence level makes no
-difference to language it describes.</p>
+<p>Rewriting rules is valid because a grammar comprising rules <code>A
+= B</code> and <code>B = C | D</code> is the same as <code>A = B | C |
+D</code>. Another needed rewrite is rules with right associative
+operators. For <code>Power</code>, the self-reference must on the
+right, as in <code>Primary "^" Power</code>.</p>
 
-<p>In the grammar, a rule's self-reference appears on the left, as in
-<code>Term "+" Factor</code>. This feature is how it correctly deals
-with left associative operators. For right associative operators, the
-rule needs rearranging to <code>Primary "^"
-Power</code>. Unfortunately, a recursive descent parser cannot work
-with left recursion. It causes the parser to enter an infinite loop as
-it recurses into itself.</p>
+<p>Even though the grammar with left and right self-references
+captures precedence and associativity, a left self-reference causes a
+recursive descent parser to enter an infinite
+loop. With <code>Term</code>, for instance, the parser would keep
+calling itself without consuming tokens.</p>
 
 <h3>Eliminating left recursion through EBNF rule rewriting</h3>
 
 <p>That's where
 <a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">Extended
-BNF</a> notation comes in. It introduces <code>{ x }</code> rule
-syntax for zero or more repetitions of <code>x</code>. A parser would
-implement repetition with a loop rather than left recursion. Rewriting
-from recursion to repetition, and including unary minus and float
-support, we end up with the grammar below. Names such
-as <code>Addition</code>, <code>Multiplication</code>, <code>Power</code>
-are short for operators with addition, multiplication, and power-like
-precedence:</p>
+BNF</a> comes in. It introduces <code>{ x }</code> rule syntax
+for <code>x</code> repeated zero or more times. A parser would
+implement such repetition with a loop instead of recursion. Rewriting
+the grammar to the new syntax and including unary minus and float
+support, we end up with the grammar below. In it names such
+as <code>Addition</code>, <code>Multiplication</code>,
+and <code>Power</code> are short for operators with addition,
+multiplication, and power-like precedence:</p>
 
 <pre>
 Expression = Addition
@@ -132,50 +131,36 @@ Unary = '-' Unary | Primary
 Primary = Integer | Float | "(" Expression ")"
 </pre>
 
-<p>A recursive descent parser has no problem with right recursive
-rules. Instead of substituting left recursion with iterations, we
-could rewrite the grammar as all right recursive. The parser could
-apply a transformation on the left associative operators (or
-the <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">Abstract
-Syntax Tree</a> (AST) nodes, depending on the parser's output). While
-it would work, it's simpler to eliminating left recursion.</p>
-
-<p>As a side note, lots of languages are LL(1) at the token level but
-not the character level. In fact, one reason to separate lexing and
-parsing is to allow the parser to be LL(1). For instance, lexing isn't
-LL(1) when determining whether a number is an integer or float. It
-bookmarks its current input position, and starts scanning the input
-until it encounters either a whitespace or a dot. It then backtracks
-to the bookmark and calls the appropriate integer or float lexer
-method. While inside a number, only looking at the next digit, the
-lexer has no way to tell whether the number is an integer or
-float.</p>
+<p>Instead of substituting left recursion with iteration, we could
+rewrite the grammar as all right recursive. Then the parser could
+apply a transformation upon evaluating left associative operators or
+to
+<a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">Abstract
+Syntax Tree</a> (AST) nodes, depending on the parser's output. While
+possible, it's unnecessarily difficult.</p>
 
 <h3>From grammar rules to parser</h3>
 
-<p>A two-way mapping exists between the grammar and parser. Each rule
-becomes its own Parse method and the inside of each Parse method
-follows from that rule's definition as per Wirth's recipe for
-translating EBNF into actual code (see Additional references
-below). With a breakpoint inside one such method, the call stack shows
-the path from <code>Expression</code> to that rule, illustrating the
-one-to-one relationship between grammar and recursive descent
-parser.</p>
+<p>A two-way mapping exists between grammar and recursive descent
+parser, turning each rule into a parse method. The inside of each
+parse method follows from the rule's definition as per Wirth's recipe
+for translating EBNF into code (see Additional references
+below). Placing a breakpoint on a parse method, the call stack reveals
+the path from <code>Expression</code> to that parse method,
+illustrating the relationship between grammar and parser.</p>
 
 <p>To keep
 the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">implementation</a>
-focused on lexer and parsing, evaluation happens during
-parsing. Instead of each parse method returning an AST node as with
+simple, evaluation happens during parsing. Instead of each parse
+method returning an AST node as with
 the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/ShuntingYardParser.CSharp">Shunting
-Yard implementation</a>, they return the actual result of the
-computation. Returning AST nodes, and supplementing the implementation
-with as AST walking evaluator, is independent of parsing, also
-yielding correct results for associativity and precedence.</p>
+Yard implementation</a>, each returns the numeric result of the
+computation thus far.</p>
 
-<p>Below is the trace from parsing an expression. Enter marks an entry
-into a parse method (20 in all) and the value of the current
-token. Exit includes the return of each Parse method, i.e., what's
-passed up the call chain.</p>
+<p>Below is a trace from parsing and evaluating an expression. Enter
+marks an entry into a parse method (20 in total) and the value of the
+current token. Exit marks the return of a parse method and the value
+passed up the call chain:</p>
 
 <pre>
 // Equivalent to 2+(3^(4^0.5)*5)
@@ -222,31 +207,31 @@ Enter: Parse, Value: 2
 Exit: Value: 47
 </pre>
 
-<p>With grammar rules mapping one-to-one to Parse methods, it should
-be easy to reconstruct the hierarchy looking at input and grammar
-alone. The call tree mirrors precedence and associativity.</p>
+<p>With grammar rules mapping to parse methods, the relationship of
+rules to parse methods, and proper handling of precedence and
+associativity, is visible.</p>
 
 <h3>Comparing recursive descent, Shunting Yard, and Pratt parsers</h3>
 
-<p>In parsing, recursive descent is the most intuitive and simplest to
-implement. It dates back to the 1960s, but back then it was
+<p>A recursive descent parser is the most intuitive and simplest to
+implement. It dates to the early 1960s, but back then it was
 impractical to implement. The call stack was still a novel concept,
-function calls were expensive, and memory scarce, leading Dijkstra to
-develop the Shunting Yard algorithm. Today, unless we're parsing large
-programs with many precedence levels, recursive descent is a good
-starting point.</p>
+function calls were expensive, and stack memory scarce. These
+limitations lead Dijkstra to develop the Shunting Yard algorithm with
+its explicit operator and operand stacks. Today, unless we're parsing
+large programs with many precedence levels, recursive descent should
+be the starting point. Their stack is the implicit call stack.</p>
 
 <p>In 1973, Pratt developed the <a href="https://tdop.github.io">Top
 Down Operator Precedence parser</a>, later called Pratt parser. It
-improves on the performance of recursive descent and Shunting Yard in
-that regardless of precedence level, a Pratt parser requires only a
-single parse method call. This makes Pratt parsers efficient for
-grammars with many levels of precedence. It's also useful for
-languages with support for dynamic operators. A programmer may add new
-operators anywhere in the precedence hierarchy and with any
-associativity. Recursive descent could support a similar extensible
-grammar through replacing or supplementing the fixed rules with a
-lookup table.</p>
+outperforms recursive descent and Shunting Yard in that regardless of
+precedence level, a Pratt parser requires a single parse method call
+only. It's well suited for grammars with many levels of precedence,
+and languages with support for dynamic operators, where a programmer
+may add new operators anywhere in the precedence hierarchy and with
+any associativity. A similar flexibility can be build into recursive
+descent by replacing or supplementing the fixed rules/parse methods
+with a lookup table.</p>
 
 <p>As an example of a hybrid of a recursive descent parser for
 statements and a Pratt parser for expressions, have a look at
@@ -270,7 +255,7 @@ C. Also, <a href="https://www.youtube.com/watch?v=0woxSWjWsb8">Bitwise,
 Day 2: C Programming & Parsing</a> from 1h00m
 and <a href="https://www.youtube.com/watch?v=L4P98pGhpnE">Bitwise, Day
 3: More Programming & Parsing</a> from 1h10m to 1h40m are worth a
-look, though they have some overlap.</p></li>
+look, though they're overlapping.</p></li>
 
 <li><p>Bob
 Nystrom's <a href="http://craftinginterpreters.com/parsing-expressions.html">Crafting
