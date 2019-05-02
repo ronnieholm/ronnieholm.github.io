@@ -5,25 +5,24 @@ date: 2018-10-21 12:00 UTC
 ---
 
 <div id="post">
-   
+
 <p>Deploying a real-world application with components secured
 by <a href="https://docs.microsoft.com/en-us/azure/active-directory">Azure
 Active Directory</a> (AAD), Azure's AAD app registration page can be a
 confusing place. It provides minimal guidance on application types and
 how many applications to register. To add to the confusion, many blog
 posts focus on simple scenarios and unless one has a good
-understanding of
-the <a href="https://tools.ietf.org/html/rfc6749">OAuth2</a>
-and <a href="https://openid.net/developers/specs">OpenID Connect</a>
-standards, it's tricky to arrive at a secure and evolving
-solution.</p>
+understanding
+of <a href="https://tools.ietf.org/html/rfc6749">OAuth2</a>
+and <a href="https://openid.net/developers/specs">OpenID Connect</a>,
+arriving at a secure solution may be tricky.</p>
 
-<p>This post provides guidance on the type and number of app
-registrations required. It then details how the real-world use cases
-affects the choice of client authentication library and the parts of
-OAuth2 and OpenID Connect at work. Its focus is on adding perspective
-and providing links to hands-on material with diagrams and code, not
-on providing a setup guide.</p>
+<p>This post provides guidance on the type and number of registrations
+needed. It then details how a real-world use case affects the choice
+of client authentication library and the parts of OAuth2 and OpenID
+Connect involved. The focus is on adding perspective and providing
+links to hands-on material with diagrams and code, not on providing a
+setup guide.</p>
 
 <h3>Real-world use case</h3>
 
@@ -68,10 +67,10 @@ application.</p>
 
 <p>With AAD, user-agent-based application maps to "Web app/API"
 with <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/reference-app-manifest">oauth2AllowImplicitFlow</a>
-turned on in the registration manifest (it doesn't disable other grant
-types). Because AAD identifies an app by its client ID, AAD enables
-implicit grant type for whatever endpoint the app requests access
-to. During configuration, however, we don't enable
+turned on in the registration manifest (this doesn't disable other
+grant types). Because AAD identifies an app by its client ID, AAD
+enables implicit grant type for whatever endpoint the app requests
+access to. During configuration, however, we don't enable
 oauth2AllowImplicitFlow in the manifest for iOS and Web API.</p>
 
 <p>From these definitions, it's clear that the iOS app maps to
@@ -105,20 +104,21 @@ created with distinct technologies, and with distinct authorization
 needs. The two are likely deployed to different Azure app service
 instances and live in different source code repositories and have
 separate life-cycles. Having the two share an app registration is
-reminiscent of postback-driven apps with occasional
+perhaps reminiscent of older postback-driven apps with occasional
 JavaScript.</p></li>
 
 <li><p>An Angular app may be consuming many endpoints: one or more of
 our Web APIs and MS Graph, SharePoint, and so on. In this case, we
-shouldn't tie Angular to any one API. Especially since the monetary
-cost of app registrations is zero.</p></li>
+shouldn't tie Angular to any one API by sharing its app
+registration. Especially since the monetary cost of app registrations
+is zero.</p></li>
 
 <li><p>App registration metadata differ between an Angular app and a
 Web API. Maybe not in a significant way at first, but over time
 they're likely to drift apart. At that point, we must either split the
-registration, requiring end-users consent once again or admin consent
-on their behalf, or make the single registration contain the settings
-of both, if possible.</p></li>
+registration, requiring end-user consent once again or admin consent
+on their behalf, or make the single registration contain settings of
+both, if possible.</p></li>
 
 <li><p>By design, an Angular app uses
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-implicit-grant-flow">implicit
@@ -129,7 +129,7 @@ token from AAD and have it sent to its reply URL. Over time an Angular
 app will likely access a different set of APIs than any one Web
 API. In our use case for instance, only Web API calls MS Graph. Thus,
 Angular app and Web API have registration settings specific to each,
-meaning they should have separate app registration.</p></li>
+meaning they should have separate app registrations.</p></li>
 
 </ul>
 
@@ -177,14 +177,16 @@ refresh by adding an invisible iframe element to the DOM, setting its
 source to the authorization server token request URL. The request
 includes any cookies for the domain, including the authorization
 server session cookie (actually a collection of cookies) received
-during previous login. The authorization server then directs the
-browser, only the page inside the iframe, back to the redirect URL
-where ADAL.js checks the response and saves the new ID token to
-browser storage. Access token refresh follows the same procedure, but
-on-demand, as storing an always valid access token in the browser
-would be a security risk. For as long as the authentication server
-session cookie is valid, and kept alive, ADAL.js can request new
-tokens without user interaction.</p>
+during the previous login. The authorization server then directs the
+browser, i.e., only the page inside the iframe, back to the redirect
+URL where ADAL.js checks the response and saves the new ID token to
+browser storage.</p>
+
+<p>Access token refresh follows the same procedure, but on-demand, as
+storing an always valid access token in the browser would pose a
+security risk. For as long as the authentication server session cookie
+is valid, and kept alive, ADAL.js can request new tokens without user
+interaction.</p>
 
 <p>We can observe the refresh procedure by keeping the Angular
 application idle and Chrome developer tools Network tab open. ADAL.js
@@ -208,7 +210,7 @@ then connects to the authorization server token endpoint over the more
 secure back channel and exchanges the authorization code (and later
 refresh token), for ID token, access token, and refresh token.</p>
 
-<p>Like with the implicit grant, because the authorization code grant
+<p>Like with implicit grant, because the authorization code grant
 originates from a public client
 (see <a href="https://tools.ietf.org/html/rfc6749#section-2.1">OAuth2
 client types</a>), not even on the back channel does the client
@@ -216,55 +218,56 @@ authenticate with the authorization server. Any client in possession
 of the code can exchange it for tokens. Client authentication would
 involve submitting with the code and client ID a client secret, shared
 between the client and authorization server. But since anyone would be
-able to discover the secret of a public client, and it isn't easily
-changed after deployment, public client authentication is
+able to discover the secret of a public client, and the secret isn't
+easily changed after deployment, public client authentication is
 pointless. Only a confidential client, code running on a server,
 authenticates using a secret.</p>
 
 <p>To convince ourselves that iOS is using the authorization code
 grant type, we
 can <a href="https://github.com/AzureAD/azure-activedirectory-library-for-objc#diagnostics">turn
-on diagnostics logging</a>. Log entries show the scheme, the
-authorization code, and its exchange for tokens. Otherwise, we'd only
-know that implicit grant type wasn't used because the iOS app
-registration has oauth2AllowImplicitFlow turned off.</p>
+on diagnostics logging</a>. Log entries show scheme, authorization
+code, and its exchange for tokens. Otherwise, we'd only know that
+implicit grant type wasn't used because the iOS app registration has
+oauth2AllowImplicitFlow turned off.</p>
 
 <h3>Web API: MS Graph and the client credentials grant type</h3>
 
 <p>Besides Web API being an AAD secured endpoint, and hence the
-receiver of access tokens, for the requirements below, Web API itself
+receiver of access tokens, for reasons listed below, Web API itself
 makes REST calls to MS Graph, another AAD secured endpoint:</p>
 
 <ul>
-<li><p>To lookup security group memberships of the authenticated user
-making a Web API call. When Angular requests an ID token and access
+<li><p>To lookup security group memberships of authenticated users
+making Web API call. When Angular requests an ID token and access
 token using the implicit grant type and the user is a member of more
 than (currently) five security groups, AAD by design substitutes the
 groups claim for
 a <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js/issues/239">hasgroups
 claim</a> with a value of true. It's up to Web API
 to <a href="https://stackoverflow.com/questions/45501568/azure-jwt-with-property-hasgroups-true-instead-of-groups-property-object">inspect</a>
-the hasgroups claim and retrieve the user's groups from MS
+the hasgroups claim and if true, retrieve user's groups from MS
 Graph. (Required delegated or application permissions.)</p></li>
 
 <li><p>To lookup an ObjectID given a username provided by Angular when
 a user assigns another access to the app. Within AAD, ObjectID is the
-equivalent of an
-AD <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
+equivalent of
+AD's <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
 identifier</a>, i.e., both a GUID by which Web API identifies a user
-and a key by which it stores user information. In Web API, we want to
-prevent dangling user references as users leave the company and thus
-are removed from AD. That's why, besides ObjectID, Web API also stores
-the user's account and display names. (Requires delegated or
-application permissions.)</p></li>
+and a key by which it stores user information. Inside Web API, as
+users leave an organization and are disabled in AAD, we want to
+minimize dangling user references (being unable to resolve account and
+display names). That's why, besides ObjectID, Web API also stores the
+user's account and display names. (Requires delegated or application
+permissions.)</p></li>
 
 <li><p>To periodically execute non-interactive batch queries against
-AAD to identify disabled users. With hundreds of users of the app, we
-require a notification mechanism to re-assign disabled users' active
-tasks. Also, time will tell if MS Graph queries triggered by each Web
-API request becomes a bottleneck, in which case batch querying or
-caching users and groups becomes an option. (Requires application
-permissions.)</p></li>
+AAD to identify users who've been disabled. With hundreds of users of
+the app, we require a notification mechanism to re-assign these users'
+active tasks. Also, time will tell if MS Graph queries triggered by
+each Web API request becomes a bottleneck, in which case batch
+querying or caching users and groups is an option. (Requires
+application permissions.)</p></li>
 </ul>
 
 <p>Following each need for making MS Graph calls is the permissions
@@ -274,21 +277,22 @@ service-to-service MS Graph calls with its own identity. Delegated
 that Web API makes service-to-service MS Graph calls on behalf of the
 signed-in user calling Web API.</p>
 
-<p>Claim substitution occurs due to a limitation in the length of the
-URL by which the implicit grant type returns tokens. They come back
-Base64 encoded in the URL fragment and the more memberships the larger
-the tokens. Tokens returned through the authorization code grant type
-aren't subject to the URL length limitation as they're returned in the
-response body.</p>
+<p>The hasgroups claim substitution mentioned above occurs due to a
+limitation in the length of the URL by which the implicit grant type
+returns its token to the client. The token comes back Base64 encoded
+in the URL fragment and larger claims translate to larger
+payload. Tokens returned through the authorization code grant type
+aren't subject to this URL length limitation as they're returned in
+the response body.</p>
 
-<p>Both application and delegated permissions meet two of the
-requirements and application only one. Whether to go with fine-grained
-permissions and adhering to the principle of least privilege by mixing
-application and delegated permissions, or configuring only application
-permissions is a matter of preference. Web API is a confidential
-client, both application and delegated require admin consent in this
-case, and Web API needs application permissions to meet all
-requirements. Thus, we stick with application and issue MS Graph calls
+<p>Application or delegated permissions meet two of the needs and
+application only one. Whether to go with fine-grained permissions and
+adhering to the principle of least privilege by mixing application and
+delegated permissions, or using only application permissions is a
+matter of preference: Web API is a confidential client, both
+application and delegated permissions require admin consent in this
+case, and Web API would require application permission to meet every
+need. Thus we go with application permissions and issue MS Graph calls
 as Web API, authorized using
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-client-creds-grant-flow">client
 credentials grant type</a> (regardless if it's an application or
@@ -299,9 +303,9 @@ the token endpoint its client ID, a pre-established shared client
 secret, and the resource ID of MS Graph. Had we used delegated
 permissions, we'd have to use
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-on-behalf-of-flow">on-behalf-of
-grant type</a>. Before calling MS Graph, Web API would have to call
-the token endpoint to exchange the user provided access token for one
-supporting delegation as
+grant type</a>. And before calling MS Graph, Web API would have to
+call the token endpoint to exchange the user provided access token for
+one supporting delegation as
 shown <a href="https://joonasw.net/view/azure-ad-on-behalf-of-aspnet-core">here</a>.</p>
 
 <p>Within the Web API app registration setup, under required
@@ -313,19 +317,19 @@ permissions</a>.</p>
 
 <h3>Web API: token validation</h3>
 
-<p>With our use case, the Web API is a receiver of access tokens from
-the Angular and iOS apps. Each token consists of
-a <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens#claims-in-access-tokens">header,
-payload, and signature</a>, and Web API handles both validating claims
-and signature. From the payload, the issuer (iss) claim must be our
-AAD tenant as defined in the
+<p>With our use case, Web API is a receiver of access tokens from
+Angular and iOS apps. Each such token consists
+of <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens#claims-in-access-tokens">header,
+payload, and signature</a> parts, and Web API handles both validating
+claims and signature. From the payload, the issuer (iss) claim must be
+our AAD tenant as defined in the
 <a href="https://login.microsoftonline.com/common/.well-known/openid-configuration">OpenID
 Connect federation metadata document</a> and the audience (aud) claim,
 the intended recipient, must be our Web API. As for the token's
 lifetime, the not before (nbf) and expiration time (exp) claims must
 be valid.</p>
 
-<p>Signature validation must adhere to
+<p>In addition, signature validation must adhere to
 <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens#validating-the-signature">AAD's
 key rotation policy</a>, stating that</p>
 
@@ -342,9 +346,9 @@ public keys used by Azure AD is every 24 hours.
 the <a href="https://login.microsoftonline.com/common/discovery/keys">location</a>
 of the <a href="https://tools.ietf.org/html/rfc7517">JSON Web Key
 Set</a>, the public keys needed to verify the signature. Defined in
-the header's Key ID (kid) claim is key used. For the X509 key details,
-such as expiration date, we can paste the value of each x5c into
-an <a href="https://redkestrel.co.uk/products/decoder">online</a>
+the header's Key ID (kid) claim is the key used. For the X509 key
+details, such as expiration date, we can paste the value of each x5c
+into an <a href="https://redkestrel.co.uk/products/decoder">online</a>
 decoder.</p>
 
 <p>To get going with ASP.NET Core token validation,
@@ -359,14 +363,15 @@ JwtBearer middleware with the metadata discovery URL, it
 auto-configures and supports key rotation as well.
 </blockquote>
 
-<p>To understand how the JWT middleware supports key rotation, two
-pieces are essential: (1)
+<p>To understand how JWT middleware supports key rotation, two pieces
+are essential: (1)
 the <a href="https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/blob/master/src/Microsoft.IdentityModel.Protocols/Configuration/ConfigurationManager.cs#L177">ConfigurationManager</a>
-class and its GetConfigurationAsync method. The tutorial shows calling
-the method in Startup.cs to HTTP GET the metadata discovery URL and
-through it the jwks_uri URL. Web API then parses their JSON payloads
-and caches those inside ConfigurationManager for one day as per its
-default DefaultAutomaticRefreshInterval value, (2)
+class and its GetConfigurationAsync
+method. The <a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">tutorial</a>
+shows calling the method in Startup.cs to HTTP GET the metadata
+discovery URL and through it the jwks_uri URL. Web API then parses
+their JSON payloads and caches those inside ConfigurationManager for
+one day as per the DefaultAutomaticRefreshInterval value, (2)
 the <a href="https://github.com/aspnet/Security/blob/master/src/Microsoft.AspNetCore.Authentication.JwtBearer/JwtBearerHandler.cs">JwtBearerHandler</a>
 class implementing the JwtBearer middleware calls
 GetConfigurationAsync on each token validation. When validation
@@ -376,12 +381,12 @@ refresh its cache, subject to a default 30 seconds cache duration as
 per the DefaultRefreshInterval value.</p>
 
 <p>In other words, logic around DefaultAutomaticRefreshInterval covers
-regular key rotation with at least one day notice before use and never
-causes token validation to fail. Logic around DefaultRefreshInterval
-covers emergency key rotation and does cause token validation to fail
-for up to 30 seconds. An acceptable period of downtime given that keys
-may have been compromised, potentially leaving the application open to
-a third-party.</p>
+regular key rotations with at least one day notice before use and
+never causes token validation to fail. Logic around
+DefaultRefreshInterval covers emergency key rotation and does cause
+token validation to fail for up to 30 seconds. An acceptable period of
+downtime given that keys may have been compromised, potentially
+leaving the application open to a third-party.</p>
 
 <h3>Additional resources</h3>
 
