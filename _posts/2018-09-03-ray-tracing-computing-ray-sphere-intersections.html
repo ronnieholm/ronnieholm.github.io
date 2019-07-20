@@ -245,6 +245,46 @@ date: 2018-09-03 12:00 UTC
     simplification.
   </p>
 
+  <h3>Efficiently solving the quadratic equation on a computer</h3>
+  <p>
+    While the quadratic equation with \(a\), \(b\), and \(c\) above is
+    mathematically correct, it can be further optimized for execution
+    speed. For one, the \(\vec{p_0} - \vec c\) expression is computed
+    twice: once for \(b\) and once for \(c\). Extracting it into
+    \(\mathrm{oc}\) for distance between origin and center:
+
+    \begin{eqnarray*}
+    \mathrm{\vec{oc}} = \vec{p_0} - \vec c\\
+    a = \vec{p_1} \cdot \vec{p_1}\\
+    b = 2\vec{p_1} \cdot \mathrm{\vec{oc}}\\
+    c = (\vec{\mathrm{oc}})^2 - r^2
+    \end{eqnarray*}    
+  </p>
+  <p>Another more elaborate optimization involves getting rid of
+    coefficients during the computation of roots, saving three
+    multiplication operations for each root computation. We start by
+    defining \(d\), not to be confused by the discriminator as
+
+    $$\begin{eqnarray*}
+    d = \vec{p_1} \cdot \mathrm{\vec{oc}}
+    \end{eqnarray*}$$
+    
+    From the definition of \(b\), it follows that \(b = 2d\).
+
+    $$\begin{eqnarray*}
+    \dfrac{-b \pm \sqrt{b^2 - 4ac}}{2a} & & \textrm{\{Substitute \(b\) with \(2d\)}\}\\
+    \dfrac{-2d \pm \sqrt{(2d)^2 - 4ac}}{2a} & & \textrm{\{Apply exponential rule: \((a \cdot b)^n = a^{n}b^n\)}\}\\
+    \dfrac{-2d \pm \sqrt{4d^2 - 4ac}}{2a} & & \textrm{\{Factor out common term 4}\}\\
+    \dfrac{-2d \pm \sqrt{4(d^2 - ac)}}{2a} & & \textrm{\{Apply radical rule: \(\sqrt[\uproot{3}n]{ab} = \sqrt[\uproot{3}n]{a} \sqrt[\uproot{3}n]{b}\), assuming \(a \geq 0\), \(b \geq 0\)}\\
+    \dfrac{-2d \pm 2\sqrt{d^2 - ac}}{2a} & & \textrm{\{Factor out common term \(2\)}\}\\
+    \dfrac{2(-d \pm \sqrt{d^2 - ac})}{2a} & & \textrm{\{Divide the numbers: \(\frac{2}{2} = 1\)}\}\\
+    \dfrac{-d \pm \sqrt{d^2 - ac}}{a} & & \textrm{}\\
+    \end{eqnarray*}$$     
+
+    The result is a new formula for computing roots specific to
+    ray-sphere intersection.
+  </p>
+
   <h3>Additional resources</h3>
   <p>
     <ul>
@@ -266,8 +306,8 @@ date: 2018-09-03 12:00 UTC
     Algebra</a> (available
     for <a href="http://joshua.smcvt.edu/linearalgebra">free</a>) is
       definitely worth a read.</li>
-    <li>For a slighty different approach of
-    inferring the equations above turn
+    <li>For a slighty different approach to deriving the equations
+    above, turn
     to <a href="https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection">this</a>
     implementation of a simple raytracer.</li>
     </ul>
