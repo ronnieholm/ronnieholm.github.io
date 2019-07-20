@@ -269,7 +269,7 @@ date: 2018-09-03 12:00 UTC
     d = \vec{p_1} \cdot \mathrm{\vec{oc}}
     \end{eqnarray*}$$
     
-    From the definition of \(b\), it follows that \(b = 2d\).
+    From the definition of \(b\) it follows that \(b = 2d\).
 
     $$\begin{eqnarray*}
     \dfrac{-b \pm \sqrt{b^2 - 4ac}}{2a} & & \textrm{\{Substitute \(b\) with \(2d\)}\}\\
@@ -279,10 +279,19 @@ date: 2018-09-03 12:00 UTC
     \dfrac{-2d \pm 2\sqrt{d^2 - ac}}{2a} & & \textrm{\{Factor out common term \(2\)}\}\\
     \dfrac{2(-d \pm \sqrt{d^2 - ac)}}{2a} & & \textrm{\{Divide the numbers: \(\frac{2}{2} = 1\)}\}\\
     \dfrac{-d \pm \sqrt{d^2 - ac}}{a} & & \textrm{}\\
-    \end{eqnarray*}$$     
+    \end{eqnarray*}$$
 
-    The result is a new formula for computing roots specific to
-    ray-sphere intersection.
+    The result is a new formula for computing roots specific to \(a\),
+    \(b\), \(c\) as derived for ray-sphere intersection. In summary,
+    here're the final definitions for use in code:
+
+    \begin{eqnarray*}
+    \mathrm{\vec{oc}} = \vec{p_0} - \vec c\\
+    a = \vec{p_1} \cdot \vec{p_1}\\
+    b = \vec{p_1} \cdot \mathrm{\vec{oc}}\\
+    c = (\vec{\mathrm{oc}})^2 - r^2\\
+    \textrm{discriminator} = b^2 - ac
+    \end{eqnarray*}        
   </p>
 
   <h3>Additional resources</h3>
