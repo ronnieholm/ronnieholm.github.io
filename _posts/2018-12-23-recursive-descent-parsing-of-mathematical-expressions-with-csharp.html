@@ -51,24 +51,24 @@ Integer = Digit | Integer Digit
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
 </pre>
 
-<p>Points to note about this grammar:</p>
+<p>A couple of points to note about the grammar:</p>
 
 <p>
-<li>
-<ul>The grammar is LL(1), meaning a parser would consume tokens left
-to right, and when a list of tokens match a grammar rule, the parser
+<ul>
+<li>The grammar is LL(1), meaning that a parser would consume tokens
+left to right. When a list of tokens match a grammar rule, the parser
 groups these using
 <a href="https://en.wikipedia.org/wiki/Context-free_grammar#Derivations_and_syntax_trees">leftmost
-derivation</a>, corresponding to left associativity.</ul>
-<ul>For right associative operators like exponentiation, we must end
-up with the rightmost derivation (more on how later).</ul>
-<ul>The number one in parentheses refers to grammar rules defined in
-such a way that looking at most one token ahead, but without consuming
-it, the parser can unambiguously identify a single matching grammar
-rule.</ul>
-<ul>The order of grammar rules is what defines the operators order of
-precedence.</ul>
-</li>
+derivation</a>, corresponding to left associativity.</li>
+<li>The number one in parentheses refers to the grammar rules defined
+in such a way that looking at most one token ahead, but without
+consuming it, the parser can unambiguously identify a single matching
+grammar rule.</li>
+<li>The order of grammar rules define the order of precedence amongst
+operators.</li>
+<li>Whether a grammar rule's self-reference is to the left or right of
+the operator determines associativity of that operator.</li>
+</ul>
 </p>
 
 <p>Grammar rule names come from the domain described by the
