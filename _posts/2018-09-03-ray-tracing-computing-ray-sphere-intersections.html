@@ -9,16 +9,18 @@ date: 2018-09-03 12:00 UTC
     Part 1: <a href="/blog/2018/09/01/ray-tracing-computing-ray-circle-intersections">Ray tracing: Computing ray-circle intersections</a><br>
     Part 2: Ray tracing: Computing ray-sphere intersections
   </p> 
+
+  <p>(Code for this post is available
+on <a href="https://github.com/ronnieholm/Ray-tracing-in-one-weekend-CSharp">GitHub</a>.)</p>
   
   <p>
     Whereas
     the <a href="/blog/2018/09/01/ray-tracing-computing-ray-circle-intersections">previous</a>
-    post was about 2D ray-circle intersections, this one is about 3D
-    ray-sphere intersections. We'll extend the circle standard
-    equation to a sphere, and switch from scalars to vectors for
-    defining both line and sphere. With vectors, we can generalize and
-    perform intersection calculations for any dimension in a succinct
-    manner.
+    post was about 2D ray-circle intersection, this one is about 3D
+    ray-sphere intersection. We'll extend the circle standard equation
+    to a sphere, and switch from scalars to vectors for defining both
+    lines and spheres. Using vectors, we can generalize and perform
+    intersection calculations for any dimension in a succinct manner.
   </p>
 
   <h3>Sphere offset from origin</h3>
@@ -40,37 +42,36 @@ date: 2018-09-03 12:00 UTC
   <h3>Vector standard form of a line</h3>
   <p>
     The \(y = ax + b\) definition of a line in 2D doesn't generalize
-    to 3D. In 2D the line equation expresses that a change in one
-    dimension may cause a change in at most one other dimension. In
-    3D, however, a change in one dimension may cause a change in two
-    other dimensions.
+    to 3D. In 2D the equation expresses that a change in one dimension
+    may cause a change in at most one other dimension. In 3D, however,
+    a change in one dimension may cause a change in two other
+    dimensions.
   </p>
   <p>
-    Instead, a line in 3D is expressed as a starting position \(p_0\)
+    Instead, in 3D a line is expressed as a starting position \(p_0\)
     and an amount of movement \(t\) in some direction
     \(p_1\). Statements about position and direction are best
     expressed in terms of vectors and operations on vectors:
 
     $$\vec p = \vec{p_0} + t\vec{p_1}$$
 
-    Different values of \(t\), for time, result in a line described by
-    a fixed origin and a position vector pointing at different points
-    on the line (we consider a position vector and a point
-    synonymous). Different values of \(t\) has the effect of scaling
-    the position vector along the line, allowing us to get to any
-    position on the line.
+    Different values of \(t\), for time, result in a line fixed at
+    origin and a position vector pointing at different points on the
+    line (a position vector and a point is synonymous). Different
+    values of \(t\) has the effect of scaling the position vector
+    along the line, allowing us to get to any position on the line.
   </p>
   <p>
     In ray tracing we're only interested in the half-line where \(t >
     0\). That half-line represents a ray traveling from the camera
-    into the scene, and that's why we refer to it as a ray instead of
-    a line. \(t = 0\) would be the position of the camera and \(t <
-    0\) a ray traveling out back of the camera.
+    into the scene, and is why we refer to it as a ray instead of a
+    line. \(t = 0\) would be the position of the camera and \(t < 0\)
+    a ray traveling out back of the camera.
   </p>
   <p>
-    As an example, we can find the parametric equation of the line
-    passing through \((1,-1,4)\), the position of the camera, in the
-    direction of \((3,5,-1)\), a scene object. We do so by
+    As an example, we can determine the parametric equation of the
+    line passing through \((1,-1,4)\), the position of the camera, in
+    the direction of \((3,5,-1)\), a scene object. We do so by
     substituting the two vectors into the vector equation for a line:
 
     $$\begin{eqnarray*}
@@ -80,19 +81,18 @@ date: 2018-09-03 12:00 UTC
     \end{eqnarray*}$$
     
     For ray-sphere intersections, we're after values of \(t\)
-    describing points of intersection. Once we have those values, we
-    can substitute those into the parametric equation of a line to get
-    the \((x,y,z)\) coordinate of intersections.
+    describing points of intersection. We then substitute those into
+    the parametric equation of a line to get the \((x,y,z)\)
+    coordinate of intersections.
   </p>
   
   <h3>Line and sphere intersections, scalar edition</h3>
   <p>
-    As an example, suppose we have the parametric equation of a line
-    \((10 + 2t, 5 + t, 2)\) and the equation of a sphere \(x^2 + y^2 +
-    z^2 = 9\) on standard form. As with 2D intersections, we're after
-    values for \(x\), \(y\), and \(z\) that when substituted into both
-    equations make those equations equal. We can put in what we know
-    about the unknowns of one equation into the other:
+    As an example, suppose we have on standard form the parametric
+    equation of a line \((10 + 2t, 5 + t, 2)\) and the equation of a
+    sphere \(x^2 + y^2 + z^2 = 9\). As with 2D intersections, we're
+    after values for \(x\), \(y\), and \(z\) that when substituted
+    into both make their equality hold:
 
     $$\begin{eqnarray*}
     (10 + 2t)^2 + (5 + t)^2 + (2)^2 = 9 & & \textrm{\{substitute in line equation\}}\\
@@ -103,9 +103,9 @@ date: 2018-09-03 12:00 UTC
     \end{eqnarray*}$$
 
     We went from one sphere equation with three unknowns, \(x\),
-    \(y\), and \(z\), and ended up with a quadratic equation with one
-    unknown \(t\). Solving for \(t\) means applying the same method
-    as <a href="/blog/2018/09/01/ray-tracing-computing-ray-circle-intersections">previous</a>:
+    \(y\), and \(z\) to a quadratic equation with one unknown
+    \(t\). Solving for \(t\) means applying the same standard method
+    as <a href="/blog/2018/09/01/ray-tracing-computing-ray-circle-intersections">earlier</a>:
 
     $$\begin{eqnarray*}
     t = \dfrac{-b \pm \sqrt{d}}{2a} \textrm{, where \(d = b^2 - 4ac\)}\\
@@ -134,8 +134,7 @@ date: 2018-09-03 12:00 UTC
   <p>
     Above we established the standard vector equation for a line. For
     a sphere centered at \(c\) with radius \(r\), its corresponding
-    standard vector equation is as below. In a moment, we'll show why
-    that's the case:
+    standard vector equation is below:
 
     $$(\vec p - \vec c) \cdot (\vec p - \vec c) = r^2$$
 
@@ -150,10 +149,10 @@ date: 2018-09-03 12:00 UTC
     result a scalar, not another vector.
   </p>
   <p>
-    In the following equations, whether scalar product or dot product
+    In the equations to follow, whether scalar product or dot product
     is meant can always be inferred based on whether both operands are
-    scalars or both are vectors. Strictly speaking, we don't need the
-    \(\cdot\) symbol, but it's convention.
+    scalars or both are vectors. So strictly speaking, we don't need
+    the \(\cdot\) symbol, but it's convention.
   </p>
   <p>
     At first sight, the standard vector equation of a sphere looks
@@ -183,7 +182,7 @@ date: 2018-09-03 12:00 UTC
     complicated looking equation into a quadratic one and solve for
     \(t\). For an actual line and sphere, \(\vec{p_0}\),
     \(\vec{p_1}\), \(\vec c\), and \(r\) are known quantities, leaving
-    \(t\) as the only unknown:
+    \(t\) the only unknown:
   </p>
   <p>
     $$\begin{eqnarray*}
@@ -207,7 +206,7 @@ date: 2018-09-03 12:00 UTC
     \end{eqnarray*}$$     
 
     Or in terms of the standard form of a quadratic equation: \(at^2 +
-    bt + c\), from above we get
+    bt + c\), we get
 
     \begin{eqnarray*}
     a = \vec{p_1} \cdot \vec{p_1}\\
@@ -238,20 +237,20 @@ date: 2018-09-03 12:00 UTC
     results.
   </p>
   <p>
-    Carrying out the simplification steps requires the memorization of
-    rules. Or having a site such as
+    The simplification steps require memorization of rules. Or have a
+    site like
     <a href="https://www.symbolab.com/solver/simplify-calculator/simplify%20p%2Bp%20%E2%88%92c%E2%88%92c">Symbollab.com</a>
-    assist in identifying a rule by name and carry out the
-    simplification.
+    assist in identifying a rule by name and with simplification.
   </p>
 
   <h3>Efficiently solving the quadratic equation on a computer</h3>
   <p>
     While the quadratic equation with \(a\), \(b\), and \(c\) above is
-    mathematically correct, it can be further optimized for execution
-    speed. For one, the \(\vec{p_0} - \vec c\) expression is computed
-    twice: once for \(b\) and once for \(c\). Extracting it into
-    \(\mathrm{oc}\) for distance between origin and center:
+    mathematically correct, it may be further optimized for computer
+    execution. For one, the \(\vec{p_0} - \vec c\) expression is
+    computed twice: once for \(b\) and once for \(c\). Extracting it
+    into \(\mathrm{oc}\) for distance between origin and center
+    yields:
 
     \begin{eqnarray*}
     \mathrm{\vec{oc}} = \vec{p_0} - \vec c\\
@@ -260,8 +259,9 @@ date: 2018-09-03 12:00 UTC
     c = (\vec{\mathrm{oc}})^2 - r^2
     \end{eqnarray*}    
   </p>
-  <p>Another more elaborate optimization involves getting rid of
-    coefficients during the computation of roots, saving three
+  <p>
+    Another more elaborate optimization involves getting rid of
+    coefficients during computation of roots, saving three
     multiplication operations for each root computation. We start by
     defining \(d\), not to be confused by the discriminant as
 
@@ -283,7 +283,7 @@ date: 2018-09-03 12:00 UTC
 
     The result is a new formula for computing roots specific to \(a\),
     \(b\), \(c\) as derived for ray-sphere intersection. In summary,
-    here're the final definitions for use in code:
+    here're the final definitions for efficient use in code:
 
     \begin{eqnarray*}
     \mathrm{\vec{oc}} = \vec{p_0} - \vec c\\
@@ -314,7 +314,7 @@ date: 2018-09-03 12:00 UTC
     coverage, <a href="https://www.amazon.com/Linear-Algebra-Jim-Hefferon/dp/1944325034/ref=sr_1_1?ie=UTF8&qid=1538220605">Linear
     Algebra</a> (available
     for <a href="http://joshua.smcvt.edu/linearalgebra">free</a>) is
-      definitely worth a read.</li>
+    worth a read.</li>
     <li>For a slighty different approach to deriving the equations
     above, turn
     to <a href="https://www.scratchapixel.com/lessons/3d-basic-rendering/minimal-ray-tracer-rendering-simple-shapes/ray-sphere-intersection">this</a>
@@ -325,18 +325,17 @@ date: 2018-09-03 12:00 UTC
   <h3>Summary</h3>
   <p>
     In computer graphics, we almost always want equations expressed in
-    terms of vectors. This gives us the ability to treat the \(x\),
+    terms of vectors. It gives us the ability to treat the \(x\),
     \(y\), and \(z\) components of a vector as a single unit, making
-    equations shorter and clearer. Similarly, defining and applying
-    vector operations in code make it shorter and less
-    error-phone. Like in object oriented programming when we create a
-    class to group related data and operations.
+    for shorter and clearer equations. Similarly, defining and
+    applying vector operations in code make it shorter and less
+    error-phone. It's like in object oriented programming when we
+    create a class to group related data and operations.
   </p>
   <p>
     Having now derived the ray-sphere intersection equation, we have
     the mathematics in place to create a first ray tracer; one that
     shoots rays from the camera, through each pixel, and into the
-    scene where it potentially intersects with a sphere. That'll be
-    the subject of the next post.
+    scene where it potentially intersects with a sphere.
   </p>  
 </div>

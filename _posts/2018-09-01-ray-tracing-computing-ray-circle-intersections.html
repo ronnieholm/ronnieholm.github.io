@@ -10,33 +10,37 @@ date: 2018-09-01 12:00 UTC
     Part 2: <a href="/blog/2018/09/03/ray-tracing-computing-ray-sphere-intersections">Ray tracing: Computing ray-sphere intersections</a>
   </p>
 
+  <p>(Code for this post is available
+on <a href="https://github.com/ronnieholm/Ray-tracing-in-one-weekend-CSharp">GitHub</a>.)</p>
+    
   <p>
     I'm currently making my way
     through <a href="https://www.amazon.com/Ray-Tracing-Weekend-Minibooks-Book-ebook/dp/B01B5AODD8">Ray
-    Tracing in One Weekend</a>, now available for
+    Tracing in One Weekend</a>, also available for
     <a href="https://drive.google.com/drive/folders/14yayBb9XiL16lmuhbYhhvea8mKUUK77W">free</a>,
     and its 500 lines
     of <a href="https://github.com/petershirley/raytracinginoneweekend">C++
-    code</a>. Being a bit rusty on the math side, these posts are my
-    notes and supplement the book.
+    implementation</a>. Being a bit rusty on the math side, these
+    posts are my notes to supplement the book.
   </p>  
   <p>
-    In this part and the next, we focus on probably the most central
-    aspect of ray tracing: computing 2D line-circle and 3D line-sphere
-    intersections. Their points of intersection are what enables us
-    trace a ray from the eye, or camera position, through a pixel on
-    the screen, or image plane, and into the scene. As the ray travels
-    through the scene, we want to know if it hits, or intersects with,
-    a scene object such as a circle, and if so at which points in
-    space. If, where, and with which scene object the ray intersects
-    determines the image plane's color at that pixel.
+    In this part and
+    the <a href="/blog/2018/09/03/ray-tracing-computing-ray-sphere-intersections">next</a>
+    we focus on the most central part of a ray tracer: computing 2D
+    line-circle and 3D line-sphere intersections. Those computations
+    enable us to trace a ray from the eye, or camera position, through
+    a pixel on the screen, or image plane, and into the scene. As the
+    ray travels through the scene we want to determine if it hits, or
+    intersects with, a scene object such as a circle or sphere, and if
+    so at which position. If, where, and with which scene object the
+    ray intersects determines the image plane's color at that pixel.
   </p>
   <p>
-    We start out with 2D line-circle intersections because it's
-    simpler to visualize and because once the scalar math is worked
-    out, it generalizes nicely to 3D line-sphere intersection and
-    vector math. What we're working toward is nicely illustrated in
-    the Wikipedia article
+    We start out with 2D line-circle intersection because it's simpler
+    to visualize and because once the scalar math is worked out, it
+    generalizes nicely to 3D line-sphere intersection and vector
+    math. What we're working toward is illustrated in the Wikipedia
+    article
     on <a href="https://en.wikipedia.org/wiki/Ray_tracing_(graphics)">ray
     tracing</a>:
   </p>
@@ -45,14 +49,13 @@ date: 2018-09-01 12:00 UTC
   </p>
 
   <p>
-    As a supplement to the
-    illustration, <a href="https://www.youtube.com/watch?v=frLwRLS_ZR0">Disney's
-    Practical Guide to Path Tracing</a> provides a humourous
-    non-technical overview
-    and <a href="https://www.youtube.com/watch?v=hWANIFgssWg">Painting
-    With Light</a> adds both depth and historical context.
+    Supplementing the illustration
+    is <a href="https://www.youtube.com/watch?v=frLwRLS_ZR0">Disney's
+    Practical Guide to Path Tracing</a>, providing a humourous
+    non-technical overview and
+    the <a href="https://www.youtube.com/watch?v=hWANIFgssWg">Painting
+    With Light</a> talk which adds depth and historical context.
   </p>
-
   
   <h3>Circle centered around origin</h3>
   <p>
@@ -64,13 +67,12 @@ date: 2018-09-01 12:00 UTC
     $$x^2 + y^2 = r^2$$
 
     The way to read the circle equation is that for any point
-    \((x,y)\), if \(x^2 + y^2 = r^2\), then the point is on the
-    circle, otherwise it's not. This circle equation follows from the
+    \((x,y)\), if \(x^2 + y^2 = r^2\) then the point is on the circle,
+    otherwise it's not. That follows from the
     <a href="https://en.wikipedia.org/wiki/Pythagorean_theorem">Pythagorean
-    theorem</a>, or distance formula. We can visualize the
-    relationship between the circle equation and the Pythagorean
-    theorem by considering a point \((x,y)\) on the circle shown
-    below:
+    theorem</a> or distance formula. We can visualize the relationship
+    between the circle equation and the Pythagorean theorem by
+    considering a point \((x,y)\) on the circle shown below:
   </p>
   <p>
     <img src="/content/circle-equation.gif" width="350px"/>
@@ -83,25 +85,20 @@ date: 2018-09-01 12:00 UTC
 
   <h3>Circle offset from origin</h3>
   <p>
-    Instead of a circle centered at \((0,0)\), it may be centered at
+    Instead of the circle centered at \((0,0)\), it may be centered at
     any point \((c_x, c_y)\), extending the circle equation:
     
     $$\begin{eqnarray*}
     (x - c_x)^2 + (y - c_y)^2 = r^2
     \end{eqnarray*}$$
     
-    To make sense of this equation, imagine we want a circle with its
-    center shifted along the \(x\) axis to the right of origin. As we
-    subtract \(c_x\) from \(x\), for the circle equation to hold, and
-    points to be on the circle, its \(x\) component must be greater to
-    compensate for \(c_x\), shifting its center. Say we take the
-    circle above and shift its center to \(2,0\), then a point on the
-    circle would be \((2 - 2)^2 + (3 - 0)^2 = r^2\).
+    Say we take the circle from previously and shift its center to
+    \((2,0)\), then points on the circle would satisfy \((2 - 2)^2 +
+    (3 - 0)^2 = r^2\).
   </p>
   <p>
     To keep the following examples short, we assume the circle is
-    centered at \((0,0)\) such that \(c_x\) and \(c_y\) may be
-    ignored.
+    centered at \((0,0)\), and so \(c_x\) and \(c_y\) can be ignored.
   </p>
 
   <h3>Line and circle intersections</h3>
@@ -115,25 +112,25 @@ date: 2018-09-01 12:00 UTC
   </p>
   <p>
     As an example, let's go with the circle \(x^2 + y^2 = 3^2\) and
-    the line \(y = -x + 3\). If the two intersect, it implies that for
-    some value of \(x\) and for some value of \(y\), substituting those
-    <i>same</i> values into both equations, each equation holds. It
-    doesn't imply that the left side of one equation equals the right
-    side of the other, but that the left and right side of each
-    equation by itself is equal.
+    the line \(y = -x + 3\). If the two intersect, then for some value
+    of \(x\) and for some value of \(y\), substituting those
+    <i>same</i> values into both equations, each equation must
+    hold. It doesn't imply that the left side of one equation equals
+    the right side of the other, but that left and right side of each
+    equation by itself remains equal.
   </p>
   <p>
-    At a point of intersection, the value of \(x\) and the value of
-    \(y\) in the two equations are the same. Thus, either \(y = -x +
-    3\) or \(x = -y + 3\) of the line equation may be substituted into
-    the circle equation. Substituting in \(y\) yields a new equation:
+    Since at a point of intersection, the value of \(x\) and the value
+    of \(y\) in the two equations must be the same, then either \(y =
+    -x + 3\) or \(x = -y + 3\) of the line equation may be substituted
+    into the circle equation. Substituting in \(y\) yields this new
+    equation:
 
     $$x^2 + (-x + 3)^2 = 3^2$$
 
     The goal of substituting one equation into the other is that
-    instead of one circle equation with two variables (\(x\) and
-    \(y\)), out comes one quadratic equation with one variable
-    (\(x\)):
+    instead of one circle equation with two unknowns (\(x\) and
+    \(y\)), out comes one quadratic equation with one unknown (\(x\)):
 
     $$\begin{eqnarray*}
     x^2 + (-x + 3)(-x + 3) = 3^2 & & \textrm{\{expand \(y = -x + 3\)\}}\\
@@ -143,9 +140,9 @@ date: 2018-09-01 12:00 UTC
     \end{eqnarray*}$$
 
     Solving a quadratic equation of the standard form \(ax^2 + bx + c
-    = 0\) for \(x\) means determining values of \(x\) for which \(y =
-    0\). In other words, determining where the quadratic equation
-    intersects the \(x\) axis.
+    = 0\) for \(x\) is about determining values of \(x\) for which \(y
+    = 0\). In other words, where the quadratic equation intersects the
+    \(x\) axis.
   </p>
   <p>
     The line, circle, and quadratic equations are depicted graphically
@@ -168,19 +165,19 @@ date: 2018-09-01 12:00 UTC
 
     The discriminant indicates which of the three intersection
     scenarios to expect. If \(d = 0\), then one solution, or
-    intersection, exist as the square root term disappears. If \(d >
-    0\), two solutions, or intersections, exist as the square root
-    term must be both added and subtracted. If \(d < 0\), no solution,
-    or intersection, exists as calculating the square root of a
-    negative number is undefined:
+    intersection, as the square root term disappears. If \(d > 0\),
+    then two solutions, or intersections, as the square root term must
+    be both added and subtracted. If \(d < 0\), then no solution, or
+    intersection, as taking the square root of a negative number is
+    undefined:
   </p>				  
   <p>
     $$d = (-6)^2 - 4(2)(0) = 36$$
 
-    Computing the discriminant without substituting it into the larger
-    equation is useful only as a means to determine the number of
-    solutions in advance. For the actual solutions, the points of
-    intersection, the larger equation is required:
+    Computing the discriminant only is useful only as a means to
+    determine the number of solutions in advance. For the actual
+    solutions, the points of intersection, the larger equation is
+    required:
 
     $$\begin{eqnarray*}    
     x_1 = \dfrac{-(-6) + \sqrt{36}}{2(2)} = \dfrac{6 + 6}{4} = \dfrac{12}{4} = 3\\
@@ -189,23 +186,23 @@ date: 2018-09-01 12:00 UTC
 
     Finally, inserting the values of \(x\) into either equation gets
     us the corresponding values of \(y\). The line equation is the
-    simplest of the two:
+    simplest of the two to work with:
 
     $$\begin{eqnarray*}
     y_1 = -x_1 + 3 = -0 + 3 = 3\\
     y_2 = -x_2 + 3 = -3 + 3 = 0
     \end{eqnarray*}$$
 
-    and so the points of intersection of the line and the circle are
-    at \((0,3)\) and \((3,0)\).
+    The points of intersection of the line and the circle are at
+    \((0,3)\) and \((3,0)\).
   </p>
   
   <h3>Summary</h3>
   <p>
     At first sight, the math in this post may seem like unimportant
-    high school math. Its true power, however, becomes
+    high school math. Its true power becomes
     evident <a href="/blog/2018/09/03/ray-tracing-computing-ray-sphere-intersections">next</a>,
-    when the techniques are generalized from lines and circles in 2D
-    to lines and spheres in 3D and from scalars to vectors.
+    when the technique is generalized from lines and circles in 2D to
+    lines and spheres in 3D and from scalars to vectors.
   </p>
 </div>
