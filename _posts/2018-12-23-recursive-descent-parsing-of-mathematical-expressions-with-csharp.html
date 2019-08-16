@@ -16,31 +16,31 @@ on <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/Recursiv
 <p>This post describes a backtracking lexer and combined recursive
 descent <a href="https://en.wikipedia.org/wiki/LL_parser">LL(1)</a>
 parser and evaluator for mathematical expressions. We show how to stay
-with recursive descent, even for arbitrary precedence and
-associativity. No need to switch
+with recursive descent, even for arbitrary operator precedence and
+associativity. There's no need to switch
 to <a href="https://en.wikipedia.org/wiki/Shunting-yard_algorithm">Shunting
 Yard</a>
 or <a href="https://en.wikipedia.org/wiki/Pratt_parser">Pratt</a>
 parsing algorithms or
-to <a href="https://en.wikipedia.org/wiki/Yacc">Yacc</a> and
-family. All that's required is a small change to the grammar and
-parser for recursive descent to support left and right associative
-operators and precedence levels.</p>
+to <a href="https://en.wikipedia.org/wiki/Yacc">Yacc</a>. All that's
+required is a small change to the grammar and parser for recursive
+descent to support left and right associative operators and precedence
+levels.</p>
 
 <p>With recursive descent, grammar and parser follow from each
 other. The two are isomorphic, leading to easy to understand, easy to
-debug, and easy to extend parsers. Once we know how to parse an
+an debug, and easy to extend parser. Once we know how to parse an
 expression with precedence and associativity rules, the techniques
-apply to more involved grammars like those of programming
+carry over to more involved grammars like those of programming
 languages.</p>
 
 <h3>Textbook expression grammar</h3>
 
-<p>Below is a starting
+<p>Below is a starting point
 <a href="https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_form">Backus-Naur
 Form</a> grammar for expressions. We'll evolve it into a grammar and
-parser with support for more precedence levels, for left and right
-associative operators, and for integers and floats:</p>
+parser with support for additional precedence levels, for left and
+right associative operators, and for integers and floats:</p>
 
 <pre>
 Expression = Term | Expression "+" Term | Expression "-" Term
@@ -51,43 +51,48 @@ Integer = Digit | Integer Digit
 Digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" 
 </pre>
 
-<p>The grammar is LL(1) meaning that a parser consumes tokens left to
-right. When a list of tokens match a grammar rule, the parser groups
-these tokens in
-a <a href="https://en.wikipedia.org/wiki/Context-free_grammar#Derivations_and_syntax_trees">leftmost
-derivation</a> corresponding to left associativity. For right
-associative operators, like power, we must construct the rightmost
-derivation. The number one in parentheses refers to grammar rules
-defined such that looking one token ahead, but without consuming it,
-the parser can unambiguously identify one matching grammar
-rule. Organizing these rules by order of precedence enables support
-for precedence and associativity.</p>
+<p>Points to note about this grammar:</p>
 
-<p>Rule names come from the domain described by the
+<p>
+<li>
+<ul>The grammar is LL(1), meaning a parser would consume tokens left
+to right, and when a list of tokens match a grammar rule, the parser
+groups these using
+<a href="https://en.wikipedia.org/wiki/Context-free_grammar#Derivations_and_syntax_trees">leftmost
+derivation</a>, corresponding to left associativity.</ul>
+<ul>For right associative operators like exponentiation, we must end
+up with the rightmost derivation (more on how later).</ul>
+<ul>The number one in parentheses refers to grammar rules defined in
+such a way that looking at most one token ahead, but without consuming
+it, the parser can unambiguously identify a single matching grammar
+rule.</ul>
+<ul>The order of grammar rules is what defines the operators order of
+precedence.</ul>
+</li>
+</p>
+
+<p>Grammar rule names come from the domain described by the
 grammar. Here <a href="https://study.com/academy/lesson/parts-of-an-expression-terms-factors-coefficients.html">algebra</a>
 where a term is an operand involving addition or subtraction and
 factor an operand involving multiplication or division. Names might as
-well have been <code>Addition</code>
-and <code>Multiplication</code> or <code>Rule0</code>, <code>Rule1</code>,
-<code>RuleN</code> with N being the rule's precedence level.</p>
+well have been Addition and Multiplication or simply Rule0, Rule1,
+RuleN with N denoting the rule's precedence level.</p>
 
 <p>A lexer operates at the character level, grouping characters into
-tokens, and would typically handle the <code>Integer</code>
-and <code>Digit</code> rules. Single token lookahead refers to the
-operation of the parser and not the lexer. The lexer may look many
-characters ahead. While inside a number, only looking at the next
-digit, the lexer has no way to tell whether the number is an integer
-or float. In fact, that's a common reason for separating lexing and
-parsing, simplifying the parser.</p>
+tokens, and would typically implement the Integer and Digit
+rules. Single token lookahead refers to the operation of the parser
+and not the lexer. The lexer may look many characters ahead. While
+inside a number, only looking at the next digit, the lexer has no way
+to tell whether the number is an integer or float. In fact, that's a
+common reason for separating lexing and parsing, simplifying the
+parser.</p>
 
 <h3>Adjusting grammar for off-by-one naming</h3>
 
-<p>Grammar rules appear off-by-one:
-<code>Expression</code> is about addition and subtraction,
-<code>Term</code> about multiplication and division, and so on. If
+<p>Grammar rules appear off-by-one: Expression is about addition and
+subtraction, Term is about multiplication and division, and so on. If
 instead we expand the first rule into two, we end up with Term,
-Factor, and so on aligned. The extra rule we
-name <code>Primary</code>:</p>
+Factor, and so on aligned. The extra rule we name Primary:</p>
 
 <pre>
 Expression = Term
@@ -97,11 +102,11 @@ Power = Primary | Power "^" Primary
 Primary = Integer | "(" Expression ")"
 </pre>
  
-<p>Rewriting rules is valid because a grammar comprising rules <code>A
-= B</code> and <code>B = C | D</code> is the same as <code>A = B | C |
-D</code>. Another needed rewrite is rules with right associative
-operators. For <code>Power</code>, the self-reference must on the
-right, as in <code>Primary "^" Power</code>.</p>
+<p>Rewriting rules is valid because a grammar comprising of rules A =
+B and B = C | D is identical to A = B | C | D. Another rewrite rules
+applies with right associative operators. For <code>Power</code>, the
+self-reference must on the right, as in <code>Primary "^"
+Power</code>.</p>
 
 <p>Even though the grammar with left and right self-references
 captures precedence and associativity, a left self-reference causes a
