@@ -64,10 +64,10 @@ derivation</a>, corresponding to left associativity.</li>
 in such a way that looking at most one token ahead, but without
 consuming it, the parser can unambiguously identify a single matching
 grammar rule.</li>
-<li>The order of grammar rules define the order of precedence amongst
-operators.</li>
 <li>Whether a grammar rule's self-reference is to the left or right of
 the operator determines associativity of that operator.</li>
+<li>The order of grammar rules define the order of precedence among
+operators.</li>
 </ul>
 </p>
 
@@ -103,41 +103,44 @@ Primary = Integer | "(" Expression ")"
 </pre>
  
 <p>Rewriting rules is valid because a grammar comprising of rules A =
-B and B = C | D is identical to A = B | C | D. Another rewrite rules
-applies with right associative operators. For <code>Power</code>, the
-self-reference must on the right, as in <code>Primary "^"
-Power</code>.</p>
+B and B = C | D is identical to A = B | C | D.</>
+
+<h3>Adjusting grammar for right associativity</h3>
+
+<p>For right associative operators, we can apply another grammar
+rewrite rule. With Power for instance, it must be rewritten to Primary
+"^" Power. Power must go on the right, resulting in rightmost
+derivation and hence right associativity.</p>
 
 <p>Even though the grammar with left and right self-references
 captures precedence and associativity, a left self-reference causes a
-recursive descent parser to enter an infinite
-loop. With <code>Term</code>, for instance, the parser would keep
-calling itself without consuming tokens.</p>
+recursive descent parser to enter an infinite loop. With Term for
+instance, the parser would keep calling itself without consuming
+tokens.</p>
 
 <h3>Eliminating left recursion through EBNF rule rewriting</h3>
 
-<p>That's where
+<p>This is where
 <a href="https://en.wikipedia.org/wiki/Extended_Backus%E2%80%93Naur_form">Extended
-BNF</a> comes in. It introduces <code>{ x }</code> rule syntax
-for <code>x</code> repeated zero or more times. A parser would
-implement such repetition with a loop instead of recursion. Rewriting
-the grammar to the new syntax and including unary minus and float
-support, we end up with the grammar below. In it names such
-as <code>Addition</code>, <code>Multiplication</code>,
-and <code>Power</code> are short for operators with addition,
-multiplication, and power-like precedence:</p>
+BNF</a> comes in. It introduces { x } rule syntax for x repeated zero
+or more times. A parser would implement such repetition with a loop
+instead of recursion. Rewriting the grammar to the new syntax and
+including unary minus and float support, we end up with the grammar
+below. Names such as Addition, Multiplication, and Power are short for
+operators with addition, multiplication, and power-like
+precedence:</p>
 
 <pre>
 Expression = Addition
-Addition = Multiplication (("+" | "+") Multiplication)*
-Multiplication = Power (("*" | "/") Power)*
-Power = Unary ("^" Power)*
+Addition = Multiplication {("+" | "+") Multiplication}
+Multiplication = Power {("*" | "/") Power}
+Power = Unary {"^" Power}
 Unary = '-' Unary | Primary
 Primary = Integer | Float | "(" Expression ")"
 </pre>
 
 <p>Instead of substituting left recursion with iteration, we could
-rewrite the grammar as all right recursive. Then the parser could
+rewrite the grammar as all right recursive. The parser could then
 apply a transformation upon evaluating left associative operators or
 to
 <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">Abstract
@@ -147,24 +150,24 @@ possible, it's unnecessarily difficult.</p>
 <h3>From grammar rules to parser</h3>
 
 <p>A two-way mapping exists between grammar and recursive descent
-parser, turning each rule into a parse method. The inside of each
-parse method follows from the rule's definition as per Wirth's recipe
-for translating EBNF into code (see Additional references
-below). Placing a breakpoint on a parse method, the call stack reveals
-the path from <code>Expression</code> to that parse method,
-illustrating the relationship between grammar and parser.</p>
+parser, turning each rule into a parse method and vice versa. The
+inside of each parse method follows from the rule's definition as per
+Wirth's recipe for translating EBNF into code (see Additional
+references below). Placing a breakpoint on a parse method, the call
+stack reveals the path from Expression to that parse method, showing
+the close relationship between grammar and parser.</p>
 
 <p>To keep
 the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/RecursiveDescentParser.CSharp">implementation</a>
 simple, evaluation happens during parsing. Instead of each parse
 method returning an AST node as with
 the <a href="https://github.com/ronnieholm/ExpressionParsers/tree/master/ShuntingYardParser.CSharp">Shunting
-Yard implementation</a>, each returns the numeric result of the
-computation thus far.</p>
+Yard implementation</a>, each parse method returns the numeric result
+of the computation so far.</p>
 
 <p>Below is a trace from parsing and evaluating an expression. Enter
 marks an entry into a parse method (20 in total) and the value of the
-current token. Exit marks the return of a parse method and the value
+current token. Exit marks the return from a parse method and the value
 passed up the call chain:</p>
 
 <pre>
@@ -212,35 +215,35 @@ Enter: Parse, Value: 2
 Exit: Value: 47
 </pre>
 
-<p>With grammar rules mapping to parse methods, the relationship of
-rules to parse methods, and proper handling of precedence and
-associativity, is visible.</p>
+<p>With grammar rules mapping closely to parse methods and correct
+handling of precedence and associativity, the parsing has become very
+explicit.</p>
 
 <h3>Comparing recursive descent, Shunting Yard, and Pratt parsers</h3>
 
 <p>A recursive descent parser is the most intuitive and simplest to
-implement. It dates to the early 1960s, but back then it was
-impractical to implement. The call stack was still a novel concept,
-function calls were expensive, and stack memory scarce. These
-limitations lead Dijkstra to develop the Shunting Yard algorithm with
-its explicit operator and operand stacks. Today, unless we're parsing
-large programs with many precedence levels, recursive descent should
-be the starting point. Their stack is the implicit call stack.</p>
+implement. It dates back to the early 1960s, where it was impractical
+to implement. The call stack was still a novel concept, function calls
+were expensive, and stack memory scarce. These limitations led
+Dijkstra to develop the Shunting Yard algorithm. It uses explicit
+operator and operand stacks over the implicit call stack. Today,
+unless parsing large programs with many precedence levels, recursive
+descent should be the default option.</p>
 
 <p>In 1973, Pratt developed the <a href="https://tdop.github.io">Top
 Down Operator Precedence parser</a>, later called Pratt parser. It
 outperforms recursive descent and Shunting Yard in that regardless of
-precedence level, a Pratt parser requires a single parse method call
-only. It's well suited for grammars with many levels of precedence,
-and languages with support for dynamic operators, where a programmer
-may add new operators anywhere in the precedence hierarchy and with
+an operator's precedence level, a Pratt parser requires a single parse
+method call only. It's well suited for grammars with many levels of
+precedence, and languages with dynamic operator support, where a new
+operator may be added anywhere in the precedence hierarchy and with
 any associativity. A similar flexibility can be built into recursive
 descent by replacing or supplementing the fixed rules/parse methods
 with a lookup table.</p>
 
 <p>As an example of a hybrid of a recursive descent parser for
 statements and a Pratt parser for expressions, have a look at
-the <a href="https://github.com/ronnieholm/MonkeyLang">MonkeyLang</a>
+the <a href="https://github.com/ronnieholm/Monkey-CSharp">MonkeyLang-CSharp</a>
 parser.</p>
 
 <h3>Additional references</h3>
@@ -260,7 +263,7 @@ C. Also, <a href="https://www.youtube.com/watch?v=0woxSWjWsb8">Bitwise,
 Day 2: C Programming & Parsing</a> from 1h00m
 and <a href="https://www.youtube.com/watch?v=L4P98pGhpnE">Bitwise, Day
 3: More Programming & Parsing</a> from 1h10m to 1h40m are worth a
-look, though they're overlapping.</p></li>
+look, though overlapping.</p></li>
 
 <li><p>Bob
 Nystrom's <a href="http://craftinginterpreters.com/parsing-expressions.html">Crafting
