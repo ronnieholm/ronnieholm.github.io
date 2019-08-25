@@ -9,7 +9,7 @@ tags: [SharePoint]
 See also: <a href="/blog/2010/01/18/sharepoint-list-access-using-the-repository-pattern/">SharePoint list access using the Repository pattern</a>.
   </p>
   <p>Books on SharePoint often show how to create lists from code by calling the SharePoint API from directly within a feature receiver. This receiver would then contain in-place string literals for column names, create the columns, update the default view, and so on. While such an approach provides for an nice demonstration of the SharePoint API, it tends to carry over into production code.</p>
-  <p>My take on feature receivers, however, is that they should contain the least possible amount of code. Staying true to object-orientation and separation of concerns, list definition and creation should instead consist of a common set of classes and methods to be called from the receiver:</p>
+  <p>My take on feature receivers, however, is that they should contain the least amount of code. Staying true to object-orientation and separation of concerns, list definition and creation should instead consist of a common set of classes and methods to be called from the receiver:</p>
   <pre class="prettyprint lang-cs">public override void FeatureActivated(SPFeatureReceiverProperties p) {
     using (var site = p.Feature.Parent as SPWeb) {
         var employees = new EmployeesDefinition();

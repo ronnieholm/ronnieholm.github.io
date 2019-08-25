@@ -27,7 +27,7 @@ $dkBusinessUnit1.Update()
   
 $dkBusinessUnit2.Locale = $locale
 $dkBusinessUnit2.Update()</pre>
-  <p>How can we reduce this repetition? Well, it repeats because we’ve made the common mistake of mixing logic with data. One way to separate the two is using a table-driven approach, i.e., extract the varying parts, the data, into a table and rewrite the logic so it’s parameterized by the table. After some trial and error with PowerShell here’s the code I ended up with:</p>
+  <p>How can we reduce this repetition? Well, it repeats because we’ve made the common mistake of mixing logic with data. One way to separate the two is using a table-driven approach, i.e., extract the varying parts, the data, into a table and rewrite the logic so it’s parameterized by the table. After some experimentation with PowerShell here’s the code I ended up with:</p>
   <pre class="prettyprint">$sites = @( @("", "Base"), 
             @("Dk", "Dk", "da-DK"),
             @("Uk", "Uk"),

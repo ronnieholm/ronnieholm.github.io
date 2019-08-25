@@ -15,7 +15,7 @@ tags: [SQL]
       <strong>Create one history table for each source table</strong>. A variation of #1 where each source table would have en corresponding history table with a close to identical schema, but with its own primary key. While this ensures that the source table only contains current rows, it effectively doubles the number of tables. Not to mention that every structural change to the source table would have to be propagated to the history table.
     </li>
     <li>
-      <strong>Create a generic and conceptually separate history database</strong>. This approach consists of a history table serving any number of source tables. Conceptually, it’s a audit trail database of its own that the rest of the database need not know about. Each row in this history table would hold before and after values for changed columns only. You may even take it so far as to start with an empty source and a some history and replay every change made to the source up to some point in time. It would require special care to be taken for non-additive schema changes.
+      <strong>Create a generic and conceptually separate history database</strong>. This approach consists of a history table serving any number of source tables. Conceptually, it’s a audit trail database of its own that the rest of the database need not know about. Each row in this history table would hold before and after values for changed columns only. You may even take it so far as to start with an empty source and a some history and replay every change made to the source up to some point. It would require special care to be taken for non-additive schema changes.
     </li>
   </ol>
   <p>I decided to go with the third option. To make it concrete, say I have a Contacts table. Besides the primary key, I store the name of the contact and possibly a comment:</p>
@@ -30,7 +30,7 @@ tags: [SQL]
   [UniqueRowGuid] [uniqueidentifier] NOT NULL,
   [Active] [bit] NOT NULL)</pre>
   <p>The remaining fields are system fields that I add to almost every table in the database. You could argue that the created and modified columns should really be part of the history table, but I prefer for the source table to be self-contained. UniqueRowGuid provides a unique identity of any row in any table and is useful for creating weak relationships between tables in the same database or across databases.</p>
-  <p>If it weren’t for the fact that a primary key of type Guid makes for bad clustered index performance, I could’ve made the primary key in every table be the UniqueRowGuid &#8212; MS SQL Server even has a special type of sequential Guid for this very purpose. But I stuck with the traditional integer-based key. The Active column is used to denote if a row has been deleted. I want to keep every row for some period of time, even though to the user it appears to have been deleted.</p>
+  <p>If it weren’t for the fact that a primary key of type Guid makes for bad clustered index performance, I could’ve made the primary key in every table be the UniqueRowGuid &#8212; MS SQL Server even has a special type of sequential Guid for this purpose. But I stuck with the traditional integer-based key. The Active column is used to denote if a row has been deleted. I want to keep every row for some period of time, even though to the user it appears to have been deleted.</p>
   <p>Jumping straight to the history schema, here’s what I decided to store for each change.</p>
   <pre class="prettyprint">CREATE TABLE [dbo].[History](
   [Id] [int] IDENTITY(1,1) NOT NULL,

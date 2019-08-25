@@ -79,7 +79,7 @@ public static IEnumerable&lt;TSource&gt; Where&lt;TSource&gt;(
             yield return element;
     }
 }</pre>
-  <p>The Select operator is an example of one whose input type may differ from its output type. By its very nature, it projects one type onto another. It can even project onto an anonomous type, like in &quot;Select(p =&gt; new { x = p.Name })&quot;, but then the var keyword must be used for its return type. In the example I project from Person to Person, which makes the matching signature of Select like the commented one below.</p>
+  <p>The Select operator is an example of one whose input type may differ from its output type. By its nature, it projects one type onto another. It can even project onto an anonomous type, like in &quot;Select(p =&gt; new { x = p.Name })&quot;, but then the var keyword must be used for its return type. In the example I project from Person to Person, which makes the matching signature of Select like the commented one below.</p>
   <pre class="prettyprint lang-cs">// IEnumerable&lt;Person&gt; Select&lt;Person, Person&gt;(
 //     this IEnumerable&lt;Person&gt; source,
 //     Func&lt;Person, Person&gt; selector)

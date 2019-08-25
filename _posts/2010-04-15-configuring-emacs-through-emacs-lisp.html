@@ -47,7 +47,7 @@ tags: [Tool]
 (setq-default save-place t)                    ;; activate for all buffer
 (require 'saveplace)</pre>
   <p>
-    As hinted by <a href="http://www.bugfree.dk/blog/2009/11/05/getting-organized-with-emacs-org-mode/">Getting organized with Emacs Org-mode</a>, I very much enjoy using <a href="http://orgmode.org">Org-mode</a> for keeping notes, maintaining lists, and much more. The next section of my .emacs is therefore dedicated to customizing org-mode. Firstly, to make documents easier to read, instead of displaying all the asterisks that designate an indentation level, only display the last one. Secondly, align each indentation level by always adding two asterisks on indentation. Thirdly, when clocking time, have Emacs remember what I was doing and for how long across restarts. But remove clocked time less than one minute.
+    As hinted by <a href="http://www.bugfree.dk/blog/2009/11/05/getting-organized-with-emacs-org-mode/">Getting organized with Emacs Org-mode</a>, I much enjoy using <a href="http://orgmode.org">Org-mode</a> for keeping notes, maintaining lists, and much more. The next section of my .emacs is therefore dedicated to customizing org-mode. Firstly, to make documents easier to read, instead of displaying all the asterisks that designate an indentation level, only display the last one. Secondly, align each indentation level by always adding two asterisks on indentation. Thirdly, when clocking time, have Emacs remember what I was doing and for how long across restarts. But remove clocked time less than one minute.
   </p>
   <pre>(setq org-hide-leading-stars t)                ;; hide but one star in outline
 (setq org-add-levels-only t)                   ;; align items nicely

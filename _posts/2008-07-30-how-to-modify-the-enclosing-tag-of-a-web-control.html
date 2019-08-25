@@ -20,7 +20,7 @@ tags: [ASP.NET, SharePoint]
     Hello World
 &lt;/div&gt;</pre>
   <p>
-    Within the control, a straight-forward way of achieving the intended output may be to hand craft the html and render it in <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.rendercontents.aspx">RenderContents</a> of WebControl. It almost goes without saying that rendering html by hand is but only a starting point when working with .Net. The next progression from there may be to override <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.renderbegintag.aspx">RenderBeginTag</a> and <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.renderendtag.aspx">RenderEndTag</a> of WebControl:
+    Within the control, a straight-forward way of achieving the intended output may be to hand craft the html and render it in <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.rendercontents.aspx">RenderContents</a> of WebControl. Rendering html by hand is but only a starting point when working with .NET. The next progression from there may be to override <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.renderbegintag.aspx">RenderBeginTag</a> and <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webcontrol.renderendtag.aspx">RenderEndTag</a> of WebControl:
   </p>
   <pre class="prettyprint lang-cs">
 // version 1
@@ -64,7 +64,7 @@ protected override HtmlTextWriterTag TagKey {
         return HtmlTextWriterTag.Div;
     }
 }</pre>
-  <p>As an added bonus, changing the enclosing tag can also be done calling the WebControl&#8217;s constructor, passing in the desired tag:</p>
+  <p>As a bonus, changing the enclosing tag can also be done calling the WebControl&#8217;s constructor, passing in the desired tag:</p>
   <pre class="prettyprint lang-cs">
 // version  4
 public class MyControl : WebControl {
@@ -88,7 +88,7 @@ public WebControl(HtmlTextWriterTag tag) {
     Also worth noting is that for controls deriving from WebControl derived classes, such as <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.compositecontrol.aspx">CompositeControl</a>, the constructor cannot be used to set the enclosing tag. The constructor exposed by CompositeControl and friends doesn&#8217;t call up the constructor chain passing in the tag, making TagKey the choice to go.
   </p>
   <p>
-    Finally, deep down the inhertitance chain below WebControl lives <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webparts.webpart.aspx">WebPart</a>, a type of control very popular with SharePoint. Interestingly enough, WebPart defaults to using div as its enclosing tag, because walking up the chain, we come across the constructor of <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.panel.aspx">Panel</a>:
+    Finally, deep down the inhertitance chain below WebControl lives <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.webparts.webpart.aspx">WebPart</a>, a type of control popular with SharePoint. Interestingly enough, WebPart defaults to using div as its enclosing tag, because walking up the chain, we come across the constructor of <a href="http://msdn.microsoft.com/en-us/library/system.web.ui.webcontrols.panel.aspx">Panel</a>:
   </p>
   <pre class="prettyprint lang-cs">
 // .Net framework code

@@ -31,7 +31,7 @@ tags: [F#]
                           \    \
                            \    \ 
                           True  True</pre>
-  <p>Having a parse tree is not very useful in itself. What you need is some way to execute or evaluate it. Given the recursive nature of the grammar, it makes sense for the evaluator to be recursively defined as well. The evaluator would do pattern matching on the node type, deconstructing it into the parts needed to evaluate it. Since our language of propositions maps directly to the boolean operations of F#, it’s very simple to evaluate the parse tree:</p>
+  <p>Having a parse tree is not useful in itself. What you need is some way to execute or evaluate it. Given the recursive nature of the grammar, it makes sense for the evaluator to be recursively defined as well. The evaluator would do pattern matching on the node type, deconstructing it into the parts needed to evaluate it. Since our language of propositions maps directly to the boolean operations of F#, it’s simple to evaluate the parse tree:</p>
   <pre class="prettyprint lang-ml">let rec eval (p: Proposition) =
     match p with
     | True -&gt; true

@@ -216,19 +216,19 @@ Exit: Value: 47
 </pre>
 
 <p>With grammar rules mapping closely to parse methods and correct
-handling of precedence and associativity, the parsing has become very
+handling of precedence and associativity, the parsing has become
 explicit.</p>
 
 <h3>Comparing recursive descent, Shunting Yard, and Pratt parsers</h3>
 
 <p>A recursive descent parser is the most intuitive and simplest to
-implement. It dates back to the early 1960s, where it was impractical
-to implement. The call stack was still a novel concept, function calls
-were expensive, and stack memory scarce. These limitations led
-Dijkstra to develop the Shunting Yard algorithm. It uses explicit
-operator and operand stacks over the implicit call stack. Today,
-unless parsing large programs with many precedence levels, recursive
-descent should be the default option.</p>
+implement. It was conceived of in the early 1960s, where it was
+impractical to implement. The call stack was still a novel concept,
+function calls were expensive, and stack memory scarce. These
+limitations led Dijkstra to develop the Shunting Yard algorithm. It
+uses explicit operator and operand stacks over the implicit call
+stack. Today, unless parsing large programs with many precedence
+levels, recursive descent should be the default option.</p>
 
 <p>In 1973, Pratt developed the <a href="https://tdop.github.io">Top
 Down Operator Precedence parser</a>, later called Pratt parser. It

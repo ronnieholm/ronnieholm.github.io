@@ -9,7 +9,7 @@ tags: [C#]
     I was watching <a href="/web/20110915003828/http://schuchert.wikispaces.com/">Brett Schuchert</a>’s TDD <a href="/web/20110915003828/http://vimeo.com/album/210446">screencast</a> on implementing the <a href="/web/20110915003828/http://en.wikipedia.org/wiki/Shunting-yard_algorithm">shunting yard algorithm</a> in C#. In it Brett builds up his tests in a style I hadn’t come across before. Each test is expressed as a given-expect statement. A pattern that is particularly useful in situations in which a class has a main method that accepts an open-ended number of dissimilar inputs.
   </p>
   <p>
-    I found the given-expect pattern useful in testing a piece of code that I was working on this week. I was refactoring and adding tests around an ASP.NET control adapter that makes SharePoint 2007 pages more XHTML compliant. I wanted to reuse the transformations outside the control adapter and hence ended up moving the transformation logic to a new class. It accepts possibly malformed HTML and relies on heuristics of the <a href="/web/20110915003828/http://htmlagilitypack.codeplex.com/">HTML Agility Pack</a> to build a DOM off of it. I can then query the DOM, looking for known violations, and patch them before returning XHTML to the caller.
+    I found the given-expect pattern useful in testing a piece of code that I was working on this week. I was refactoring and adding tests around an ASP.NET control adapter that makes SharePoint 2007 pages more XHTML compliant. I wanted to reuse the transformations outside the control adapter and hence ended up moving the transformation logic to a new class. It accepts possibly malformed HTML and relies on heuristics of the <a href="/web/20110915003828/http://htmlagilitypack.codeplex.com/">HTML Agility Pack</a> to build a DOM off it. I can then query the DOM, looking for known violations, and patch them before returning XHTML to the caller.
   </p>
   <pre class="prettyprint lang-cs">
 public class HtmlToXHtmlTransformer {
@@ -68,6 +68,6 @@ public class HtmlToXHtmlTransformerTest {
     }
 }</pre>
   <p>
-    I particularly like the clarity of the given-expect pattern and find that for a reasonable number of tests it’s a viable alternative to data-driven test. I do, however, recognize the value of data-driven tests in situations where a non-developer wants to test a class. Though at the unit test level I’ve never experienced this. It’s more characteristic of <a href="/web/20110915003828/http://en.wikipedia.org/wiki/FitNesse">FitNesse for acceptance testing</a>. However you unit test, just make sure your tests run with a minimum of effort on your part and that they run fast.
+    I particularly like the clarity of the given-expect pattern and find that for a reasonable number of tests it’s an alternative to data-driven test. I do, however, recognize the value of data-driven tests in situations where a non-developer wants to test a class. Though at the unit test level I’ve never experienced this. It’s more characteristic of <a href="/web/20110915003828/http://en.wikipedia.org/wiki/FitNesse">FitNesse for acceptance testing</a>. However you unit test, just make sure your tests run with a minimum of effort on your part and that they run fast.
   </p>
 </div>

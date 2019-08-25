@@ -32,7 +32,7 @@ type connection_info = {
     when_initiated:    DateTime option
     when_disconnected: DateTime option
 }</pre>
-  <p>On the surface these types look reasonable, but there're some tricky invariants that need to hold about the data. For instance, if you have a last_ping_time, you should probably also have a last_ping_id and vice versa. And the session_id and when_initiated probably only makes sense when you're connected. Similarly, when_disconnected only makes sense if and when you've been disconnected.</p>
+  <p>On the surface these types look reasonable, but there're some tricky invariants that need to hold about the data. For instance, if you have a last_ping_time, you should probably also have a last_ping_id and vice versa. And the session_id and when_initiated probably only makes sense when you're connected. Similarly, when_disconnected only makes sense if you've been disconnected.</p>
   <p>The key is that there's nothing about the types that help you enforce all these invariants. A better approach would be to refactor the connection_info into a series of types where the invariants would be inherent in the types themselves rather than being implicit in the logic surrounding the types:</p>
   <pre class="prettyprint lang-ml">
 type connecting = { when_initiated: DateTime }

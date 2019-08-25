@@ -51,7 +51,7 @@ public static class SPFieldCollectionExtensions {
 
 // use
 l.Fields.CreateField&lt;SPFieldBoolean&gt;(internalName, &quot;displayName&quot;);</pre>
-  <p>Taking the CreateField extension method one step further, oftentimes you want to set properties besides internal name and display name. For that purpose I’ve defined a CreateField method that accepts an Action&lt;TField&gt;. This allows you to reuse common property settings across fields for brevity and consistency while at the same time maintaining strong typing.</p>
+  <p>Taking the CreateField extension method one step further, oftentimes you want to set properties besides internal name and display name. For that purpose I’ve defined a CreateField method that accepts an Action&lt;TField&gt;. This allows you to reuse common property settings across fields for brevity and consistency while maintaining strong typing.</p>
   <pre class="prettyprint lang-cs">// definition
 public static TSPField CreateField&lt;TSPField&gt;(this SPFieldCollection fields, 
         string internalName, string displayName, 
