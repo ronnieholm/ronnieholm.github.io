@@ -1,0 +1,176 @@
+---
+layout: post
+title: "Stubbing system time using a custom SystemTime test double"
+date: 2019-08-26 12:00 UTC
+---
+
+<div id="post">
+
+<p>Unit testing time related functionality can be tricky. To force a
+certain code path, time must be externally controlled. Code under test
+shouldn't ever call DateTime.Now for current date and time or tests
+can only rely on a delta between previous current time and now. That
+tends to result in flaky unit tests.</p>
+
+<h3>Defining application wide SystemTime</h3> 
+
+<p>One way to control time is defining a SystemDate class as part of
+the
+project's <a href="https://martinfowler.com/bliki/Seedwork.html">seedwork</a>:</p>
+
+<pre>
+public static class SystemTime {
+    private static readonly Func<DateTimeOffset> DefaultProvider = () => DateTimeOffset.UtcNow;
+    private static Func<DateTimeOffset> _timeProvider = DefaultProvider;
+
+    public static DateTimeOffset Now => _timeProvider();
+
+    public static void SetTimeProvider(Func<DateTimeOffset> timeProvider) {
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    }
+
+    public static void ResetTimeProvider() {
+        _timeProvider = DefaultProvider;
+    }
+}
+</pre>
+
+<p>Notice the use of a static for storing the time provider; a
+tell-tell sign of trouble if running in a multi-threaded context (more
+on it later). Also notice how the default source of time is
+DateTimeOffset.UtcNow, and how SetTimeProvider may overwrite it. To
+make use of SystemTime, in production code, whenever we'd otherwise
+call DateTimeOffset.UtcNow, we must ensure to call SystemTime.Now.</p>
+
+<h3>Defining a test double for SystemTime</h3>
+
+<p>The power of SystemTime becomes apparent with unit testing. For
+this purpose we define a test double for SystemTime; one that allows
+setting a time provider inside a using block and that uses the
+IDisposable pattern to restore the default time provider when the
+block ends:</p>
+
+<pre>
+public class SystemTimeTestScope : IDisposable {
+    static Mutex Mutex = new Mutex();
+    static MethodBase CallSite;
+
+    public SystemTimeTestScope(Func<DateTimeOffset> provider, int millisecondsTimeout = 10000) {
+        if (Mutex.WaitOne(millisecondsTimeout)) {
+            SystemTime.SetTimeProvider(provider);
+            CallSite = new StackFrame(1).GetMethod();
+        }
+        else
+            throw new Exception($"Potential deadlock. Did you forget to call Dispose method or was Dispose method called too late? Lock is held by type: '{CallSite.DeclaringType}', method: {CallSite.Name}");
+    }
+
+    public static SystemTimeTestScope SetTimeTo(DateTimeOffset dateTimeOffset) =>
+        new SystemTimeTestScope(() => dateTimeOffset);
+
+    public static SystemTimeTestScope SetTimeTo(string time) =>
+        SetTimeTo(DateTimeOffset.Parse(time));
+
+    public void Dispose() {
+        SystemTime.ResetTimeProvider();
+        CallSite = null;
+        Mutex.ReleaseMutex();
+    }
+}
+</pre>
+    
+<p>It allows for the following test. In practice, SystemTime.Now would
+be called inside production code before asserting. Only for code
+executing inside the using block in the time January 1, 2018 at
+noon:</p>
+
+<pre>
+[Fact]
+public void SingleThreadedSystemTimeTestScope() {
+    var testNow = DateTimeOffset.Parse("2018-01-01T12:00:00");
+    using (new SystemTimeTestScope(() => testNow)) {
+        Assert.Equal(testNow, SystemTime.Now);
+    }
+}    
+</pre>
+
+<p>This approach provides granular control of time with little
+ceremony. It does come with one significant downside: because
+internally SystemTime relies on a static, in a multi-threading context
+each such using block could interfere with one another. In production
+code, with the default time provider, multi-threaded doesn't pose an
+issue: time returned always correspond to wall clock time, and because
+we're only ever reading, never resetting a time provider,
+thread-safety is a non-issue.</p>
+
+<h3>xUnit runs tests in parallel</h3>
+
+<p>With the xUnit test runner, according to
+<a href="https://xunit.net/docs/running-tests-in-parallel">documentation</a>,
+by default tests in a single class gets grouped in a single test
+collection and not run in parallel. But what if we have time tests
+across multiple test classes, and their test case methods happen to
+run in parallel? Then we'd up with a race condition, and random time
+test could be failing.</p>
+
+<p>The case is best reproduced using this contrived unit test,
+simulating parallel execution of unit tests:
+
+<pre>
+[Fact]
+public async Task MultiThreadedSystemTimeTestScope() {
+    var mutex = new AutoResetEvent(false);
+    var t1 = Task.Factory.StartNew(() => {
+        var testNow = DateTimeOffset.Parse("2018-01-01T12:00:00");
+        using (new SystemTimeTestScope(() => testNow)) {
+            mutex.Set();
+            Thread.Sleep(5000);
+            Assert.Equal(testNow, SystemTime.Now);
+        }
+    });
+
+    var t2 = Task.Factory.StartNew(() => {
+        mutex.WaitOne();
+        var testNow = DateTimeOffset.Parse("2018-02-01T12:00:00");
+        using (new SystemTimeTestScope(() => testNow))
+        {
+            Assert.Equal(testNow, SystemTime.Now);
+        }
+    });
+
+    await t1;
+    await t2;
+}
+</pre>
+
+<p>The test cases will always the current time being the actual
+result:</p>
+
+<pre>
+Assert.Equal() Failure
+Expected: 2018-01-01T12:00:00.0000000+00:00
+Actual:   2019-08-26T09:52:24.7845343+00:00
+</pre>
+
+<p>To avoid failing tests, we could serialize either all time related
+test, grouping them in a single class, serialize every test. The
+latter means unnecessarily increases the time it takes running
+tests. After all, the proportion of time tests to non-time tests would
+typically mean the chance of overlap it low. Otherwise, these tests
+would be failing with every run.</p>
+
+<p>To only serialize time related tests, the SystemTimeTestScope test
+double protects the using block using a mutex. Only a single using
+block can ever be executing at once. One using block may get queued
+waiting for another. If it's ever queued for more than 10 seconds, it
+indicates the holder of the lock took too long and we throw an
+exception printing the current holder.</p>
+
+<h3>Conclusion</h3>
+
+<p>SystemTime presents a low ceremony alternative to introducing an
+ITimeProvider service and dependency injecting in into production
+code. Production code would be calling _timeProvider.Now and tests,
+possibly using a mocking library, would construct their own
+implementation, returning a fixed time.</p>
+
+</div>
