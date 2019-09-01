@@ -36,8 +36,8 @@ public static class TimeProvider {
 TimeProvider.Now. Its default source of time is DateTime.UtcNow, but unit tests
 may switch in another provider. The main issue with TimeProvider is its static
 nature. In a multi-threaded writer setup, we'd need to synchronize access to
-it. Multiple threads reading, such as in code called from multiple ASP.NET
-worker threads, is thread-safe.</p>
+it. Multiple threads reading, such as ASP.NET worker threads, is
+thread-safe.</p>
 
 <h3>A TimeProvider wrapper for tests</h3>
 
