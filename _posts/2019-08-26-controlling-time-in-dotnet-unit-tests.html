@@ -115,9 +115,10 @@ public async Task MultiThreadedTimeProviderTestScope() {
     var t1 = Task.Factory.StartNew(() => {
         var testNow = DateTime.Parse("2018-01-01T12:00:00");
         using (new TimeProviderTestScope(() => testNow)) {
+            Assert.Equal(testNow, TimeProvider.Now);
             mutex.Set();
             Thread.Sleep(5000);
-            Assert.Equal(testNow, TimeProvider.Now);
+            Assert.Equal(testNow, TimeProvider.Now); // <- Assertion failure
         }
     });
 
