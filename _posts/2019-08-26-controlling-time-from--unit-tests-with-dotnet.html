@@ -21,17 +21,17 @@ we might include TimeProvider as shown below:</p>
 
 <pre class="prettyprint lang-cs">
 public static class TimeProvider {
-    static readonly Func<DateTime> DefaultProvider = () => DateTime.UtcNow;
-    static Func<DateTime> _timeProvider = DefaultProvider;
+    private static readonly Func<DateTime> DefaultProvider = () => DateTime.UtcNow;
+    private static Func<DateTime> Provider = DefaultProvider;
 
-    public static DateTime Now => _timeProvider();
+    public static DateTime Now => Provider();
 
-    public static void SetTimeProvider(Func<DateTime> timeProvider) {
-        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+    public static void SetTimeProvider(Func<DateTime> provider) {
+        Provider = provider ?? throw new ArgumentNullException(nameof(provider));
     }
 
     public static void ResetTimeProvider() {
-        _timeProvider = DefaultProvider;
+        Provider = DefaultProvider;
     }
 }
 </pre>
@@ -52,8 +52,8 @@ a using block:</p>
 
 <pre class="prettyprint lang-cs">
 public class TimeProviderTestScope : IDisposable {
-    static Mutex Mutex = new Mutex();
-    static MethodBase CallSite;
+    private static Mutex Mutex = new Mutex();
+    private static MethodBase CallSite;
 
     public TimeProviderTestScope(Func<DateTime> provider, int millisecondsTimeout = 10000) {
         if (Mutex.WaitOne(millisecondsTimeout)) {
@@ -61,7 +61,7 @@ public class TimeProviderTestScope : IDisposable {
             CallSite = new StackFrame(1).GetMethod();
         }
         else
-            throw new Exception($"Potential deadlock in test. Did you forget to call Dispose method or was Dispose method called too late? Lock is held by type: '{CallSite.DeclaringType}', method: {CallSite.Name}");
+            throw new Exception($"Forgot to call Dispose method or was Dispose method called too late? Lock is held by type: {CallSite.DeclaringType}, method: {CallSite.Name}");
     }
 
     public static TimeProviderTestScope SetTimeTo(DateTime dateTime) =>
