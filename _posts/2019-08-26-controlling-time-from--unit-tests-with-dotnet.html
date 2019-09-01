@@ -62,8 +62,8 @@ public class TimeProviderTestScope : IDisposable {
                 $"Lock is held by type: {CallSite.DeclaringType}, method: {CallSite.Name}");
     }
 
-    public static TimeProviderTestScope SetTimeTo(DateTime dateTime) =>
-        new TimeProviderTestScope(() => dateTime);
+    public static TimeProviderTestScope SetTimeTo(DateTime time) =>
+        new TimeProviderTestScope(() => time);
 
     public static TimeProviderTestScope SetTimeTo(string time) =>
         SetTimeTo(DateTime.Parse(time));
