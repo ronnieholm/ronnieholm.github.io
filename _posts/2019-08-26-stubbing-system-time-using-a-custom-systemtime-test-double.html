@@ -5,23 +5,19 @@ date: 2019-08-26 12:00 UTC
 ---
 
 <div id="post">
+<p>Unit testing code whose behavior depends on time can be tricky. To force code
+under test down a certain path, the test itself should control time. For this to
+work, code under test should query a provider for current time, and not rely on
+DateTime.UtcNow. This post outlines one such static TimeProvider. Compared to
+traditional dependency injection, a static provider avoids the need to thread it
+through the call stack to objects not directly created by a dependency injection
+container.</p>
 
-<p>Unit testing time related functionality can be tricky. Time must
-often be externally controlled to force code down a a certain
-code. One thing that's clear is that code under test shouldn't ever
-call DateTime.Now directly. That tends to result in flaky unit
-tests.</p>
+<h3>Replacing DateTime.Now by TimeProvider.Now</h3> 
 
-<p>This post outlines an approach to controlling time that goes
-against the typical ITimeService dependency injected approach and
-mocking it in unit tests. Instead we replace DateTime with a custom
-SystemTime, controllable from tests.</p>
-
-<h3>Replacing DateTime.Now with SystemTime.Now</h3> 
-
-<p>As part of our
+<p>As part of a
 project's <a href="https://martinfowler.com/bliki/Seedwork.html">seedwork</a>,
-we include SystemTime:</p>
+we might include TimeProvider as shown below:</p>
 
 <pre class="prettyprint lang-cs">
 public static class SystemTime {
@@ -40,20 +36,19 @@ public static class SystemTime {
 }
 </pre>
 
-<p>To use SystemTime in production code, whenever we'd call
-DateTimeOffset.UtcNow, we must replace it by SystemTime.Now. Its
-default source of time is the DateTimeOffset.UtcNow time provider, but
-tests may set another, perhaps one returning hardcoded time. The time
-provider itself goes in a static, a tell-tell sign of trouble if
-attempting to control time in a multi-threaded environment (more on
-that later).</p>
+<p>In code under test, we'd substitute calls to DateTime.UtcNow by
+TimeProvider.Now. Its default source of time is DateTime.UtcNow, but unit tests
+may switch in another provider. The main issue with TimeProvider is its static
+nature. In a multi-threaded writer setup, we'd need to synchronize access to
+it. Multiple threads reading, such as in code called from multiple ASP.NET
+worker threads, is thread-safe.</p>
 
-<h3>Defining a test double for SystemTime</h3>
+<h3>Defining a TimeProvider wrapper</h3>
 
-<p>The flexibility of SystemTime shows in unit tests. We can define a
-test double that wraps SystemTime. One that constrains a time provider
-to a using block and restores the default one when the using block
-ends:</p>
+<p>The TimeProvider's flexibility in controlling time as perceived by code under
+test is mostly useful in unit tests. To streamline its use, we wrap it in a
+TimeProviderTestScope that constrains a time provider's source of time to inside
+a using block:</p>
 
 <pre class="prettyprint lang-cs">
 public class SystemTimeTestScope : IDisposable {
@@ -83,10 +78,10 @@ public class SystemTimeTestScope : IDisposable {
 }
 </pre>
     
-<p>Below is a test showing SystemTimeTestScope in use. In a real test,
-SystemTime.Now is called from inside code being tested. The effect is
-that code executing inside the using block think it's January 1, 2018
-at noon:</p>
+<p>Below is a test showing the wrapper in use. From the point of view of code
+calling TimeProvider.Now inside the using block, time is January 1, 2018 at
+noon. Of course, in actual code under code the call to TimeProvider.Now would be
+deeper down the call stack:</p>
 
 <pre class="prettyprint lang-cs">
 [Fact]
@@ -98,25 +93,19 @@ public void SingleThreadedSystemTimeTestScope() {
 }    
 </pre>
 
-<p>Overall the approach provides granular control of time with low
-ceremony. However, because SystemTime stores the time provider in a
-static, using block executing in parallel would interfere with one
-another. Thread safety is only an issue with multi-threaded test
-runners, not with multi-threaded code running in production. The
-latter only ever reads from the default time provider.</p>
-
 <h3>Multi-threaded xUnit test runner</h3>
 
-<p>According to
-<a href="https://xunit.net/docs/running-tests-in-parallel">documentation</a>,
-the xUnit test runner defaults to grouping single class tests in a
-single test collection which isn't run in parallel. But time tests
-across multiple test collections do run in parallel, potentially
-causing time tests to fail because time was changed underneath it.</p>
+<p>Getting back to the issue of thread safety, because TimeProvider is
+effectively global, using blocks executing in parallel would interfere with one
+another. The xUnit test running, among others,
+<a href="https://xunit.net/docs/running-tests-in-parallel">defaults</a> to
+grouping tests in a single class into a single test collection whose tests are
+serialized. Conversely, multiple test collections run in parallel, causing
+overlapping time tests to fail at random.</p>
 
-<p>The case is best illustrated using this contrived unit test,
-simulating parallel execution of unit tests. We make sure that one
-tests waits for the other so test failure is guaranteed:
+<p>The case is best illustrated using the contrived test below, simulating
+parallel execution of two tests. We ensure that one test waits for the other so
+test failure is guaranteed:
 
 <pre class="prettyprint lang-cs">
 [Fact]
@@ -146,9 +135,9 @@ public async Task MultiThreadedSystemTimeTestScope() {
 }
 </pre>
 
-<p>The test case fails as follows because while the first test is
-waiting for five seconds, the second test completes and resets the
-time provider back to the default one:</p>
+<p>While the first test is waiting for five seconds, the second test completes
+and resets the time provider back to the default one. One the first tests
+resumes execution, time has changed underneath it causing it to fail:</p>
 
 <pre>
 Assert.Equal() Failure
@@ -156,26 +145,23 @@ Expected: 2018-01-01T12:00:00.0000000+00:00
 Actual:   2019-08-26T09:52:24.7845343+00:00
 </pre>
 
-<p>Though it would increase over running time, we could serialize test
-execution. But really, what we want is serializing time tests
-only. The proportion of time tests to non-time tests would typically
-be such that the chance of overlapping using block executing is
-low. Otherwise, time tests would fail with every run and not once in a
-while.</p>
+<p>While we could serialize executing across all tests, it would increase
+overall running time proportionally. A better solution is to serialize time
+tests only, as the proportion of time tests to non-time tests makes it unlikely
+that more than one test in its using block at once.</p>
 
-<p>To serialize time tests only, SystemTimeTestScope governs using
-block executing with a mutex. Only a single using block can ever
-execute at once. Another using block gets queued for up to 10 seconds
-after which a deadlock is assumed, and the current holder of the lock
-is included as part of the exception message.</p>
+<p>To serialize time tests only, TimeProviderTestScope has a mutex serialize
+access to the using block. Only a single using block can ever execute at
+once. Another using block gets queued for up to 10 seconds after which a
+deadlock is assumed, and the current holder reported.</p>
 
 <h3>Conclusion</h3>
 
-<p>SystemTime presents a low ceremony alternative to introducing an
-ITimeProvider service. Production code would have an implementation of
-it dependency injected, while test code could use a handwritten mock
-or a mocking library generated one returning fixed time. Whether one
-approach is better over another depends on the use case. It's always
-nice to have option, though.</p>
+<p>Technically, both the static and the dependency injection approach would
+work, but in this case the static approach wins. Used in a domain driven design
+setup, for instance, it's common for domain objects to want to query and set a
+field to the current time. Domain objects aren't directly constructed by a
+dependency injection container, and so would require the ITimeProvider instance
+to be passed down the call stack, polluting signatures along the way.</p>
 
 </div>
