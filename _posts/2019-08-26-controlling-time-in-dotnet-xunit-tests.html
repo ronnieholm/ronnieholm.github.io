@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Controlling time in .NET unit tests"
+title: "Controlling time in .NET xUnit tests"
 date: 2019-08-26 12:00 UTC
 ---
 
@@ -20,20 +20,17 @@ project's <a href="https://martinfowler.com/bliki/Seedwork.html">seedwork</a>,
 we might include TimeProvider as shown below:</p>
 
 <pre class="prettyprint lang-cs">
-public static class TimeProvider
-{
+public static class TimeProvider {
     static readonly Func<DateTime> DefaultProvider = () => DateTime.UtcNow;
     static Func<DateTime> _timeProvider = DefaultProvider;
 
     public static DateTime Now => _timeProvider();
 
-    public static void SetTimeProvider(Func<DateTime> timeProvider)
-    {
+    public static void SetTimeProvider(Func<DateTime> timeProvider) {
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public static void ResetTimeProvider()
-    {
+    public static void ResetTimeProvider() {
         _timeProvider = DefaultProvider;
     }
 }
@@ -54,15 +51,12 @@ TimeProviderTestScope that constrains a time provider's source of time to inside
 a using block:</p>
 
 <pre class="prettyprint lang-cs">
-public class TimeProviderTestScope : IDisposable
-{
+public class TimeProviderTestScope : IDisposable {
     static Mutex Mutex = new Mutex();
     static MethodBase CallSite;
 
-    public TimeProviderTestScope(Func<DateTime> provider, int millisecondsTimeout = 10000)
-    {
-        if (Mutex.WaitOne(millisecondsTimeout))
-        {
+    public TimeProviderTestScope(Func<DateTime> provider, int millisecondsTimeout = 10000) {
+        if (Mutex.WaitOne(millisecondsTimeout)) {
             TimeProvider.SetTimeProvider(provider);
             CallSite = new StackFrame(1).GetMethod();
         }
@@ -76,8 +70,7 @@ public class TimeProviderTestScope : IDisposable
     public static TimeProviderTestScope SetTimeTo(string time) =>
         SetTimeTo(DateTime.Parse(time));
 
-    public void Dispose()
-    {
+    public void Dispose() {
         TimeProvider.ResetTimeProvider();
         CallSite = null;
         Mutex.ReleaseMutex();
