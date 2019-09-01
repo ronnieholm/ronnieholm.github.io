@@ -23,16 +23,12 @@ we might include TimeProvider as shown below:</p>
 public static class TimeProvider {
     private static readonly Func<DateTime> DefaultProvider = () => DateTime.UtcNow;
     private static Func<DateTime> Provider = DefaultProvider;
-
     public static DateTime Now => Provider();
 
-    public static void SetTimeProvider(Func<DateTime> provider) {
+    public static void SetTimeProvider(Func<DateTime> provider) =>
         Provider = provider ?? throw new ArgumentNullException(nameof(provider));
-    }
 
-    public static void ResetTimeProvider() {
-        Provider = DefaultProvider;
-    }
+    public static void ResetTimeProvider() => Provider = DefaultProvider;
 }
 </pre>
 
@@ -61,7 +57,9 @@ public class TimeProviderTestScope : IDisposable {
             CallSite = new StackFrame(1).GetMethod();
         }
         else
-            throw new Exception($"Forgot to call Dispose method or was Dispose method called too late? Lock is held by type: {CallSite.DeclaringType}, method: {CallSite.Name}");
+            throw new Exception(
+                "Forgot to call Dispose method or was Dispose method called too late? " +
+                $"Lock is held by type: {CallSite.DeclaringType}, method: {CallSite.Name}");
     }
 
     public static TimeProviderTestScope SetTimeTo(DateTime dateTime) =>
