@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Stubbing system time using a custom SystemTime test double"
+title: "Externally controlling time in unit tests"
 date: 2019-08-26 12:00 UTC
 ---
 
@@ -46,7 +46,7 @@ nature. In a multi-threaded writer setup, we'd need to synchronize access to
 it. Multiple threads reading, such as in code called from multiple ASP.NET
 worker threads, is thread-safe.</p>
 
-<h3>Defining a TimeProvider wrapper</h3>
+<h3>A TimeProvider wrapper for tests</h3>
 
 <p>The TimeProvider's flexibility in controlling time as perceived by code under
 test is mostly useful in unit tests. To streamline its use, we wrap it in a
@@ -93,9 +93,9 @@ deeper down the call stack:</p>
 <pre class="prettyprint lang-cs">
 [Fact]
 public void SingleThreadedTimeProviderTestScope() {
-    var testNow = DateTimeOffset.Parse("2018-01-01T12:00:00");
-    using (new SystemTimeTestScope(() => testNow)) {
-        Assert.Equal(testNow, SystemTime.Now);
+    var testNow = DateTime.Parse("2018-01-01T12:00:00");
+    using (new TimeProviderTestScope(() => testNow)) {
+        Assert.Equal(testNow, TimeProvider.Now);
     }
 }    
 </pre>
@@ -120,20 +120,19 @@ public async Task MultiThreadedTimeProviderTestScope() {
     var mutex = new AutoResetEvent(false);
 
     var t1 = Task.Factory.StartNew(() => {
-        var testNow = DateTimeOffset.Parse("2018-01-01T12:00:00");
-        using (new SystemTimeTestScope(() => testNow)) {
+        var testNow = DateTime.Parse("2018-01-01T12:00:00");
+        using (new TimeProviderTestScope(() => testNow)) {
             mutex.Set();
             Thread.Sleep(5000);
-            Assert.Equal(testNow, SystemTime.Now);
+            Assert.Equal(testNow, TimeProvider.Now);
         }
     });
 
     var t2 = Task.Factory.StartNew(() => {
         mutex.WaitOne();
-        var testNow = DateTimeOffset.Parse("2018-02-01T12:00:00");
-        using (new SystemTimeTestScope(() => testNow))
-        {
-            Assert.Equal(testNow, SystemTime.Now);
+        var testNow = DateTime.Parse("2018-02-01T12:00:00");
+        using (new TimeProviderTestScope(() => testNow)) {
+            Assert.Equal(testNow, TimeProvider.Now);
         }
     });
 
