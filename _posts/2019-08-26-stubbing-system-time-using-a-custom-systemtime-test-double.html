@@ -10,8 +10,8 @@ under test down a certain path, the test itself should control time. For this to
 work, code under test should query a provider for current time, and not rely on
 DateTime.UtcNow. This post outlines one such static TimeProvider. Compared to
 traditional dependency injection, a static provider avoids the need to thread it
-through the call stack to objects not directly created by a dependency injection
-container.</p>
+through the call stack to objects not directly created by the dependency
+injection container.</p>
 
 <h3>Replacing DateTime.Now by TimeProvider.Now</h3> 
 
@@ -20,17 +20,20 @@ project's <a href="https://martinfowler.com/bliki/Seedwork.html">seedwork</a>,
 we might include TimeProvider as shown below:</p>
 
 <pre class="prettyprint lang-cs">
-public static class SystemTime {
-    static readonly Func<DateTimeOffset> DefaultProvider = () => DateTimeOffset.UtcNow;
-    static Func<DateTimeOffset> _timeProvider = DefaultProvider;
+public static class TimeProvider
+{
+    static readonly Func<DateTime> DefaultProvider = () => DateTime.UtcNow;
+    static Func<DateTime> _timeProvider = DefaultProvider;
 
-    public static DateTimeOffset Now => _timeProvider();
+    public static DateTime Now => _timeProvider();
 
-    public static void SetTimeProvider(Func<DateTimeOffset> timeProvider) {
+    public static void SetTimeProvider(Func<DateTime> timeProvider)
+    {
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public static void ResetTimeProvider() {
+    public static void ResetTimeProvider()
+    {
         _timeProvider = DefaultProvider;
     }
 }
@@ -51,27 +54,31 @@ TimeProviderTestScope that constrains a time provider's source of time to inside
 a using block:</p>
 
 <pre class="prettyprint lang-cs">
-public class SystemTimeTestScope : IDisposable {
+public class TimeProviderTestScope : IDisposable
+{
     static Mutex Mutex = new Mutex();
     static MethodBase CallSite;
 
-    public SystemTimeTestScope(Func<DateTimeOffset> provider, int millisecondsTimeout = 10000) {
-        if (Mutex.WaitOne(millisecondsTimeout)) {
-            SystemTime.SetTimeProvider(provider);
+    public TimeProviderTestScope(Func<DateTime> provider, int millisecondsTimeout = 10000)
+    {
+        if (Mutex.WaitOne(millisecondsTimeout))
+        {
+            TimeProvider.SetTimeProvider(provider);
             CallSite = new StackFrame(1).GetMethod();
         }
         else
-            throw new Exception($"Potential deadlock. Did you forget to call Dispose method or was Dispose method called too late? Lock is held by type: '{CallSite.DeclaringType}', method: {CallSite.Name}");
+            throw new Exception($"Potential deadlock in test. Did you forget to call Dispose method or was Dispose method called too late? Lock is held by type: '{CallSite.DeclaringType}', method: {CallSite.Name}");
     }
 
-    public static SystemTimeTestScope SetTimeTo(DateTimeOffset dateTimeOffset) =>
-        new SystemTimeTestScope(() => dateTimeOffset);
+    public static TimeProviderTestScope SetTimeTo(DateTime dateTime) =>
+        new TimeProviderTestScope(() => dateTime);
 
-    public static SystemTimeTestScope SetTimeTo(string time) =>
-        SetTimeTo(DateTimeOffset.Parse(time));
+    public static TimeProviderTestScope SetTimeTo(string time) =>
+        SetTimeTo(DateTime.Parse(time));
 
-    public void Dispose() {
-        SystemTime.ResetTimeProvider();
+    public void Dispose()
+    {
+        TimeProvider.ResetTimeProvider();
         CallSite = null;
         Mutex.ReleaseMutex();
     }
@@ -85,7 +92,7 @@ deeper down the call stack:</p>
 
 <pre class="prettyprint lang-cs">
 [Fact]
-public void SingleThreadedSystemTimeTestScope() {
+public void SingleThreadedTimeProviderTestScope() {
     var testNow = DateTimeOffset.Parse("2018-01-01T12:00:00");
     using (new SystemTimeTestScope(() => testNow)) {
         Assert.Equal(testNow, SystemTime.Now);
@@ -109,7 +116,7 @@ test failure is guaranteed:
 
 <pre class="prettyprint lang-cs">
 [Fact]
-public async Task MultiThreadedSystemTimeTestScope() {
+public async Task MultiThreadedTimeProviderTestScope() {
     var mutex = new AutoResetEvent(false);
 
     var t1 = Task.Factory.StartNew(() => {
