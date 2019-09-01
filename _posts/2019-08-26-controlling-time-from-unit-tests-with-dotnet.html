@@ -21,11 +21,11 @@ we might include TimeProvider as shown below:</p>
 
 <pre class="prettyprint lang-cs">
 public static class TimeProvider {
-    private static readonly Func<DateTime> DefaultProvider = () => DateTime.UtcNow;
-    private static Func<DateTime> Provider = DefaultProvider;
+    private static readonly Func&lt;DateTime&gt; DefaultProvider = () => DateTime.UtcNow;
+    private static Func&lt;DateTime&gt; Provider = DefaultProvider;
     public static DateTime Now => Provider();
 
-    public static void SetTimeProvider(Func<DateTime> provider) =>
+    public static void SetTimeProvider(Func&lt;DateTime&gt; provider) =>
         Provider = provider ?? throw new ArgumentNullException(nameof(provider));
 
     public static void ResetTimeProvider() => Provider = DefaultProvider;
@@ -51,7 +51,7 @@ public class TimeProviderTestScope : IDisposable {
     private static Mutex Mutex = new Mutex();
     private static MethodBase CallSite;
 
-    public TimeProviderTestScope(Func<DateTime> provider, int millisecondsTimeout = 10000) {
+    public TimeProviderTestScope(Func&lt;DateTime&gt; provider, int millisecondsTimeout = 10000) {
         if (Mutex.WaitOne(millisecondsTimeout)) {
             TimeProvider.SetTimeProvider(provider);
             CallSite = new StackFrame(1).GetMethod();
