@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Controlling time in .NET unit tests"
+title: "Controlling time from .NET unit tests"
 date: 2019-08-26 12:00 UTC
 ---
 
@@ -93,7 +93,7 @@ public void SingleThreadedTimeProviderTestScope() {
 }    
 </pre>
 
-<h3>Multi-threaded xUnit test runner</h3>
+<h3>Multi-threaded test runners</h3>
 
 <p>Getting back to the issue of thread safety, because TimeProvider is
 effectively global, using blocks executing in parallel would interfere with one
