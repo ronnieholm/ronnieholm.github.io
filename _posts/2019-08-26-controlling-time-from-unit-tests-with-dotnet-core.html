@@ -147,6 +147,12 @@ Expected: 2018-01-01T12:00:00.0000000+00:00
 Actual:   2019-08-26T09:52:24.7845343+00:00
 </pre>
 
+<p>In the second case, here's the exception we end up with:</p>
+
+<pre>
+System.Exception: 'Forgot to call Dispose method or was Dispose method called too late? Lock is held by member 'MultiThreadedTimeProviderTestScopeSuccess' at '...\TimeProviderTestScopeTests.cs:29'
+</pre>
+
 <h3>Conclusion</h3>
 
 <p>Technically, both the static and the dependency injection approach would
