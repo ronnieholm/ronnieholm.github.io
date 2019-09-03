@@ -105,13 +105,12 @@ global, using blocks in multiple collection run in parallel and share one time
 provider -- time in one block or after a block permeates into another, causing
 random test failures.</p>
 
-<p>The case is best illustrated using the contrived test below, simulating
+<p>The case is best illustrated using the contrived tests below, simulating
 parallel execution of two tests. We ensure that one test waits for the other so
 that test failure without thread synchronization is guaranteed:
 
 <pre class="prettyprint lang-cs">
-[Fact]
-public async Task MultiThreadedTimeProviderTestScope() {
+private async Task TwoParallelTestsAsync(int firstTestInducedDelayMilliseconds, int secondTestWaitTimeoutMilliseconds) {
     var mutex = new AutoResetEvent(false);
 
     var t1 = Task.Factory.StartNew(() => {
@@ -119,15 +118,15 @@ public async Task MultiThreadedTimeProviderTestScope() {
         using (new TimeProviderTestScope(() => testNow)) {
             Assert.Equal(testNow, TimeProvider.Now);
             mutex.Set();
-            Thread.Sleep(5000);
-            Assert.Equal(testNow, TimeProvider.Now); // <- Assertion failure
+            Thread.Sleep(firstTestInducedDelayMilliseconds);
+            Assert.Equal(testNow, TimeProvider.Now);
         }
     });
 
     var t2 = Task.Factory.StartNew(() => {
         mutex.WaitOne();
         var testNow = DateTime.Parse("2018-02-01T12:00:00");
-        using (new TimeProviderTestScope(() => testNow)) {
+        using (new TimeProviderTestScope(() => testNow, secondTestWaitTimeoutMilliseconds)) {
             Assert.Equal(testNow, TimeProvider.Now);
         }
     });
@@ -135,11 +134,24 @@ public async Task MultiThreadedTimeProviderTestScope() {
     await t1;
     await t2;
 }
+
+[Fact]
+public async Task MultiThreadedTimeProviderTestScopeSuccess() {
+    await TwoParallelTestsAsync(5000, 10000);
+}
+
+[Fact]
+public async Task MultiThreadedTimeProviderTestScopeFail() {
+    // Set t2's timeout less than t1's wait to trigger "locked" exception.
+    var e = await Assert.ThrowsAsync&lt;Exception&gt;(() => TwoParallelTestsAsync(5000, 1000));
+    Assert.Contains("Lock is held", e.Message);
+}
 </pre>
 
-<p>While the first test is waiting for five seconds, the second test completes
-and resets the provider to the default one. Once the first tests resumes
-execution, time has changed underneath it causing it to fail:</p>
+<p>In MultiThreadedTimeProviderTestScopeSuccess, without synchronization, the
+first test would wait for five seconds, all the while the second test would've
+completed and reset the provider to the default one. When the first test resumes
+time would've changed underneath it causing it to fail:</p>
 
 <pre>
 Assert.Equal() Failure
@@ -147,10 +159,14 @@ Expected: 2018-01-01T12:00:00.0000000+00:00
 Actual:   2019-08-26T09:52:24.7845343+00:00
 </pre>
 
-<p>In the second case, here's the exception we end up with:</p>
+<p>In MultiThreadedTimeProviderTestScopeFail, we have the first test wait for
+longer than the second test is ready to wait, causing the following exception
+with call site information:</p>
 
 <pre>
-System.Exception: 'Forgot to call Dispose method or was Dispose method called too late? Lock is held by member 'MultiThreadedTimeProviderTestScopeSuccess' at '...\TimeProviderTestScopeTests.cs:29'
+System.Exception: 'Forgot to call Dispose method or was Dispose method called
+too late? Lock is held by member 'MultiThreadedTimeProviderTestScopeSuccess' at
+'...\TimeProviderTestScopeTests.cs:29'
 </pre>
 
 <h3>Conclusion</h3>
