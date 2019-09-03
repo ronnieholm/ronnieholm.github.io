@@ -110,7 +110,7 @@ parallel execution of two tests. We ensure that one test waits for the other so
 that test failure without thread synchronization is guaranteed:
 
 <pre class="prettyprint lang-cs">
-private async Task TwoParallelTestsAsync(int firstTestInducedDelayMilliseconds, int secondTestWaitTimeoutMilliseconds) {
+private async Task TwoParallelTestsAsync(int delayMilliseconds, int timeoutMilliseconds) {
     var mutex = new AutoResetEvent(false);
 
     var t1 = Task.Factory.StartNew(() => {
@@ -118,7 +118,7 @@ private async Task TwoParallelTestsAsync(int firstTestInducedDelayMilliseconds, 
         using (new TimeProviderTestScope(() => testNow)) {
             Assert.Equal(testNow, TimeProvider.Now);
             mutex.Set();
-            Thread.Sleep(firstTestInducedDelayMilliseconds);
+            Thread.Sleep(delayMilliseconds);
             Assert.Equal(testNow, TimeProvider.Now);
         }
     });
@@ -126,7 +126,7 @@ private async Task TwoParallelTestsAsync(int firstTestInducedDelayMilliseconds, 
     var t2 = Task.Factory.StartNew(() => {
         mutex.WaitOne();
         var testNow = DateTime.Parse("2018-02-01T12:00:00");
-        using (new TimeProviderTestScope(() => testNow, secondTestWaitTimeoutMilliseconds)) {
+        using (new TimeProviderTestScope(() => testNow, timeoutMilliseconds)) {
             Assert.Equal(testNow, TimeProvider.Now);
         }
     });
@@ -142,7 +142,7 @@ public async Task MultiThreadedTimeProviderTestScopeSuccess() {
 
 [Fact]
 public async Task MultiThreadedTimeProviderTestScopeFail() {
-    // Set t2's timeout less than t1's wait to trigger "locked" exception.
+    // Set t2's timeout less than t1's wait period to trigger "locked" exception.
     var e = await Assert.ThrowsAsync&lt;Exception&gt;(() => TwoParallelTestsAsync(5000, 1000));
     Assert.Contains("Lock is held", e.Message);
 }
