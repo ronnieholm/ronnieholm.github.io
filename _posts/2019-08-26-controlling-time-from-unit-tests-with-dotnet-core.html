@@ -48,28 +48,38 @@ thread safe:</p>
 <pre class="prettyprint lang-cs">
 public class TimeProviderTestScope : IDisposable {
     private static Mutex Mutex = new Mutex();
-    private static MethodBase CallSite;
+    private static string MemberName;
+    private static string FilePath;
+    private static int LineNumber;
 
-    public TimeProviderTestScope(Func&lt;DateTime&gt; provider, int millisecondsTimeout = 10000) {
+    public TimeProviderTestScope(Func&lt;DateTime&gt; provider,
+        int millisecondsTimeout = 10000,
+        [CallerMemberName] string memberName = "",
+        [CallerFilePath] string filePath = "",
+        [CallerLineNumber] int lineNumber = 0) {
         if (Mutex.WaitOne(millisecondsTimeout)) {
             TimeProvider.SetTimeProvider(provider);
-            CallSite = new StackFrame(1).GetMethod();
+            MemberName = memberName;
+            FilePath = filePath;
+            LineNumber = lineNumber;
         }
         else
             throw new Exception(
                 "Forgot to call Dispose method or was Dispose method called too late? " +
-                $"Lock is held by type: {CallSite.DeclaringType}, method: {CallSite.Name}");
+                $"Lock is held by member '{MemberName}' at '{FilePath}:{LineNumber}");
     }
 
-    public static TimeProviderTestScope SetTimeTo(DateTime time) =>
-        new TimeProviderTestScope(() => time);
+    public static TimeProviderTestScope SetTimeTo(DateTime time) =&gt;
+        new TimeProviderTestScope(() =&gt; time);
 
-    public static TimeProviderTestScope SetTimeTo(string time) =>
+    public static TimeProviderTestScope SetTimeTo(string time) =&gt;
         SetTimeTo(DateTime.Parse(time));
 
     public void Dispose() {
         TimeProvider.ResetTimeProvider();
-        CallSite = null;
+        MemberName = "";
+        FilePath = "";
+        LineNumber = 0;
         Mutex.ReleaseMutex();
     }
 }
