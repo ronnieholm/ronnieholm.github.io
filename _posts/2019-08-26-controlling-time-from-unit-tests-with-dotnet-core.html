@@ -53,11 +53,11 @@ public class TimeProviderTestScope : IDisposable {
     private static int LineNumber;
 
     public TimeProviderTestScope(Func&lt;DateTime&gt; provider,
-        int millisecondsTimeout = 10000,
+        int timeoutMilliseconds = 10000,
         [CallerMemberName] string memberName = "",
         [CallerFilePath] string filePath = "",
         [CallerLineNumber] int lineNumber = 0) {
-        if (Mutex.WaitOne(millisecondsTimeout)) {
+        if (Mutex.WaitOne(timeoutMilliseconds)) {
             TimeProvider.SetTimeProvider(provider);
             MemberName = memberName;
             FilePath = filePath;
