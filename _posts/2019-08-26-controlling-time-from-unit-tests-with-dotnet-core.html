@@ -186,7 +186,7 @@ namespace MyProject.UnitTests {
 test represented by task t1 would artificially halt for five seconds while the
 second test represented by task t2 would complete. When t2 exits its using
 block, the provider is reset to the default one. When the first test resumes,
-time would've changed underneath it causing it to fail:</p>
+time would've changed underneath it, causing it to fail:</p>
 
 <pre>
 Assert.Equal() Failure
@@ -218,9 +218,8 @@ an object that is, polluting signatures along the way.</p>
 <p>Also, the ITimeProvider would have to be registered with the dependency
 injection container, and an application using many components could end up
 having to register an independent ITimeProvider for more than one
-component. Either that or a component would have to provide its own extension
-method registering ITimeProvider in the same way that ASP.NET's provides
-convenient Add methods used in Startup.cs. That's unnecessary complexity for
-most components.</p>
+component. Either that or each component would have to provide an extension
+method to register ITimeProvider, much in the same way .NET core provides
+convenient Add methods for use in Startup.cs.</p>
 
 </div>
