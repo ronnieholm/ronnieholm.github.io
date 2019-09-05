@@ -6,18 +6,17 @@ date: 2019-08-26 12:00 UTC
 
 <div id="post">
 
-<p>Unless the test itself controls time as perceived by code under test, testing
-time dependent behavior is tricky. For this to work, code under test must query
-a custom operating system independent time provider. This post outlines one such
-global provider and compares it a dependency injected one. A global provider
-avoids passing it down the call stack to objects not created by the dependency
-injection container, but comes with potential threading issues.</p>
+<p>Unless a test controls time as perceived by code under test, testing time
+dependent behavior is tricky. For it to work, code under test must query a
+machine independent source of time. A program global variant of such a time
+provider, avoiding the need to pass it down the call stack to objects not
+created by a dependency injection container, is outlined in this post.</p>
 
 <h3>Replacing DateTime.Now by TimeProvider.Now</h3> 
 
-<p>As part of the
+<p>As part of a
 project's <a href="https://martinfowler.com/bliki/Seedwork.html">seedwork</a>,
-we might include a TimeProvider as shown below:</p>
+we might include the TimeProvider below:</p>
 
 <pre class="prettyprint lang-cs">
 public static class TimeProvider {
@@ -32,18 +31,17 @@ public static class TimeProvider {
 }
 </pre>
 
-<p>The provider uses DateTime.UtcNow as its default source of time, but allows
-for unit tests to switch in other providers. To use it, code under test must
-simply substitute calls to DateTime.UtcNow for TimeProvider.Now. That's all
-there's to it from the perspective of code under test.</p>
+<p>While using DateTime.UtcNow as its default source of time, it supports
+switching to other providers. Then code under test must substitute calls to
+DateTime.UtcNow for TimeProvider.Now and the provider takes care of the
+rest.</p>
 
 <h3>A TimeProvider wrapper for tests</h3>
 
-<p>To streamline the TimeProvider's use from tests, we wrap it in a
-TimeProviderTestScope to constrain its source of time to a using block. We also
-address multi-threading writer issues arising from its use of static (more on it
-later). Multiple threads reading, such as ASP.NET worker threads, is already
-thread safe:</p>
+<p>To streamline TimeProvider use from within tests, we wrap the type to
+constrain its source of time to a using block and make its static members
+thread-safe. Multiple threads reading time was already thread safe, but setting
+time wasn't:</p>
 
 <pre class="prettyprint lang-cs">
 public class TimeProviderTestScope : IDisposable {
@@ -85,15 +83,15 @@ public class TimeProviderTestScope : IDisposable {
 }
 </pre>
 
-<p>To serialize time tests only, TimeProviderTestScope has a mutex serialize
-access to the using block. Only a single using block can ever execute at
-once. Another using block gets queued for up to 10 seconds after which a
-deadlock is assumed, and the current holder reported.</p>
+<p>TimeProviderTestScope serializes execution of using blocks within which time
+is controlled by the provider. Only a single using block can be executing at
+once. Another using block is queued for up to 10 seconds after which a exception
+is raised, reporting who currently executing.</p>
 
-<p>Below is a test showing the wrapper in use. From the point of view of code
-inside the using block calling TimeProvider.Now, time is January 1, 2018 at
-noon. Of course, in actual code under test the call to TimeProvider.Now would be
-down the stack:</p>
+<p>Below is a test showing the wrapper in use. For code inside the using block
+calling TimeProvider.Now, time is January 1, 2018 at noon, regardless of actual
+system time. Of course, in real code under test the call to TimeProvider.Now
+would be down the call stack:</p>
 
 <pre class="prettyprint lang-cs">
 [Fact]
@@ -107,13 +105,13 @@ public void SingleThreadedTimeProviderTestScope() {
 
 <h3>Multi-threaded test runners</h3>
 
-<p>The xUnit test runner, among others,
-<a href="https://xunit.net/docs/running-tests-in-parallel">defaults</a> to
-grouping tests in one class into one test collection where they run in
-sequence. Without thread synchronization, because TimeProvider is effectively a
-global, using blocks in multiple collection run in parallel and share one time
-provider -- time in one block or after a block permeates into another, causing
-random test failures.</p>
+<p>Using block serialization is due to the xUnit test runner among others. It
+<a href="https://xunit.net/docs/running-tests-in-parallel">groups</a> tests in
+one class into one test collection, whose tests execute one by one. Multiple
+test collections execute in parallel, though, and without synchronization using
+blocks across multiple collection share one time provider. Time in one block or
+after a block permeates into another, leading to false positive test
+failures.</p>
 
 <p>The case is best illustrated using the contrived tests below, simulating
 parallel execution of two tests. We ensure that one test waits for the other so
