@@ -18,11 +18,18 @@ actual system time. Of course, in real code under test the call to
 TimeProvider.Now would be down the call stack:</p>
 
 <pre class="prettyprint lang-cs">
-[Fact]
-public void SingleThreadedTimeProviderTestScope() {
-    var testNow = DateTime.Parse("2018-01-01T12:00:00");
-    using (new TimeProviderTestScope(() => testNow)) {
-        Assert.Equal(testNow, TimeProvider.Now);
+using System;
+using Xunit;
+using MyProject.SeedWork;
+using MyProject.UnitTests.Seedwork;
+
+namespace MyProject.UnitTests {
+    [Fact]
+    public void SingleThreadedTimeProviderTestScope() {
+        var testNow = DateTime.Parse("2018-01-01T12:00:00");
+        using (new TimeProviderTestScope(() => testNow)) {
+            Assert.Equal(testNow, TimeProvider.Now);
+        }
     }
 }
 </pre>
@@ -34,15 +41,19 @@ project's <a href="https://martinfowler.com/bliki/Seedwork.html">seedwork</a>,
 we might include the TimeProvider below:</p>
 
 <pre class="prettyprint lang-cs">
-public static class TimeProvider {
-    private static readonly Func&lt;DateTime&gt; DefaultProvider = () => DateTime.UtcNow;
-    private static Func&lt;DateTime&gt; Provider = DefaultProvider;
-    public static DateTime Now => Provider();
+using System;
 
-    public static void SetTimeProvider(Func&lt;DateTime&gt; provider) =>
-        Provider = provider ?? throw new ArgumentNullException(nameof(provider));
+namespace MyProject.SeedWork {
+    public static class TimeProvider {
+        private static readonly Func&lt;DateTime&gt; DefaultProvider = () => DateTime.UtcNow;
+        private static Func&lt;DateTime&gt; Provider = DefaultProvider;
+        public static DateTime Now => Provider();
 
-    public static void ResetTimeProvider() => Provider = DefaultProvider;
+        public static void SetTimeProvider(Func&lt;DateTime&gt; provider) =>
+            Provider = provider ?? throw new ArgumentNullException(nameof(provider));
+
+        public static void ResetTimeProvider() => Provider = DefaultProvider;
+    }
 }
 </pre>
 
@@ -59,41 +70,48 @@ thread-safe. Multiple threads reading time was already thread safe, but setting
 time wasn't:</p>
 
 <pre class="prettyprint lang-cs">
-public class TimeProviderTestScope : IDisposable {
-    private static Mutex Mutex = new Mutex();
-    private static string MemberName;
-    private static string FilePath;
-    private static int LineNumber;
+using System;
+using System.Threading;
+using System.Runtime.CompilerServices;
+using MyProject.SeedWork;
 
-    public TimeProviderTestScope(Func&lt;DateTime&gt; provider,
-        int timeoutMilliseconds = 10000,
-        [CallerMemberName] string memberName = "",
-        [CallerFilePath] string filePath = "",
-        [CallerLineNumber] int lineNumber = 0) {
-        if (Mutex.WaitOne(timeoutMilliseconds)) {
-            TimeProvider.SetTimeProvider(provider);
-            MemberName = memberName;
-            FilePath = filePath;
-            LineNumber = lineNumber;
+namespace MyProject.UnitTests.SeedWork {
+    public class TimeProviderTestScope : IDisposable {
+        private static Mutex Mutex = new Mutex();
+        private static string MemberName;
+        private static string FilePath;
+        private static int LineNumber;
+
+        public TimeProviderTestScope(Func&lt;DateTime&gt; provider,
+            int timeoutMilliseconds = 10000,
+            [CallerMemberName] string memberName = "",
+            [CallerFilePath] string filePath = "",
+            [CallerLineNumber] int lineNumber = 0) {
+            if (Mutex.WaitOne(timeoutMilliseconds)) {
+                TimeProvider.SetTimeProvider(provider);
+                MemberName = memberName;
+                FilePath = filePath;
+                LineNumber = lineNumber;
+            }
+            else
+                throw new Exception(
+                    "Forgot to call Dispose method or was Dispose method called too late? " +
+                    $"Lock is held by member '{MemberName}' at '{FilePath}:{LineNumber}");
         }
-        else
-            throw new Exception(
-                "Forgot to call Dispose method or was Dispose method called too late? " +
-                $"Lock is held by member '{MemberName}' at '{FilePath}:{LineNumber}");
-    }
 
-    public static TimeProviderTestScope SetTimeTo(DateTime time) =&gt;
-        new TimeProviderTestScope(() =&gt; time);
+        public static TimeProviderTestScope SetTimeTo(DateTime time) =&gt;
+            new TimeProviderTestScope(() =&gt; time);
 
-    public static TimeProviderTestScope SetTimeTo(string time) =&gt;
-        SetTimeTo(DateTime.Parse(time));
+        public static TimeProviderTestScope SetTimeTo(string time) =&gt;
+            SetTimeTo(DateTime.Parse(time));
 
-    public void Dispose() {
-        TimeProvider.ResetTimeProvider();
-        MemberName = "";
-        FilePath = "";
-        LineNumber = 0;
-        Mutex.ReleaseMutex();
+        public void Dispose() {
+            TimeProvider.ResetTimeProvider();
+            MemberName = "";
+            FilePath = "";
+            LineNumber = 0;
+            Mutex.ReleaseMutex();
+        }
     }
 }
 </pre>
@@ -117,41 +135,50 @@ parallel execution of two tests. We make sure one test waits for the other so
 that without thread synchronization undesired behavior is guaranteed:
 
 <pre class="prettyprint lang-cs">
-private async Task TwoParallelTestsAsync(int delayMilliseconds, int timeoutMilliseconds) {
-    var mutex = new AutoResetEvent(false);
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+using MyProject.SeedWork;
+using MyProject.UnitTests.Seedwork;
 
-    var t1 = Task.Factory.StartNew(() => {
-        var testNow = DateTime.Parse("2018-01-01T12:00:00");
-        using (new TimeProviderTestScope(() => testNow)) {
-            Assert.Equal(testNow, TimeProvider.Now);
-            mutex.Set();
-            Thread.Sleep(delayMilliseconds);
-            Assert.Equal(testNow, TimeProvider.Now);
-        }
-    });
+namespace MyProject.UnitTests {
+    private async Task TwoParallelTestsAsync(int delayMilliseconds, int timeoutMilliseconds) {
+        var mutex = new AutoResetEvent(false);
 
-    var t2 = Task.Factory.StartNew(() => {
-        mutex.WaitOne();
-        var testNow = DateTime.Parse("2018-02-01T12:00:00");
-        using (new TimeProviderTestScope(() => testNow, timeoutMilliseconds)) {
-            Assert.Equal(testNow, TimeProvider.Now);
-        }
-    });
+        var t1 = Task.Factory.StartNew(() => {
+            var testNow = DateTime.Parse("2018-01-01T12:00:00");
+            using (new TimeProviderTestScope(() => testNow)) {
+                Assert.Equal(testNow, TimeProvider.Now);
+                mutex.Set();
+                Thread.Sleep(delayMilliseconds);
+                Assert.Equal(testNow, TimeProvider.Now);
+            }
+        });
 
-    await t1;
-    await t2;
-}
+        var t2 = Task.Factory.StartNew(() => {
+            mutex.WaitOne();
+            var testNow = DateTime.Parse("2018-02-01T12:00:00");
+            using (new TimeProviderTestScope(() => testNow, timeoutMilliseconds)) {
+                Assert.Equal(testNow, TimeProvider.Now);
+            }
+        });
 
-[Fact]
-public async Task MultiThreadedTimeProviderTestScopeSuccess() {
-    await TwoParallelTestsAsync(5000, 10000);
-}
+        await t1;
+        await t2;
+    }
 
-[Fact]
-public async Task MultiThreadedTimeProviderTestScopeFail() {
-    // Set t2's timeout less than t1's wait period to trigger "locked" exception.
-    var e = await Assert.ThrowsAsync&lt;Exception&gt;(() => TwoParallelTestsAsync(5000, 1000));
-    Assert.Contains("Lock is held", e.Message);
+    [Fact]
+    public async Task MultiThreadedTimeProviderTestScopeSuccess() {
+        await TwoParallelTestsAsync(5000, 10000);
+    }
+
+    [Fact]
+    public async Task MultiThreadedTimeProviderTestScopeFail() {
+        // Set t2's timeout less than t1's wait period to trigger "locked" exception.
+        var e = await Assert.ThrowsAsync&lt;Exception&gt;(() => TwoParallelTestsAsync(5000, 1000));
+        Assert.Contains("Lock is held", e.Message);
+    }
 }
 </pre>
 
