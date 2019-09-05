@@ -12,6 +12,21 @@ machine independent source of time. A program global variant of such a time
 provider, avoiding the need to pass it down the call stack to objects not
 created by a dependency injection container, is outlined in this post.</p>
 
+<p>The goal is to write tests like the one below. For code inside the using
+block calling TimeProvider.Now, time is January 1, 2018 at noon, regardless of
+actual system time. Of course, in real code under test the call to
+TimeProvider.Now would be down the call stack:</p>
+
+<pre class="prettyprint lang-cs">
+[Fact]
+public void SingleThreadedTimeProviderTestScope() {
+    var testNow = DateTime.Parse("2018-01-01T12:00:00");
+    using (new TimeProviderTestScope(() => testNow)) {
+        Assert.Equal(testNow, TimeProvider.Now);
+    }
+}
+</pre>
+
 <h3>Replacing DateTime.Now by TimeProvider.Now</h3> 
 
 <p>As part of a
@@ -88,21 +103,6 @@ is controlled by the provider. Only a single using block can be executing at
 once. Another using block is queued for up to 10 seconds after which a exception
 is raised, reporting who currently executing.</p>
 
-<p>Below is a test showing the wrapper in use. For code inside the using block
-calling TimeProvider.Now, time is January 1, 2018 at noon, regardless of actual
-system time. Of course, in real code under test the call to TimeProvider.Now
-would be down the call stack:</p>
-
-<pre class="prettyprint lang-cs">
-[Fact]
-public void SingleThreadedTimeProviderTestScope() {
-    var testNow = DateTime.Parse("2018-01-01T12:00:00");
-    using (new TimeProviderTestScope(() => testNow)) {
-        Assert.Equal(testNow, TimeProvider.Now);
-    }
-}    
-</pre>
-
 <h3>Multi-threaded test runners</h3>
 
 <p>Using block serialization is due to the xUnit test runner among others. It
@@ -110,12 +110,11 @@ public void SingleThreadedTimeProviderTestScope() {
 one class into one test collection, whose tests execute one by one. Multiple
 test collections execute in parallel, though, and without synchronization using
 blocks across multiple collection share one time provider. Time in one block or
-after a block permeates into another, leading to false positive test
-failures.</p>
+after a block permeates into another, leading to false negatives.</p>
 
 <p>The case is best illustrated using the contrived tests below, simulating
-parallel execution of two tests. We ensure that one test waits for the other so
-that test failure without thread synchronization is guaranteed:
+parallel execution of two tests. We make sure one test waits for the other so
+that without thread synchronization undesired behavior is guaranteed:
 
 <pre class="prettyprint lang-cs">
 private async Task TwoParallelTestsAsync(int delayMilliseconds, int timeoutMilliseconds) {
@@ -157,8 +156,9 @@ public async Task MultiThreadedTimeProviderTestScopeFail() {
 </pre>
 
 <p>In MultiThreadedTimeProviderTestScopeSuccess, without synchronization, the
-first test would wait for five seconds, all the while the second test would've
-completed and reset the provider to the default one. When the first test resumes
+test represented by task t1 would artificially halt for five seconds while the
+second test represented by task t2 would complete. When t2 exits its using
+block, the provider is reset to the default one. When the first test resumes,
 time would've changed underneath it causing it to fail:</p>
 
 <pre>
@@ -167,9 +167,10 @@ Expected: 2018-01-01T12:00:00.0000000+00:00
 Actual:   2019-08-26T09:52:24.7845343+00:00
 </pre>
 
-<p>In MultiThreadedTimeProviderTestScopeFail, we have the first test wait for
-longer than the second test is ready to wait, causing the following exception
-with call site information:</p>
+<p>In MultiThreadedTimeProviderTestScopeFail, we have the first test block for
+longer than the second test is ready to wait entering the using block. That
+causes an exception with call site information (line 28 is t1's using
+statement):</p>
 
 <pre>
 System.Exception: 'Forgot to call Dispose method or was Dispose method called
@@ -179,11 +180,20 @@ too late? Lock is held by member 'TwoParallelTestsAsync' at
 
 <h3>Conclusion</h3>
 
-<p>Technically, both the static and the dependency injection approach would
-work, but in this case the static approach wins. Used in a domain driven design
-setup, for instance, it's common for domain objects to want to query for and set
-a field to the current time. Domain objects aren't directly constructed by a
-dependency injection container, and so would require the ITimeProvider instance
-to be passed down the call stack, polluting signatures along the way.</p>
+<p>Technically, both the program global and the dependency injection approaches
+work, but in this case the global approach wins. Used in a domain driven design
+setup, for instance, it's common for a domain object's logic to query for time
+and run conditional logic or set a domain object's property based on current
+time. Domain objects aren't constructed by a dependency injection container, and
+so would need an ITimeProvider instance passed down through the call stack from
+an object that is, polluting signatures along the way.</p>
+
+<p>Also, the ITimeProvider would have to be registered with the dependency
+injection container, and an application using many components could end up
+having to register an independent ITimeProvider for more than one
+component. Either that or a component would have to provide its own extension
+method registering ITimeProvider in the same way that ASP.NET's provides
+convenient Add methods used in Startup.cs. That's unnecessary complexity for
+most components.</p>
 
 </div>
