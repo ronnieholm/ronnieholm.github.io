@@ -20,7 +20,7 @@ TimeProvider.Now would be down the call stack:</p>
 <pre class="prettyprint lang-cs">
 using System;
 using Xunit;
-using MyProject.SeedWork;
+using MyProject.Seedwork;
 using MyProject.UnitTests.Seedwork;
 
 namespace MyProject.UnitTests {
@@ -43,7 +43,7 @@ we might include the TimeProvider below:</p>
 <pre class="prettyprint lang-cs">
 using System;
 
-namespace MyProject.SeedWork {
+namespace MyProject.Seedwork {
     public static class TimeProvider {
         private static readonly Func&lt;DateTime&gt; DefaultProvider = () => DateTime.UtcNow;
         private static Func&lt;DateTime&gt; Provider = DefaultProvider;
@@ -73,9 +73,9 @@ time wasn't:</p>
 using System;
 using System.Threading;
 using System.Runtime.CompilerServices;
-using MyProject.SeedWork;
+using MyProject.Seedwork;
 
-namespace MyProject.UnitTests.SeedWork {
+namespace MyProject.UnitTests.Seedwork {
     public class TimeProviderTestScope : IDisposable {
         private static Mutex Mutex = new Mutex();
         private static string MemberName;
@@ -139,7 +139,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using MyProject.SeedWork;
+using MyProject.Seedwork;
 using MyProject.UnitTests.Seedwork;
 
 namespace MyProject.UnitTests {
