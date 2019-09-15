@@ -31,6 +31,13 @@ namespace MyProject.UnitTests {
         using (new TimeProviderTestScope(() => testNow)) {
             Assert.Equal(testNow, TimeProvider.Now);
         }
+
+        // Test the passing of 15 minutes.
+
+        testNow = DateTime.Parse("2018-01-01T12:15:00");
+        using (new TimeProviderTestScope(() => testNow)) {
+            Assert.Equal(testNow, TimeProvider.Now);
+        }
     }
 }
 </pre>
