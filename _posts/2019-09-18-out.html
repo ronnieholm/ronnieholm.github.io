@@ -1,0 +1,147 @@
+---
+layout: post
+title: "Working title"
+date: 2019-09-18 12:00 UTC
+---
+
+<div id="post">
+  <p>
+    The other day I came across a problem in system integration with an
+    interesting math twist: from a multi-threaded web application, on-demand,
+    one-way synchronize customers from one system to another. At the source,
+    customers are identified
+    by <a href="https://tools.ietf.org/html/rfc4122">Globally Unique
+    Identifier</a> (GUID), such as "63b0e1db-cd2f-4265-b4f1-eb4b436b6adf", which
+    the destination system doesn't supports. It only allows for up to 24
+    characters (0-9, a-z). As a final touch, the GUIDs
+    <a href="https://docs.microsoft.com/en-us/sql/t-sql/functions/newsequentialid-transact-sql?view=sqlallproducts-allversions">sequential</a>
+    rather than random and at least one of the first 24 characters is reserved
+    as a classification preamble.
+  </p>
+  <p>
+    The challenge is then how to reliably map a sequential GUID onto an
+    alphanumeric numeric string while maintaining the invariants imposed by
+    multi-threading.
+  </p>
+  <h3>Encoding GUID using larger alphabet</h3>
+  <p>
+    In its standard base 16 representation, even without dashes, a GUID is 32
+    characters (or from now on digits) long so an as-is copy is of the
+    question. But what if we take advantage of the larger bandwidth of the
+    alphanumeric field and encode the 128 bits GUID not in base 16 but base 35,
+    using the digits of the alphanumeric alphabet. By making better use of the
+    available bandwidth, the message representation is shortened.
+  </p>  
+  <p>
+    The relationship between required number of digits \(d\), message length
+    \(l\) in bits, and base \(b\) is described the following equation. Since a
+    bit is an indivisible unit, result is rounded upwards:
+
+    $$d = \left\lceil\dfrac{\log{(2^{l})}}{\log{(b)}}\right\rceil = \left\lceil\dfrac{\log{(2^{128})}}{\log(35)}\right\rceil = \lceil{24.95}\rceil = 25$$
+
+    In and off itself, encoding using the larger base doesn't solve
+    issue. Suppose we wanted a three-digits, the question is how many bits would
+    go into the remaining 21 digit, base 35 number. To answer that question, how
+    we arrived at above equation is important.
+  </p>
+  <h3>Leaving room for preamble</h3>
+  <p>
+    Consider that with \(l\) bits one may represent up to \(2^l\) states
+    \(s\). Reserving one state for zero, the \(l\) bits may represent numbers 0
+    through \(2^{l} - 1\) (like in base 10 where two digits represent \(10^2\)
+    states or numbers 0 through 99). Solving for \(d\) below, we arrive at the
+    equation above:
+
+    $$\begin{eqnarray*}
+    b^d = s & & \textrm{\{states from base and digits\}}\\
+    \log{(b^d)} = \log(s) & & \textrm{\{apply \(\log\) to both sides}\}\\
+    d\log(b) = \log(s) & & \textrm{\{apply rule of \(\log x^y = y \log(x)\)}\}\\
+    d = \dfrac{\log(s)}{\log(b)} & & \textrm{\{divide both sides by \(\log(b)\)}\}
+    \end{eqnarray*}$$
+
+    With 21 digits, we must solve for \(l\) and since the bit is an indivisible
+    unit, result is rounded down:
+
+    $$\begin{eqnarray*}
+    \left\lfloor\dfrac{\log(2^l)}{\log(35)}\right\rfloor = 21 & &\\
+    \left\lfloor\dfrac{l\log(2)}{\log(35)}\right\rfloor = 21 & & \textrm{\{apply rule of \(\log x^y = y \log(x)\)}\}\\    
+    l = \left\lfloor\dfrac{21\log(35)}{\log(2)}\right\rfloor & & \textrm{\{multiply and divide}\}\\
+    l = \left\lfloor107.71...\right\rfloor = 107 & &
+    \end{eqnarray*}$$   
+
+    In other words, with 21 base 35 digits, we don't have room for 128 - 107, or
+    21 bits of the original key.
+  </p>
+  <h3>Making sequential GUIDs random</h3>
+  <p>
+    The original 128 bits aren't random. How these GUIDs are generated is an
+    internal
+    implementation <a href="https://blogs.msdn.microsoft.com/dbrowne/2012/07/03/how-to-generate-sequential-guids-for-sql-server-in-net">detail</a>
+    of MS SQL Server. We don't know which 21 bits it's safe to drop without
+    increasing the risk of collisions. Worse even, the algorithm may have
+    changed over time and is subject to change in the future.
+  </p>
+  <p>
+    We must add randomness to original bit positions. One way to accomplish this
+    is computing a hash of the 128 bits. Using SHA1, for instance, regardless of
+    original input size, output is 160 bits. Instead of dropping 21 bits of
+    original key, we must drop 160 - 107 = 53 bits of SHA1 output. As long as
+    we're consistent with which bit position we drop, we can drop any bit, and
+    so we bit-wise right-shift by 53 bits.
+  </p>
+  <p>
+    We're down to 107 bits that base 35 encoded is a 21 digit number. Downside
+    is that because SHA1 is a one-way hash function, and because we dropped
+    bits, we can't get back to the original. In this case it doesn't matter
+    because we store the original in a separate field in the destination
+    record. Multi-threading does introduce a slight complication.
+  <p>  
+  <h3>Multi-threaded/process record creation and possible race conditions</h3>
+  <p>
+    On the surface, it seems we could've settled for a simpler scheme and simply
+    generated the 107 bits at random with no relationship to the
+    original. Unfortunately, it leads to possible race conditions in the
+    creation process. Imagine two threads about to create a record at
+    destination. Each threads queries for the original GUID and gets zero
+    records back. Each kicks off the creating process and each one will
+    succeed. But now destination has two records, with different random IDs, but
+    actually pointing back to one record. Having deterministic IDs means only
+    one creation will succeed as ID must be unique across all records.
+  </p>
+  <h3>Bit length and probability of key collisions</h3>
+  <p>
+    But because of our hashing and subsequent bit shifting, there's a
+    possibility that two source GUIDs map to the same destination ID. The more
+    records we generate, the larger the chance of such collision. From a
+    generalization of
+    the <a href="https://en.wikipedia.org/wiki/Birthday_problem">Birthday
+    problem</a>, if we have \(n\) records and \(s\) states, the approximate
+    probability of a collision is (multiply by 100 for percent):
+
+    <!-- https://keisan.casio.com/calculator -->
+    $$\begin{eqnarray*}
+    p(n,s) = 1 - e^{-n^2 / 2^s}\\
+    p(10^6,2^{32}) = 1\\
+    p(10^6,2^{48}) \sim 3.55\textrm{e-03}\\
+    p(10^6,2^{64}) \sim 5.42\textrm{e-08}\\
+    p(10^6,2^{107}) \sim 6.16\textrm{e-21}
+    \end{eqnarray*}$$   
+
+    Assuming SHA1 output is uniformly distributed, even after dropping bits the
+    probability of a collision is infinitesimal. If for whatever reason the
+    black swan event does happen, it's important we able to at least detect it
+    and preventive actions. We'll detect is an a single record return, but with
+    a the original record inside it being different than the one used to
+    generate the ID. In that rare case the original ID must the changed.
+  </p>
+  <h3>Summary</h3>
+  <p>
+    
+    
+    $$(\textrm{sha\(_1\)} \circ \textrm{rshift\(_{53}\)} \circ \textrm{encode\(_{35}\)})(\textrm{guid})$$
+
+    We can also switch generation strategy later on. If we determine that
+    multi-threaded isn't required, we can switch to random IDs. Whatever we use
+    in an internal implementation detail.
+  </p>
+</div>
