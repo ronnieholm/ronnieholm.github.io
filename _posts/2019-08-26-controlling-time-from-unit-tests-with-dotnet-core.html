@@ -6,21 +6,22 @@ date: 2019-08-26 12:00 UTC
 
 <div id="post">
 
-<p>Unless a test controls time as perceived by code under test, testing time
-dependent behavior is tricky. For it to work, code under test must query a
-machine independent source of time. A program global variant of such a time
-provider, avoiding the need to pass it down the call stack to objects not
-created by a dependency injection container, is outlined in this post.</p>
+<p>Unless a test controls time, testing time dependent behavior becomes
+tricky. Code under test must query a test specific, machine independent provider
+of time. One such provider is outlined in this post. Specifically, one that
+avoids the dependency injection container, doesn't require being passed down the
+call stack to objects not created by container, and doesn't require a mocking
+library to reduce boilerplate in testing.</p>
 
-<p>The goal is to write tests like the one below. For code inside the using
-block calling TimeProvider.Now, time is January 1, 2018 at noon, regardless of
-actual system time. Of course, in real code under test the call to
-TimeProvider.Now would be down the call stack:</p>
+<p>The goal is to write tests like the one below. Inside the using block time is
+January 1, 2018 at noon, regardless of actual system time. Of course, in real
+code under test the call to TimeProvider.Now wouldn't be in the unit test but
+down the call stack:</p>
 
 <pre class="prettyprint lang-cs">
 using System;
 using Xunit;
-using MyProject.SeedWork;
+using MyProject.Seedwork;
 using MyProject.UnitTests.Seedwork;
 
 namespace MyProject.UnitTests {
@@ -30,20 +31,27 @@ namespace MyProject.UnitTests {
         using (new TimeProviderTestScope(() => testNow)) {
             Assert.Equal(testNow, TimeProvider.Now);
         }
+
+        // Test the passing of 15 minutes.
+
+        testNow = DateTime.Parse("2018-01-01T12:15:00");
+        using (new TimeProviderTestScope(() => testNow)) {
+            Assert.Equal(testNow, TimeProvider.Now);
+        }
     }
 }
 </pre>
 
 <h3>Replacing DateTime.Now by TimeProvider.Now</h3> 
 
-<p>As part of a
-project's <a href="https://martinfowler.com/bliki/Seedwork.html">seedwork</a>,
-we might include the TimeProvider below:</p>
+<p>To arrive at the unit test above, the first step is add to a
+project's <a href="https://martinfowler.com/bliki/Seedwork.html">seedwork</a>
+the (potentially) system time independent TimeProvider:</p>
 
 <pre class="prettyprint lang-cs">
 using System;
 
-namespace MyProject.SeedWork {
+namespace MyProject.Seedwork {
     public static class TimeProvider {
         private static readonly Func&lt;DateTime&gt; DefaultProvider = () => DateTime.UtcNow;
         private static Func&lt;DateTime&gt; Provider = DefaultProvider;
@@ -57,25 +65,23 @@ namespace MyProject.SeedWork {
 }
 </pre>
 
-<p>While using DateTime.UtcNow as its default source of time, it supports
-switching to other providers. Then code under test must substitute calls to
-DateTime.UtcNow for TimeProvider.Now and the provider takes care of the
-rest.</p>
+<p>While the provider's default time is DateTime.UtcNow, other providers of time
+may be substituted in. A unit test would typically provide a hardcoded time read
+by code under test.</p>
 
 <h3>A TimeProvider wrapper for tests</h3>
 
-<p>To streamline TimeProvider use from within tests, we wrap the type to
-constrain its source of time to a using block and make its static members
-thread-safe. Multiple threads reading time was already thread safe, but setting
-time wasn't:</p>
+<p>To make easy use of TimeProvider in unit tests, we wrap it such that its
+source of time is constrained to a using block and such that the wrapper is
+thread-safe (more on thread-safety later):</p>
 
 <pre class="prettyprint lang-cs">
 using System;
 using System.Threading;
 using System.Runtime.CompilerServices;
-using MyProject.SeedWork;
+using MyProject.Seedwork;
 
-namespace MyProject.UnitTests.SeedWork {
+namespace MyProject.UnitTests.Seedwork {
     public class TimeProviderTestScope : IDisposable {
         private static Mutex Mutex = new Mutex();
         private static string MemberName;
@@ -116,30 +122,32 @@ namespace MyProject.UnitTests.SeedWork {
 }
 </pre>
 
-<p>TimeProviderTestScope serializes execution of using blocks within which time
-is controlled by the provider. Only a single using block can be executing at
-once. Another using block is queued for up to 10 seconds after which a exception
-is raised, reporting who currently executing.</p>
+<p>TimeProviderTestScope serializes execution of code in using blocks within
+which time is controlled by the provider. Parallel execution of two using
+blocks, on different threads, will cause one to get queued for up to 10 seconds
+after which an exception is thrown. The exception reports which method is
+currently executing.</p>
 
 <h3>Multi-threaded test runners</h3>
 
-<p>Using block serialization is due to the xUnit test runner among others. It
-<a href="https://xunit.net/docs/running-tests-in-parallel">groups</a> tests in
-one class into one test collection, whose tests execute one by one. Multiple
-test collections execute in parallel, though, and without synchronization using
-blocks across multiple collection share one time provider. Time in one block or
-after a block permeates into another, leading to false negatives.</p>
+<p>The main reason for serializing using blocks is the xUnit test runner. It
+<a href="https://xunit.net/docs/running-tests-in-parallel">groups</a> tests into
+collections: each class with tests becomes a test collection whose tests execute
+one after the other. Across test collections, tests execute in parallel and
+without proper synchronization time in one collection would leak into another,
+causing test failures. All because the source of time inside TimeProvider is a
+static.</p>
 
-<p>The case is best illustrated using the contrived tests below, simulating
-parallel execution of two tests. We make sure one test waits for the other so
-that without thread synchronization undesired behavior is guaranteed:
+<p>The contrived tests below illustrate the issue by simulating two tests
+executing in parallel. We make sure t2 waits for t1 so that without thread
+synchronization undesired behavior is guaranteed on each run:
 
 <pre class="prettyprint lang-cs">
 using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using MyProject.SeedWork;
+using MyProject.Seedwork;
 using MyProject.UnitTests.Seedwork;
 
 namespace MyProject.UnitTests {
@@ -182,11 +190,10 @@ namespace MyProject.UnitTests {
 }
 </pre>
 
-<p>In MultiThreadedTimeProviderTestScopeSuccess, without synchronization, the
-test represented by task t1 would artificially halt for five seconds while the
-second test represented by task t2 would complete. When t2 exits its using
-block, the provider is reset to the default one. When the first test resumes,
-time would've changed underneath it, causing it to fail:</p>
+<p>Without synchronization, in MultiThreadedTimeProviderTestScopeSuccess t1
+would halt for five seconds while t2 completes. As t2 exits its using block, the
+shared provider is reset to current time. When t1 resumes, time would've changed
+underneath it, causing it to fail (assuming current time is August 26):</p>
 
 <pre>
 Assert.Equal() Failure
@@ -194,10 +201,10 @@ Expected: 2018-01-01T12:00:00.0000000+00:00
 Actual:   2019-08-26T09:52:24.7845343+00:00
 </pre>
 
-<p>In MultiThreadedTimeProviderTestScopeFail, we have the first test block for
-longer than the second test is ready to wait entering the using block. That
-causes an exception with call site information (line 28 is t1's using
-statement):</p>
+<p>Using blocks in unit tests are generally CPU bound and execute
+quickly. MultiThreadedTimeProviderTestScopeFail shows what happens when it's not
+the case. Here t1 blocks for longer than t2 is prepared to wait, causing an
+exception with call site information (line 28 is t1's using statement):</p>
 
 <pre>
 System.Exception: 'Forgot to call Dispose method or was Dispose method called
@@ -207,19 +214,13 @@ too late? Lock is held by member 'TwoParallelTestsAsync' at
 
 <h3>Conclusion</h3>
 
-<p>Technically, both the program global and the dependency injection approaches
-work, but in this case the global approach wins. Used in a domain driven design
-setup, for instance, it's common for a domain object's logic to query for time
-and run conditional logic or set a domain object's property based on current
-time. Domain objects aren't constructed by a dependency injection container, and
-so would need an ITimeProvider instance passed down through the call stack from
-an object that is, polluting signatures along the way.</p>
-
-<p>Also, the ITimeProvider would have to be registered with the dependency
-injection container, and an application using many components could end up
-having to register an independent ITimeProvider for more than one
-component. Either that or each component would have to provide an extension
-method to register ITimeProvider, much in the same way .NET core provides
-convenient Add methods for use in Startup.cs.</p>
+<p>Both TimeProvider and traditional dependency injection provide external
+control of time. But used with domain driven design, for instance, the former
+has its advantages: it's common for a domain object, which isn't constructed by
+a dependency injection container, to query time. With dependency injection, an
+ITimeProvider instance would have to be passed down the call stack from an
+object created by the container, polluting signatures. With TimeProvider,
+because it's effectively global, it's readily available everywhere, and the
+threading issues are isolated to tests.</p>
 
 </div>
