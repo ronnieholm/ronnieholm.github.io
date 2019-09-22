@@ -13,16 +13,16 @@ date: 2019-09-18 12:00 UTC
     by <a href="https://tools.ietf.org/html/rfc4122">Globally Unique
     Identifier</a> (GUID), such as "63b0e1db-cd2f-4265-b4f1-eb4b436b6adf", which
     the destination system doesn't supports. It supports up to 24 characters
-    (0-9, a-z), such as "6474kyka9wq7s8at4t1up", only. As a final touch, the
-    GUIDs are sequential rather than random and at least one of the first 24
-    characters is reserved as a classification preamble.
+    (0-9, a-z) only. As a final touch, the GUIDs are sequential rather than
+    random and at least one of the first 24 characters is reserved as a
+    classification preamble.
   </p>
   <p>
     The challenge is then how to reliably map a sequential GUID onto an
     alphanumeric numeric string while maintaining the invariants imposed by
     multi-threading.
   </p>
-  <h3>Encoding GUID using larger alphabet</h3>
+  <h3>Encoding GUID using a larger alphabet</h3>
   <p>
     In its standard base 16 representation, even without dashes, a GUID is 32
     characters (or from now on digits) long so an as-is copy is of the
