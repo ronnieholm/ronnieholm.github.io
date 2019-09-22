@@ -12,11 +12,10 @@ date: 2019-09-18 12:00 UTC
     customers are identified
     by <a href="https://tools.ietf.org/html/rfc4122">Globally Unique
     Identifier</a> (GUID), such as "63b0e1db-cd2f-4265-b4f1-eb4b436b6adf", which
-    the destination system doesn't supports. It only allows for up to 24
-    characters (0-9, a-z). As a final touch, the GUIDs
-    <a href="https://docs.microsoft.com/en-us/sql/t-sql/functions/newsequentialid-transact-sql?view=sqlallproducts-allversions">sequential</a>
-    rather than random and at least one of the first 24 characters is reserved
-    as a classification preamble.
+    the destination system doesn't supports. It supports up to 24 characters
+    (0-9, a-z), such as "6474kyka9wq7s8at4t1up", only. As a final touch, the
+    GUIDs are sequential rather than random and at least one of the first 24
+    characters is reserved as a classification preamble.
   </p>
   <p>
     The challenge is then how to reliably map a sequential GUID onto an
@@ -74,12 +73,13 @@ date: 2019-09-18 12:00 UTC
   </p>
   <h3>Making sequential GUIDs random</h3>
   <p>
-    The original 128 bits aren't random. How these GUIDs are generated is an
-    internal
-    implementation <a href="https://blogs.msdn.microsoft.com/dbrowne/2012/07/03/how-to-generate-sequential-guids-for-sql-server-in-net">detail</a>
-    of MS SQL Server. We don't know which 21 bits it's safe to drop without
-    increasing the risk of collisions. Worse even, the algorithm may have
-    changed over time and is subject to change in the future.
+    The original 128 bits represents
+    a <a href="https://docs.microsoft.com/en-us/sql/t-sql/functions/newsequentialid-transact-sql?view=sqlallproducts-allversions">sequential
+    GUID</a>,
+    whose <a href="https://blogs.msdn.microsoft.com/dbrowne/2012/07/03/how-to-generate-sequential-guids-for-sql-server-in-net">implementation
+    details</a> we shouldn't rely on. So we don't know which 21 bits to drop
+    without increasing the risk of a collision. Worse even, the algorithm may
+    have changed over time and is subject to change in the future.
   </p>
   <p>
     We must add randomness to original bit positions. One way to accomplish this
@@ -116,9 +116,9 @@ date: 2019-09-18 12:00 UTC
     generalization of
     the <a href="https://en.wikipedia.org/wiki/Birthday_problem">Birthday
     problem</a>, if we have \(n\) records and \(s\) states, the approximate
-    probability of a collision is (multiply by 100 for percent):
+    probability of a collision is (multiply by 100 for percentage):
 
-    <!-- https://keisan.casio.com/calculator -->
+    <!-- High precision calculator: https://keisan.casio.com/calculator -->
     $$\begin{eqnarray*}
     p(n,s) = 1 - e^{-n^2 / 2^s}\\
     p(10^6,2^{32}) = 1\\
@@ -136,12 +136,15 @@ date: 2019-09-18 12:00 UTC
   </p>
   <h3>Summary</h3>
   <p>
-    
-    
-    $$(\textrm{sha\(_1\)} \circ \textrm{rshift\(_{53}\)} \circ \textrm{encode\(_{35}\)})(\textrm{guid})$$
+    We end up with the following equation to descripe the mapping:
 
-    We can also switch generation strategy later on. If we determine that
-    multi-threaded isn't required, we can switch to random IDs. Whatever we use
-    in an internal implementation detail.
+    $$\begin{eqnarray*}    
+    \textrm{map}(\textrm{guid}) = (\textrm{sha\(_1\)} \circ \textrm{rshift\(_{53}\)} \circ \textrm{encode\(_{35}\)})(\textrm{guid})\\
+    \textrm{map}(\textrm{63b0e1db-cd2f-4265-b4f1-eb4b436b6adf}) = \textrm{6474kyka9wq7s8at4t1up}
+    \end{eqnarray*}$$ 
+    
+    We can switch generation strategy later on. If we determine that
+    multi-threaded is not longer a requirement, we could switch to random
+    generated IDs. However we generate IDs is an implementation detail.
   </p>
 </div>
