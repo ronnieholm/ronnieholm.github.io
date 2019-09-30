@@ -7,43 +7,41 @@ date: 2019-09-18 12:00 UTC
 <div id="post">
   <p>
     The other day I came across a problem in system integration with an
-    interesting math twist: from a multi-threaded web application, on-demand,
-    one-way synchronize customers from one system to another. At the source,
-    customers are identified
-    by <a href="https://tools.ietf.org/html/rfc4122">Globally Unique
-    Identifier</a> (GUID), such as "63b0e1db-cd2f-4265-b4f1-eb4b436b6adf", which
-    the destination system doesn't supports. It supports up to 24 characters
-    (0-9, a-z) only. As a final touch, the GUIDs are sequential rather than
-    random and at least one of the first 24 characters is reserved as a
-    classification preamble.
+    interesting math twist: one-way multi-thread or multi-process synchronize
+    customers from one system to another. At the source, customers are
+    identified by sequential
+    <a href="https://tools.ietf.org/html/rfc4122">Globally Unique
+    Identifier</a>s (GUID), such as "63b0e1db-cd2f-4265-b4f1-eb4b436b6adf", that
+    destination doesn't support. Destination identifies customers by up to 24
+    alphanumeric characters (0-9, a-z) of which at least the first is reserved
+    for a preamble.
   </p>
   <p>
-    The challenge is then how to reliably map a sequential GUID onto an
-    alphanumeric numeric string while maintaining the invariants imposed by
-    multi-threading.
+    The challenge is then how to map a sequential GUID onto an alphanumeric
+    numeric string while supporting a multi-threading or multi-process
+    environment.
   </p>
-  <h3>Encoding GUID using a larger alphabet</h3>
+  <h3>Encoding a GUID using a larger alphanumeric alphabet</h3>
   <p>
-    In its standard base 16 representation, even without dashes, a GUID is 32
-    characters (or from now on digits) long so an as-is copy is of the
-    question. But what if we take advantage of the larger bandwidth of the
-    alphanumeric field and encode the 128 bits GUID not in base 16 but base 35,
-    using the digits of the alphanumeric alphabet. By making better use of the
-    available bandwidth, the message representation is shortened.
+    A GUID in its standard base 16 representation, even without dashes, is 32
+    characters (from now also referred to as digits) in length. As-is copying to
+    destination is thus not an option. But taking advantage of the larger
+    bandwidth of the alphanumeric alphabet, if we encode the 128 bits GUID not
+    in base 16 but base 35, its length is shortened.
   </p>  
   <p>
-    The relationship between required number of digits \(d\), message length
-    \(l\) in bits, and base \(b\) is described the following equation. Since a
-    bit is an indivisible unit, result is rounded upwards:
+    The relationship between number of digits required \(d\), message length
+    \(l\) in bits, and base \(b\) is described by the following equation. Since
+    a bit is an indivisible unit, the result must be rounded upwards:
 
     $$d = \left\lceil\dfrac{\log{(2^{l})}}{\log{(b)}}\right\rceil = \left\lceil\dfrac{\log{(2^{128})}}{\log(35)}\right\rceil = \lceil{24.95}\rceil = 25$$
 
-    In and off itself, encoding using the larger base doesn't solve
-    issue. Suppose we wanted a three-digits, the question is how many bits would
-    go into the remaining 21 digit, base 35 number. To answer that question, how
-    we arrived at above equation is important.
+    As we see, base 35 encoding alone doesn't solve our problem. Suppose we
+    reserve three digits for preamble, how many bits can we fit into the
+    remaining 21 base 35 encoded digits? To answer this question, how we arrived
+    at above equation is important.
   </p>
-  <h3>Leaving room for preamble</h3>
+  <h3>Reserving digits for preamble</h3>
   <p>
     Consider that with \(l\) bits one may represent up to \(2^l\) states
     \(s\). Reserving one state for zero, the \(l\) bits may represent numbers 0
@@ -58,8 +56,8 @@ date: 2019-09-18 12:00 UTC
     d = \dfrac{\log(s)}{\log(b)} & & \textrm{\{divide both sides by \(\log(b)\)}\}
     \end{eqnarray*}$$
 
-    With 21 digits, we must solve for \(l\) and since the bit is an indivisible
-    unit, result is rounded down:
+    With a fixed 21 digits we solve for \(l\) and since the bit is an
+    indivisible unit, the result must be rounded down:
 
     $$\begin{eqnarray*}
     \left\lfloor\dfrac{\log(2^l)}{\log(35)}\right\rfloor = 21 & &\\
@@ -68,55 +66,53 @@ date: 2019-09-18 12:00 UTC
     l = \left\lfloor107.71...\right\rfloor = 107 & &
     \end{eqnarray*}$$   
 
-    In other words, with 21 base 35 digits, we don't have room for 128 - 107, or
-    21 bits of the original key.
+    In other words, 21 base 35 digits equals 107 bits. That's 21 bits less than
+    the original.
   </p>
   <h3>Making sequential GUIDs random</h3>
   <p>
-    The original 128 bits represents
+    The starting GUID represents
     a <a href="https://docs.microsoft.com/en-us/sql/t-sql/functions/newsequentialid-transact-sql?view=sqlallproducts-allversions">sequential
     GUID</a>,
     whose <a href="https://blogs.msdn.microsoft.com/dbrowne/2012/07/03/how-to-generate-sequential-guids-for-sql-server-in-net">implementation
-    details</a> we shouldn't rely on. So we don't know which 21 bits to drop
-    without increasing the risk of a collision. Worse even, the algorithm may
-    have changed over time and is subject to change in the future.
+    details</a> we shouldn't depend on. So which 21 bits to drop without
+    increasing the risk of a collision we can't tell. Worse still, the algorithm
+    for generating sequential GUIDs may have changed over time and may change
+    again in the future.
   </p>
   <p>
-    We must add randomness to original bit positions. One way to accomplish this
-    is computing a hash of the 128 bits. Using SHA1, for instance, regardless of
-    original input size, output is 160 bits. Instead of dropping 21 bits of
-    original key, we must drop 160 - 107 = 53 bits of SHA1 output. As long as
-    we're consistent with which bit position we drop, we can drop any bit, and
-    so we bit-wise right-shift by 53 bits.
+    One way to add randomness is to compute a hash of the original 128
+    bits. With SHA1 for instance, regardless of input size, output is 160
+    bits. Now instead of dropping 21 bits of the original, we must drop 53 bits
+    of the SHA1. We can drop any 53 bits as long as we're consistent with which
+    to drop; a bit-wise right-shift by 53 bits is the simplest solution.
   </p>
   <p>
-    We're down to 107 bits that base 35 encoded is a 21 digit number. Downside
-    is that because SHA1 is a one-way hash function, and because we dropped
-    bits, we can't get back to the original. In this case it doesn't matter
-    because we store the original in a separate field in the destination
-    record. Multi-threading does introduce a slight complication.
+    Downside is that because SHA1 is a one-way hash function, and because we're
+    dropping bits, mapping is also a one-way function. It doesn't matter in this
+    case because we can store the original GUID in a separate field in each
+    destination record. But multi-threading or multi-process does introduce a
+    slight complication.
   <p>  
-  <h3>Multi-threaded/process record creation and possible race conditions</h3>
+  <h3>Multi-threaded or multi-process and possible race conditions</h3>
   <p>
-    On the surface, it seems we could've settled for a simpler scheme and simply
-    generated the 107 bits at random with no relationship to the
-    original. Unfortunately, it leads to possible race conditions in the
-    creation process. Imagine two threads about to create a record at
-    destination. Each threads queries for the original GUID and gets zero
-    records back. Each kicks off the creating process and each one will
-    succeed. But now destination has two records, with different random IDs, but
-    actually pointing back to one record. Having deterministic IDs means only
-    one creation will succeed as ID must be unique across all records.
+    It seems we could've settled for a simpler scheme and just generated the 107
+    bits at random. Unfortunately, this would introduce a race condition into
+    the record creation process. Imagine two threads or two processes about to
+    create a record at destination. With random bits, each may query for the
+    original GUID and get a empty result back. Each then creates the record and
+    succeeds. But now destination has two records matching one at source. With
+    deterministic IDs only one record is created. The second creation attempt
+    will fail, by design.
   </p>
   <h3>Bit length and probability of key collisions</h3>
   <p>
-    But because of our hashing and subsequent bit shifting, there's a
-    possibility that two source GUIDs map to the same destination ID. The more
-    records we generate, the larger the chance of such collision. From a
-    generalization of
+    Because of hashing and subsequent bit shifting, there's a possibility that
+    two source GUIDs would map to the same destination. The more records we
+    generate, the larger the chance of a collision. From a generalization of
     the <a href="https://en.wikipedia.org/wiki/Birthday_problem">Birthday
-    problem</a>, if we have \(n\) records and \(s\) states, the approximate
-    probability of a collision is (multiply by 100 for percentage):
+    problem</a>, we get that if we have \(n\) records and \(s\) states, the
+    approximate probability of a collision is (multiply by 100 for percentage):
 
     <!-- High precision calculator: https://keisan.casio.com/calculator -->
     $$\begin{eqnarray*}
@@ -127,24 +123,24 @@ date: 2019-09-18 12:00 UTC
     p(10^6,2^{107}) \sim 6.16\textrm{e-21}
     \end{eqnarray*}$$   
 
-    Assuming SHA1 output is uniformly distributed, even after dropping bits the
-    probability of a collision is infinitesimal. If for whatever reason the
-    black swan event does happen, it's important we able to at least detect it
-    and preventive actions. We'll detect is an a single record return, but with
-    a the original record inside it being different than the one used to
-    generate the ID. In that rare case the original ID must the changed.
+    Assuming that the SHA1 hashes are uniformly distributed, even after dropping
+    bits, the probability of a collision is infinitesimal. If such black swan
+    event should happen, though, we should at least be able to detect
+    it. Detection is easy as the record returned would store an original GUID
+    different from the one used to generate its ID. Depending on the domain,
+    then either the original ID must the changed or the collision is ignored.
   </p>
   <h3>Summary</h3>
   <p>
-    We end up with the following equation to descripe the mapping:
+    We end up with the following equation to describe the mapping:
 
     $$\begin{eqnarray*}    
     \textrm{map}(\textrm{guid}) = (\textrm{sha\(_1\)} \circ \textrm{rshift\(_{53}\)} \circ \textrm{encode\(_{35}\)})(\textrm{guid})\\
     \textrm{map}(\textrm{63b0e1db-cd2f-4265-b4f1-eb4b436b6adf}) = \textrm{6474kyka9wq7s8at4t1up}
     \end{eqnarray*}$$ 
     
-    We can switch generation strategy later on. If we determine that
-    multi-threaded is not longer a requirement, we could switch to random
-    generated IDs. However we generate IDs is an implementation detail.
+    If we so desire, we can switch generation strategy later on. Perhaps
+    multi-threading or multi-process is no longer a hard requirement, and we can
+    switch to simpler random generated IDs.
   </p>
 </div>
