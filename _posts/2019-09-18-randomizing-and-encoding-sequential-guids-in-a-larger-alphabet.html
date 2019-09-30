@@ -8,46 +8,29 @@ date: 2019-09-18 12:00 UTC
   <p>
     The other day I came across a problem in system integration with an
     interesting math twist: one-way multi-thread or multi-process synchronize
-    customers from one system to another. At the source, customers are
-    identified by sequential
+    records from one system to another. At the source, records are identified by
+    sequential
     <a href="https://tools.ietf.org/html/rfc4122">Globally Unique
-    Identifier</a>s (GUID), such as "63b0e1db-cd2f-4265-b4f1-eb4b436b6adf", that
-    destination doesn't support. Destination identifies customers by up to 24
-    alphanumeric characters (0-9, a-z) of which at least the first is reserved
-    for a preamble.
+    Identifier</a>s (GUID) that destination doesn't support. Instead destination
+    identifies records by up to 24 alphanumeric characters (0-9, a-z) of which
+    at least the first character is reserved for a preamble.
   </p>
   <p>
-    The challenge is then how to map a sequential GUID onto an alphanumeric
-    numeric string while supporting a multi-threading or multi-process
-    environment.
+    The challenge is then how to map a sequential GUID, such
+    63b0e1db-cd2f-4265-b4f1-eb4b436b6adf, onto an alphanumeric numeric string,
+    while supporting a multi-threading or multi-process setup.
   </p>
   <h3>Encoding a GUID using a larger alphanumeric alphabet</h3>
   <p>
     A GUID in its standard base 16 representation, even without dashes, is 32
-    characters (from now also referred to as digits) in length. As-is copying to
-    destination is thus not an option. But taking advantage of the larger
-    bandwidth of the alphanumeric alphabet, if we encode the 128 bits GUID not
-    in base 16 but base 35, its length is shortened.
+    characters, also referred to as digits, or 128 bits in length. Mapping it
+    as-is to destination thus isn't an option. But taking advantage of the
+    larger base of the alphanumeric alphabet, if we encode it not in base 16 but
+    base 35, we can shorten its length.
   </p>  
   <p>
-    The relationship between number of digits required \(d\), message length
-    \(l\) in bits, and base \(b\) is described by the following equation. Since
-    a bit is an indivisible unit, the result must be rounded upwards:
-
-    $$d = \left\lceil\dfrac{\log{(2^{l})}}{\log{(b)}}\right\rceil = \left\lceil\dfrac{\log{(2^{128})}}{\log(35)}\right\rceil = \lceil{24.95}\rceil = 25$$
-
-    As we see, base 35 encoding alone doesn't solve our problem. Suppose we
-    reserve three digits for preamble, how many bits can we fit into the
-    remaining 21 base 35 encoded digits? To answer this question, how we arrived
-    at above equation is important.
-  </p>
-  <h3>Reserving digits for preamble</h3>
-  <p>
-    Consider that with \(l\) bits one may represent up to \(2^l\) states
-    \(s\). Reserving one state for zero, the \(l\) bits may represent numbers 0
-    through \(2^{l} - 1\) (like in base 10 where two digits represent \(10^2\)
-    states or numbers 0 through 99). Solving for \(d\) below, we arrive at the
-    equation above:
+    The relationship between base \(b\), number of digits \(d\), and number of
+    states \(s\) is defined by the following equation:
 
     $$\begin{eqnarray*}
     b^d = s & & \textrm{\{states from base and digits\}}\\
@@ -56,8 +39,22 @@ date: 2019-09-18 12:00 UTC
     d = \dfrac{\log(s)}{\log(b)} & & \textrm{\{divide both sides by \(\log(b)\)}\}
     \end{eqnarray*}$$
 
-    With a fixed 21 digits we solve for \(l\) and since the bit is an
-    indivisible unit, the result must be rounded down:
+    With \(l\) bits available, one may represent up to \(2^l\) states
+    \(s\). Reserving one state for zero, the \(l\) bits may represent numbers 0
+    through \(2^{l} - 1\) (like in base 10 where two digits represent \(10^2\)
+    states or numbers 0 through 99). Since a bit is an indivisible unit, the
+    result must be rounded upwards:
+
+    $$d = \left\lceil\dfrac{\log{(2^{l})}}{\log{(b)}}\right\rceil = \left\lceil\dfrac{\log{(2^{128})}}{\log(35)}\right\rceil = \lceil{24.95}\rceil = 25$$
+
+    As we see, base 35 encoding alone doesn't solve our problem.
+  </p>
+  <h3>Reserving digits for preamble</h3>
+  <p>
+    Say we reserve three digits for a preamble, how many bits can we fit into
+    the remaining 21 digits when base 35 encoded? To find the answer, we must
+    solve for \(l\), and since the bit is an indivisible unit, the result must
+    be rounded down:
 
     $$\begin{eqnarray*}
     \left\lfloor\dfrac{\log(2^l)}{\log(35)}\right\rfloor = 21 & &\\
@@ -66,33 +63,33 @@ date: 2019-09-18 12:00 UTC
     l = \left\lfloor107.71...\right\rfloor = 107 & &
     \end{eqnarray*}$$   
 
-    In other words, 21 base 35 digits equals 107 bits. That's 21 bits less than
-    the original.
+    In other words, 21 digits, base 35 encoded correspond to 107 bits. That's
+    21 bits less than the original GUID.
   </p>
   <h3>Making sequential GUIDs random</h3>
   <p>
-    The starting GUID represents
+    The original GUID is
     a <a href="https://docs.microsoft.com/en-us/sql/t-sql/functions/newsequentialid-transact-sql?view=sqlallproducts-allversions">sequential
-    GUID</a>,
+    GUID</a>
     whose <a href="https://blogs.msdn.microsoft.com/dbrowne/2012/07/03/how-to-generate-sequential-guids-for-sql-server-in-net">implementation
-    details</a> we shouldn't depend on. So which 21 bits to drop without
-    increasing the risk of a collision we can't tell. Worse still, the algorithm
-    for generating sequential GUIDs may have changed over time and may change
-    again in the future.
+    details</a> we shouldn't rely on. Worse still, the algorithm for generating
+    sequential GUIDs may have changed over time and may change again in the
+    future. So which 21 bits to drop without disproportionately increasing the
+    risk of a collision?
   </p>
   <p>
-    One way to add randomness is to compute a hash of the original 128
-    bits. With SHA1 for instance, regardless of input size, output is 160
-    bits. Now instead of dropping 21 bits of the original, we must drop 53 bits
-    of the SHA1. We can drop any 53 bits as long as we're consistent with which
-    to drop; a bit-wise right-shift by 53 bits is the simplest solution.
+    One way to resolve this issue is compute a hash of the original 128
+    bits. With <a href="https://en.wikipedia.org/wiki/SHA-1">SHA1</a> for
+    instance, regardless of input size, output is always 160 bits. Now instead
+    of dropping 21 bits from the original GUID, we drop 53 bits from the
+    hash. We can drop any 53 bits as long as we're consistent with which to
+    drop; the simplest approach is a bit-wise right-shift by 53 bits.
   </p>
   <p>
     Downside is that because SHA1 is a one-way hash function, and because we're
-    dropping bits, mapping is also a one-way function. It doesn't matter in this
-    case because we can store the original GUID in a separate field in each
-    destination record. But multi-threading or multi-process does introduce a
-    slight complication.
+    dropping bits, mapping becomes a one-way function also. It doesn't matter in
+    this case because we can store the original GUID in a separate field inside
+    the destination record.
   <p>  
   <h3>Multi-threaded or multi-process and possible race conditions</h3>
   <p>
@@ -100,19 +97,20 @@ date: 2019-09-18 12:00 UTC
     bits at random. Unfortunately, this would introduce a race condition into
     the record creation process. Imagine two threads or two processes about to
     create a record at destination. With random bits, each may query for the
-    original GUID and get a empty result back. Each then creates the record and
-    succeeds. But now destination has two records matching one at source. With
-    deterministic IDs only one record is created. The second creation attempt
-    will fail, by design.
+    original GUID in a record and get a empty result back. Each then creates the
+    record and succeeds. But now destination has two records matching one at
+    source. With deterministic IDs only one record is created. The second
+    creation attempt will fail, by design.
   </p>
   <h3>Bit length and probability of key collisions</h3>
   <p>
     Because of hashing and subsequent bit shifting, there's a possibility that
-    two source GUIDs would map to the same destination. The more records we
-    generate, the larger the chance of a collision. From a generalization of
+    two source GUIDs could map to the same destination. The more records we
+    create, the larger the chance of a collision. From a generalization of
     the <a href="https://en.wikipedia.org/wiki/Birthday_problem">Birthday
     problem</a>, we get that if we have \(n\) records and \(s\) states, the
-    approximate probability of a collision is (multiply by 100 for percentage):
+    approximate probability of a collision becomes (multiply by 100 for
+    percentage):
 
     <!-- High precision calculator: https://keisan.casio.com/calculator -->
     $$\begin{eqnarray*}
@@ -123,12 +121,12 @@ date: 2019-09-18 12:00 UTC
     p(10^6,2^{107}) \sim 6.16\textrm{e-21}
     \end{eqnarray*}$$   
 
-    Assuming that the SHA1 hashes are uniformly distributed, even after dropping
-    bits, the probability of a collision is infinitesimal. If such black swan
-    event should happen, though, we should at least be able to detect
-    it. Detection is easy as the record returned would store an original GUID
-    different from the one used to generate its ID. Depending on the domain,
-    then either the original ID must the changed or the collision is ignored.
+    Assuming SHA1 hashes are uniformly distributed, even after dropping bits,
+    the probability of a collision is infinitesimal. If such black swan event
+    does occur, we should at least be able to detect it. Detection is easy as
+    the record returned would hold an original GUID different from the one used
+    to generate its ID. Depending on the domain, then either the original ID
+    must the changed or the collision may be ignored.
   </p>
   <h3>Summary</h3>
   <p>
@@ -139,7 +137,7 @@ date: 2019-09-18 12:00 UTC
     \textrm{map}(\textrm{63b0e1db-cd2f-4265-b4f1-eb4b436b6adf}) = \textrm{6474kyka9wq7s8at4t1up}
     \end{eqnarray*}$$ 
     
-    If we so desire, we can switch generation strategy later on. Perhaps
+    If we so desire, we can switch mapping strategy later on. Perhaps
     multi-threading or multi-process is no longer a hard requirement, and we can
     switch to simpler random generated IDs.
   </p>
