@@ -133,7 +133,7 @@ date: 2019-09-18 12:00 UTC
     We end up with the following equation to describe the mapping:
 
     $$\begin{eqnarray*}    
-    \textrm{map}(\textrm{guid}) = (\textrm{sha\(_1\)} \circ \textrm{rshift\(_{53}\)} \circ \textrm{encode\(_{35}\)})(\textrm{guid})\\
+    \textrm{map}(\textrm{guid}) = \textrm{encode\(_{35}\)}(\textrm{rshift\(_{53}\)}(\textrm{sha\(_1\)}(\textrm{guid})))\\
     \textrm{map}(\textrm{63b0e1db-cd2f-4265-b4f1-eb4b436b6adf}) = \textrm{6474kyka9wq7s8at4t1up}
     \end{eqnarray*}$$ 
     
