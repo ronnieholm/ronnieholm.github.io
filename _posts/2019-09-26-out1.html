@@ -1,0 +1,194 @@
+---
+layout: post
+title: "Out1"
+date: 2019-09-26 12:00 UTC
+---
+
+<div id="post">
+
+<p>In the previous post we outlined an approach to turning 128 bit sequential
+GUIDs into 107 bit non-sequential numbers. With the 107 bits encoded in base 35,
+they fit within 21 digits we had available. In this post we implement the
+\(\textrm{map}\) in C#. But first, lets revisit \(\textrm{map}\) before we turn
+it into C#:
+
+$$\textrm{map}(\textrm{guid}) = \textrm{encode\(_{35}\)}(\textrm{rshift\(_{53}\)}(\textrm{sha\(_1\)}(\textrm{guid})))$$
+
+Working with number of up to 160 bits, the immediate challenge becomes how to
+represent those in .NET. The largest intrinsic type, the unsigned long, is 64
+bits only. What we need BigInteger, is an arbitrary size integer with operations
+like those available on intrinsic types:
+</p>
+  
+<pre class="prettyprint lang-cs">
+using System;
+using System.Collections.Generic;
+using System.Numerics;
+using System.Security.Cryptography;
+using System.Text;
+
+namespace Bugfree {
+    public static class ConvertionHelpers {
+        public const string Alphabet = "0123456789abcdefghijklmopqrstuvwxyz";
+
+        public static string GuidToAccountNumber(Guid guid) {
+            var a = ComputeSha1(guid.ToByteArray());
+            var b = new BigInteger(a, isUnsigned: true);
+            var c = b >> 53;
+            var d = IntegerToBase(c, Alphabet.Length);
+            return DigitsToAlphabet(d, Alphabet);
+        }
+
+        public static byte[] ComputeSha1(byte[] bytes) {
+            using var sha1 = new SHA1Managed();
+            return sha1.ComputeHash(bytes);
+        }
+
+        // Code below goes here.
+    }
+}
+</pre>
+
+<p>The conversion from base 10 to base 35, any base really, is surprisingly
+short and straightforward. Rather than return the encoded number directly,
+IntegerToBase returns an array of indices into an alphabet. This serves to
+divoce visual representation from value in a positional system (one digit may be
+multi-character when base > 10). A digit value may be represented by any visual
+symbol; a distinction seldomly made in base 10:</p>
+
+<pre class="prettyprint lang-cs">
+public static int[] IntegerToBase(BigInteger number, int base_) {
+    if (number.Sign != 1)
+        throw new ArgumentException($"{nameof(number)} must be positive");
+    if (base_ < 2)
+        throw new ArgumentException($"{nameof(base_)} must be at least two");
+
+    var alphabetPositions = new List<int>();
+    while (number > 0) {
+        var quotient = BigInteger.DivRem(number, base_, out var digit);
+        alphabetPositions.Add((int)digit);
+        number = quotient;
+    }
+    alphabetPositions.Reverse();
+    return alphabetPositions.ToArray();
+}
+
+public static BigInteger BaseToInteger(int[] digits, int base_) {
+    if (base_ < 2)
+        throw new ArgumentException($"{nameof(base_)} must be at least two");
+
+    BigInteger value;
+    var j = 0;
+    for (var i = digits.Length - 1; i >= 0; i--)
+        value += digits[i] * BigInteger.Pow(base_, j++);
+    return value;
+}
+</pre>
+
+<p>Conversion is done through repeated division by base. As an example, with
+base 10 input of 123 and base 10, quotients and digits inside the loop becomes
+(123,12,3), (12,1,2), (1,0,1). Positions are then reversed and we get indices 1,
+2, and 3 into the alphabet. For 12 and base 2, the corresponding quotients and
+digits become (12,6,0), (6,3,0), (3,1,1), (1,0,1) for 1, 1, 0, and 0 into the
+alphabet, and for 254 in base 16 we have (254,15,14), (15,0,15) for indices 15
+and 14 into the alphabet. That would be the number \(fe\).</p>
+
+<p>A helper method takes indices and an alfabet, and returns the visual
+representation of a number:
+
+<pre class="prettyprint lang-cs">
+public static string DigitsToAlphabet(int[] digits, string alphabet) {
+    var sb = new StringBuilder();
+    foreach (var d in digits)
+        sb.Append(alphabet[d]);
+    return sb.ToString();
+}
+</pre>
+
+<h3>Regular unit tests</h3>
+
+<p>Besides the usual hardcoded test input and output such as the ones below:</p>
+
+<pre class="prettyprint lang-cs">
+using System;
+using Xunit;
+using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Linq;
+using System.Collections;
+using System.Collections.Generic;
+using static Bugfree.ConvertionHelpers;
+
+namespace Bugfree.UnitTests {
+    public class ConvertionHelpersTests {
+        [Fact]
+        public void SequentialGuidToNumberTest() {
+            var guid = Guid.Parse("63b0e1db-cd2f-4265-b4f1-eb4b436b6adf");
+            var number = GuidToAccountNumber(guid);
+
+            Assert.Equal(21, number.Length);
+            Assert.Equal("6474kyka9wq7s8at4t1up", number);
+        }
+
+        [Theory]
+        [InlineData(3470241, new[] { 3, 4, 15, 3, 10, 1 }, "34f3a1")]
+        public void Base10ToHex(int base10, int[] hexDigits, string hexEncoded) {
+            var digits = IntegerToBase(new BigInteger(base10, 16);
+            Assert.Equal(hexDigits, digits);
+
+            var encoded = DigitsToAlphabet(digits, Alphabet);
+            Assert.Equal(hexEncoded, encoded);
+        }
+
+        [Fact]
+        public void BaseToIntegerTest() {
+            var n = BaseToInteger(new[] { 1, 2, 3 }, 10);
+            Assert.Equal(new BigInteger(123), n);
+        }
+
+        // Code below goes here.
+    }
+}
+</pre>
+
+<h3>Property based tests</h3>
+
+<p>
+  we can instead validate the inverse property of number system
+  conversions. Below \(\textrm{encode}_b\) is our well-known function to convert
+  base 10 to base \(b\) and \(\textrm{decode}_b\) is a function to turn a number
+  in base \(b\) into base 10:
+
+  $$n = \textrm{decode}_b(\textrm{encode}_b(n))$$
+
+  To the tune of "don't write tests" by x, for "arbitrary" values of \(b\) and
+  \(n\), this property must hold.
+</p>
+
+<pre class="prettyprint lang-cs">
+[Theory]
+[ClassData(typeof(RandomNumberBase))]
+public void InverseProperty(BigInteger number, int base_) {
+    var n = BaseToInteger(IntegerToBase(number, base_), base_);
+    Assert.Equal(n, number);
+}
+
+public class RandomNumberBase : IEnumerable<object[]> {
+    public IEnumerator<object[]> GetEnumerator() {
+        var rng = new Random();
+        for (var i = 0; i < 100; i++) {
+            var number = rng.Next(0, int.MaxValue);
+            var base_ = rng.Next(2, Math.Min(number, 1000));
+            yield return new object[] { new BigInteger(number), base_ };
+        }
+    }
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+}
+</pre>
+	
+<h3>Summary</h3>
+
+<p></p>
+
+</div>
