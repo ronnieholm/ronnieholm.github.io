@@ -36,7 +36,7 @@ namespace Bugfree {
             var b = new BigInteger(a, isUnsigned: true);
             var c = b >> 53;
             var d = IntegerToBase(c, Alphabet.Length);
-            return DigitsToAlphabet(d, Alphabet);
+            return DigitsToEncoding(d, Alphabet);
         }
 
         public static byte[] ComputeSha1(byte[] bytes) {
@@ -97,7 +97,7 @@ and 14 into the alphabet. That would be the number \(fe\).</p>
 representation of a number:
 
 <pre class="prettyprint lang-cs">
-public static string DigitsToAlphabet(int[] digits, string alphabet) {
+public static string DigitsToEncoding(int[] digits, string alphabet) {
     var sb = new StringBuilder();
     foreach (var d in digits)
         sb.Append(alphabet[d]);
@@ -136,7 +136,7 @@ namespace Bugfree.UnitTests {
             var digits = IntegerToBase(new BigInteger(base10, 16);
             Assert.Equal(hexDigits, digits);
 
-            var encoded = DigitsToAlphabet(digits, Alphabet);
+            var encoded = DigitsToEncoding(digits, Alphabet);
             Assert.Equal(hexEncoded, encoded);
         }
 
