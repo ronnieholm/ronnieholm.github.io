@@ -1,23 +1,18 @@
 ---
 layout: post
-title: "Out1"
+title: "Converting from base 10 to any base and back again"
 date: 2019-09-26 12:00 UTC
 ---
 
 <div id="post">
 
-<p>In the previous post we outlined an approach to turning 128 bit sequential
-GUIDs into 107 bit non-sequential numbers. With the 107 bits encoded in base 35,
-they fit within 21 digits we had available. In this post we implement the
-\(\textrm{map}\) in C#. But first, lets revisit \(\textrm{map}\) before we turn
-it into C#:
-
-$$\textrm{map}(\textrm{guid}) = \textrm{encode\(_{35}\)}(\textrm{rshift\(_{53}\)}(\textrm{sha\(_1\)}(\textrm{guid})))$$
-
-Working with number of up to 160 bits, the immediate challenge becomes how to
-represent those in .NET. The largest intrinsic type, the unsigned long, is 64
-bits only. What we need BigInteger, is an arbitrary size integer with operations
-like those available on intrinsic types:
+<p>Following the
+algorithm <a href="/blog/2019/09/18/randomizing-and-encoding-sequential-guids-in-a-larger-alphabet">outlined</a>
+for turning a 128 bit sequential GUID into non-sequential 21 digits, we
+transform it into C#. As the algorithm operates on 160 bit numbers, but the
+largest intrinsic type, unsigned long, is 64 bits only, we use the arbitrary
+size BigInteger type. It has support for common operations we'd expect on
+intrinsic types and System.Math:
 </p>
   
 <pre class="prettyprint lang-cs">
@@ -29,12 +24,12 @@ using System.Text;
 
 namespace Bugfree {
     public static class ConvertionHelpers {
-        public const string Alphabet = "0123456789abcdefghijklmopqrstuvwxyz";
+        public const string Alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
 
         public static string GuidToAccountNumber(Guid guid) {
             var a = ComputeSha1(guid.ToByteArray());
             var b = new BigInteger(a, isUnsigned: true);
-            var c = b >> 53;
+            var c = b >> 52;
             var d = IntegerToBase(c, Alphabet.Length);
             return DigitsToEncoding(d, Alphabet);
         }
@@ -49,12 +44,12 @@ namespace Bugfree {
 }
 </pre>
 
-<p>The conversion from base 10 to base 35, any base really, is surprisingly
-short and straightforward. Rather than return the encoded number directly,
-IntegerToBase returns an array of indices into an alphabet. This serves to
-divoce visual representation from value in a positional system (one digit may be
-multi-character when base > 10). A digit value may be represented by any visual
-symbol; a distinction seldomly made in base 10:</p>
+<p>Conversion from base 10 to base 36, any base, is surprisingly
+straightforward. But rather than the encoded number, IntegerToBase returns an
+array of indices into an alphabet, any alphabet, to divoce value from visual
+representation. For a base > 10, the position of a single digit in the alphabet
+may be > 10, a distinction seldomly made in base 10. For later testing, the
+inverse of any base to base 10 is similarly included:</p>
 
 <pre class="prettyprint lang-cs">
 public static int[] IntegerToBase(BigInteger number, int base_) {
@@ -83,20 +78,7 @@ public static BigInteger BaseToInteger(int[] digits, int base_) {
         value += digits[i] * BigInteger.Pow(base_, j++);
     return value;
 }
-</pre>
 
-<p>Conversion is done through repeated division by base. As an example, with
-base 10 input of 123 and base 10, quotients and digits inside the loop becomes
-(123,12,3), (12,1,2), (1,0,1). Positions are then reversed and we get indices 1,
-2, and 3 into the alphabet. For 12 and base 2, the corresponding quotients and
-digits become (12,6,0), (6,3,0), (3,1,1), (1,0,1) for 1, 1, 0, and 0 into the
-alphabet, and for 254 in base 16 we have (254,15,14), (15,0,15) for indices 15
-and 14 into the alphabet. That would be the number \(fe\).</p>
-
-<p>A helper method takes indices and an alfabet, and returns the visual
-representation of a number:
-
-<pre class="prettyprint lang-cs">
 public static string DigitsToEncoding(int[] digits, string alphabet) {
     var sb = new StringBuilder();
     foreach (var d in digits)
@@ -105,9 +87,17 @@ public static string DigitsToEncoding(int[] digits, string alphabet) {
 }
 </pre>
 
+<p>Conversion from base 10 to any base is carried out by repeatedly dividing by
+base. Running through the divisions, with 123 and base 10, number, quotient, and
+digit become (123,12,3), (12,1,2), (1,0,1). Then positions are reversed to
+arrive at indices 1, 2, and 3. For 12 and base 2, the number, quotient, and
+digit become (12,6,0), (6,3,0), (3,1,1), (1,0,1) for 1, 1, 0, and 0 into the
+alphabet. For 254 in base 16 we get (254,15,14), (15,0,15) for indices 15 and 14
+into the alphabet, yielding 0xfe.</p>
+
 <h3>Regular unit tests</h3>
 
-<p>Besides the usual hardcoded test input and output such as the ones below:</p>
+<p>As for a couple of examples to show convertions back and forth:</p>
 
 <pre class="prettyprint lang-cs">
 using System;
@@ -125,18 +115,16 @@ namespace Bugfree.UnitTests {
         public void SequentialGuidToNumberTest() {
             var guid = Guid.Parse("63b0e1db-cd2f-4265-b4f1-eb4b436b6adf");
             var number = GuidToAccountNumber(guid);
-
             Assert.Equal(21, number.Length);
-            Assert.Equal("6474kyka9wq7s8at4t1up", number);
+            Assert.Equal("o7wt7mrm8rj4t0j24twi3", number);
         }
 
         [Theory]
         [InlineData(3470241, new[] { 3, 4, 15, 3, 10, 1 }, "34f3a1")]
         public void Base10ToHex(int base10, int[] hexDigits, string hexEncoded) {
-            var digits = IntegerToBase(new BigInteger(base10, 16);
+            var digits = IntegerToBase(new BigInteger(base10), 16);
+            var encoded = DigitsToEncoding(digits, ShortAlphabet);
             Assert.Equal(hexDigits, digits);
-
-            var encoded = DigitsToEncoding(digits, Alphabet);
             Assert.Equal(hexEncoded, encoded);
         }
 
@@ -153,17 +141,22 @@ namespace Bugfree.UnitTests {
 
 <h3>Property based tests</h3>
 
-<p>
-  we can instead validate the inverse property of number system
-  conversions. Below \(\textrm{encode}_b\) is our well-known function to convert
-  base 10 to base \(b\) and \(\textrm{decode}_b\) is a function to turn a number
-  in base \(b\) into base 10:
+<p>To supplement the example based tests, we can take advantage of the inverse
+property of conversions. With \(\textrm{encode}_b\) being base 10 to base \(b\)
+and \(\textrm{decode}_b\) being base \(b\) to base 10, the following inverse
+property must always hold:
 
   $$n = \textrm{decode}_b(\textrm{encode}_b(n))$$
 
-  To the tune of "don't write tests" by x, for "arbitrary" values of \(b\) and
-  \(n\), this property must hold.
-</p>
+To the tune of John
+Hughes' <a href="https://www.youtube.com/watch?v=hXnS_Xjwk2Y">don't write tests,
+generate them</a>, for arbitrary generated values of \(b\) and \(n\), assertions
+must hold. A more sophisticated approach would
+use <a href="https://fscheck.github.io/FsCheck">FsCheck</a>, but for many cases,
+a simple generator is good
+enough. From <a href="https://fsharpforfunandprofit.com/posts/property-based-testing-2">Choosing
+properties for property-based testing</a>, this property is an example of there
+and back again.</p>
 
 <pre class="prettyprint lang-cs">
 [Theory]
