@@ -12,8 +12,8 @@ date: 2019-09-18 12:00 UTC
     sequential
     <a href="https://tools.ietf.org/html/rfc4122">Globally Unique
     Identifier</a>s (GUID) that destination doesn't support. Instead destination
-    identifies records by up to 24 alphanumeric characters (0-9, a-z) of which
-    at least the first character is reserved for a preamble.
+    identifies records by up to 24 alphanumeric characters (0-9, a-z, 36
+    symbols) of which at least the first character is reserved for a preamble.
   </p>
   <p>
     The challenge is then how to map a sequential GUID, such
@@ -26,7 +26,7 @@ date: 2019-09-18 12:00 UTC
     characters, also referred to as digits, or 128 bits in length. Mapping it
     as-is to destination thus isn't an option. But taking advantage of the
     larger base of the alphanumeric alphabet, if we encode it not in base 16 but
-    base 35, we can shorten its length.
+    base 36 we can shorten its length.
   </p>  
   <p>
     The relationship between base \(b\), number of digits \(d\), and number of
@@ -45,9 +45,9 @@ date: 2019-09-18 12:00 UTC
     states or numbers 0 through 99). Since a bit is an indivisible unit, the
     result must be rounded upwards:
 
-    $$d = \left\lceil\dfrac{\log{(2^{l})}}{\log{(b)}}\right\rceil = \left\lceil\dfrac{\log{(2^{128})}}{\log(35)}\right\rceil = \lceil{24.95...}\rceil = 25$$
+    $$d = \left\lceil\dfrac{\log{(2^{l})}}{\log{(b)}}\right\rceil = \left\lceil\dfrac{\log{(2^{128})}}{\log(36)}\right\rceil = \lceil{24.75...}\rceil = 25$$
 
-    As we see, base 35 encoding alone doesn't solve our problem.
+    As we see, base 36 encoding alone doesn't solve our problem.
   </p>
   <h3>Reserving digits for preamble</h3>
   <p>
@@ -57,13 +57,13 @@ date: 2019-09-18 12:00 UTC
     be rounded down:
 
     $$\begin{eqnarray*}
-    \left\lfloor\dfrac{\log(2^l)}{\log(35)}\right\rfloor = 21 & &\\
-    \left\lfloor\dfrac{l\log(2)}{\log(35)}\right\rfloor = 21 & & \textrm{\{apply rule of \(\log(x^y) = y \log(x)\)}\}\\    
-    l = \left\lfloor\dfrac{21\log(35)}{\log(2)}\right\rfloor & & \textrm{\{multiply and divide}\}\\
-    l = \left\lfloor107.71...\right\rfloor = 107 & &
+    \left\lfloor\dfrac{\log(2^l)}{\log(36)}\right\rfloor = 21 & &\\
+    \left\lfloor\dfrac{l\log(2)}{\log(36)}\right\rfloor = 21 & & \textrm{\{apply rule of \(\log(x^y) = y \log(x)\)}\}\\    
+    l = \left\lfloor\dfrac{21\log(36)}{\log(2)}\right\rfloor & & \textrm{\{multiply and divide}\}\\
+    l = \left\lfloor108.56...\right\rfloor = 108 & &
     \end{eqnarray*}$$   
 
-    In other words, 21 digits, base 35 encoded correspond to 107 bits. That's
+    In other words, 21 digits, base 36 encoded correspond to 108 bits. That's
     21 bits less than the original GUID.
   </p>
   <h3>Making sequential GUIDs random</h3>
@@ -81,9 +81,9 @@ date: 2019-09-18 12:00 UTC
     One way to resolve this issue is compute a hash of the original 128
     bits. With <a href="https://en.wikipedia.org/wiki/SHA-1">SHA1</a> for
     instance, regardless of input size, output is always 160 bits. Now instead
-    of dropping 21 bits from the original GUID, we drop 53 bits from the
-    hash. We can drop any 53 bits as long as we're consistent with which to
-    drop; the simplest approach is a bit-wise right-shift by 53 bits.
+    of dropping 21 bits from the original GUID, we drop 52 bits from the
+    hash. We can drop any 52 bits as long as we're consistent with which to
+    drop; the simplest approach is a bit-wise right-shift by 52 bits.
   </p>
   <p>
     Downside is that because SHA1 is a one-way hash function, and because we're
@@ -93,7 +93,7 @@ date: 2019-09-18 12:00 UTC
   <p>  
   <h3>Multi-process or multi-threading and possible race conditions</h3>
   <p>
-    It seems we could've settled for a simpler scheme and just generated the 107
+    It seems we could've settled for a simpler scheme and just generated the 108
     bits at random. Unfortunately, this would introduce a race condition into
     the record creation process. Imagine two threads or two processes about to
     create a record at destination. With random bits, each may query for the
@@ -112,13 +112,14 @@ date: 2019-09-18 12:00 UTC
     approximate probability of a collision becomes (multiply by 100 for
     percentage):
 
-    <!-- High precision calculator: https://keisan.casio.com/calculator -->
+    <!-- High precision calculator: https://keisan.casio.com/calculator 
+         1-e^((-1000000^2 / 2^108)) -->
     $$\begin{eqnarray*}
     p(n,s) = 1 - e^{-n^2 / 2^s}\\
     p(10^6,2^{32}) = 1\\
     p(10^6,2^{48}) \sim 3.55\textrm{e-03}\\
     p(10^6,2^{64}) \sim 5.42\textrm{e-08}\\
-    p(10^6,2^{107}) \sim 6.16\textrm{e-21}
+    p(10^6,2^{108}) \sim 3.08\textrm{e-21}
     \end{eqnarray*}$$   
 
     Assuming SHA1 hashes are uniformly distributed, even after dropping bits,
@@ -133,8 +134,8 @@ date: 2019-09-18 12:00 UTC
     We end up with the following equation to describe the mapping:
 
     $$\begin{eqnarray*}    
-    \textrm{map}(\textrm{guid}) = \textrm{encode\(_{35}\)}(\textrm{rshift\(_{53}\)}(\textrm{sha\(_1\)}(\textrm{guid})))\\
-    \textrm{map}(\textrm{63b0e1db-cd2f-4265-b4f1-eb4b436b6adf}) = \textrm{6474kyka9wq7s8at4t1up}
+    \textrm{map}(\textrm{guid}) = \textrm{encode\(_{36}\)}(\textrm{rshift\(_{52}\)}(\textrm{sha\(_1\)}(\textrm{guid})))\\
+    \textrm{map}(\textrm{63b0e1db-cd2f-4265-b4f1-eb4b436b6adf}) = \textrm{o7wt7mrm8rj4t0j24twi3}
     \end{eqnarray*}$$ 
     
     If we so desire, we can switch mapping strategy later on. Perhaps
