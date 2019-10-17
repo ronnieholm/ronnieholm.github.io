@@ -6,15 +6,18 @@ date: 2019-09-26 12:00 UTC
 
 <div id="post">
 
-<p>Following the
-algorithm <a href="/blog/2019/09/18/randomizing-and-encoding-sequential-guids-in-a-larger-alphabet">outlined</a>
-for turning a 128 bit sequential GUID into non-sequential 21 digits, we
-transform it into C#. As the algorithm operates on 160 bit numbers, but the
-largest intrinsic type, unsigned long, is 64 bits only, we use the arbitrary
-size BigInteger type. It has support for common operations we'd expect on
-intrinsic types and System.Math:
+<p>As a follow up
+to <a href="/blog/2019/09/18/randomizing-and-encoding-sequential-guids-in-a-larger-alphabet">turning
+128 bit sequential GUIDs into non-sequential 21 digits</a> we implement the
+algorithm in C#. As it operates on 160 bit numbers and unsigned long, the
+largest intrinsic type supported by .NET, is 64 bits only, we use the arbitrary
+large <a href="https://docs.microsoft.com/en-us/dotnet/api/system.numerics.biginteger">BigInteger</a>
+type. It supports common operations expected from intrinsic types and
+System.Math.
 </p>
-  
+
+<p>The algorithmic skeleton takes on this form:</p>
+
 <pre class="prettyprint lang-cs">
 using System;
 using System.Collections.Generic;
@@ -44,58 +47,17 @@ namespace Bugfree {
 }
 </pre>
 
-<p>Conversion from base 10 to base 36, any base, is surprisingly
-straightforward. But rather than the encoded number, IntegerToBase returns an
-array of indices into an alphabet, any alphabet, to divoce value from visual
-representation. For a base > 10, the position of a single digit in the alphabet
-may be > 10, a distinction seldomly made in base 10. For later testing, the
-inverse of any base to base 10 is similarly included:</p>
+<p>Conversion from base 10 to base 36, any base really, is surprisingly
+straightforward. Rather than the encoded number, IntegerToBase returns an array
+of indices into an alphabet, any alphabet really. This divorces positional value
+from visual representation, something we aren't use to in base 10. With 123 in
+base 10, number, quotient, and digit become (123,12,3), (12,1,2), (1,0,1). When
+order of digits are reversed we arrive at indices 1, 2, and 3 into the
+alphabet. For 12 and base 2, the equivalent is (12,6,0), (6,3,0), (3,1,1),
+(1,0,1) for 1, 1, 0, and 0. For 254 in base 16 it's (254,15,14), (15,0,15) for
+indices 15 and 14 into the alphabet, yielding 0xfe.</p>
 
-<pre class="prettyprint lang-cs">
-public static int[] IntegerToBase(BigInteger number, int base_) {
-    if (number.Sign != 1)
-        throw new ArgumentException($"{nameof(number)} must be positive");
-    if (base_ < 2)
-        throw new ArgumentException($"{nameof(base_)} must be at least two");
-
-    var alphabetPositions = new List<int>();
-    while (number > 0) {
-        var quotient = BigInteger.DivRem(number, base_, out var digit);
-        alphabetPositions.Add((int)digit);
-        number = quotient;
-    }
-    alphabetPositions.Reverse();
-    return alphabetPositions.ToArray();
-}
-
-public static BigInteger BaseToInteger(int[] digits, int base_) {
-    if (base_ < 2)
-        throw new ArgumentException($"{nameof(base_)} must be at least two");
-
-    BigInteger value;
-    var j = 0;
-    for (var i = digits.Length - 1; i >= 0; i--)
-        value += digits[i] * BigInteger.Pow(base_, j++);
-    return value;
-}
-
-public static string DigitsToEncoding(int[] digits, string alphabet) {
-    var sb = new StringBuilder();
-    foreach (var d in digits)
-        sb.Append(alphabet[d]);
-    return sb.ToString();
-}
-</pre>
-
-<p>Conversion from base 10 to any base is carried out by repeatedly dividing by
-base. Running through the divisions, with 123 and base 10, number, quotient, and
-digit become (123,12,3), (12,1,2), (1,0,1). Then positions are reversed to
-arrive at indices 1, 2, and 3. For 12 and base 2, the number, quotient, and
-digit become (12,6,0), (6,3,0), (3,1,1), (1,0,1) for 1, 1, 0, and 0 into the
-alphabet. For 254 in base 16 we get (254,15,14), (15,0,15) for indices 15 and 14
-into the alphabet, yielding 0xfe.</p>
-
-<h3>Regular unit tests</h3>
+<h3>Unit tests</h3>
 
 <p>As for a couple of examples to show convertions back and forth:</p>
 
@@ -142,19 +104,19 @@ namespace Bugfree.UnitTests {
 <h3>Property based tests</h3>
 
 <p>To supplement the example based tests, we can take advantage of the inverse
-property of conversions. With \(\textrm{encode}_b\) being base 10 to base \(b\)
-and \(\textrm{decode}_b\) being base \(b\) to base 10, the following inverse
-property must always hold:
+property of conversions. If \(\textrm{encode}_b\) is base 10 to base \(b\) and
+\(\textrm{decode}_b\) is base \(b\) to base 10, the following must hold for any
+\(n\):
 
   $$n = \textrm{decode}_b(\textrm{encode}_b(n))$$
 
 To the tune of John
 Hughes' <a href="https://www.youtube.com/watch?v=hXnS_Xjwk2Y">don't write tests,
-generate them</a>, for arbitrary generated values of \(b\) and \(n\), assertions
-must hold. A more sophisticated approach would
-use <a href="https://fscheck.github.io/FsCheck">FsCheck</a>, but for many cases,
-a simple generator is good
-enough. From <a href="https://fsharpforfunandprofit.com/posts/property-based-testing-2">Choosing
+generate them</a>, for generated values of \(b\) and \(n\), assertions must
+hold. A more sophisticated approach would
+use <a href="https://fscheck.github.io/FsCheck">FsCheck</a>, but oftentimes a
+simple generator
+suffices. From <a href="https://fsharpforfunandprofit.com/posts/property-based-testing-2">Choosing
 properties for property-based testing</a>, this property is an example of there
 and back again.</p>
 
