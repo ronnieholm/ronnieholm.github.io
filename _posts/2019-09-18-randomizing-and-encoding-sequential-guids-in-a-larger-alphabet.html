@@ -18,7 +18,7 @@ date: 2019-09-18 12:00 UTC
   <p>
     The challenge is then how to map a sequential GUID, such
     63b0e1db-cd2f-4265-b4f1-eb4b436b6adf, onto an alphanumeric numeric string,
-    while supporting a multi-threading or multi-process setup.
+    while supporting multi-process and multi-threading.
   </p>
   <h3>Encoding a GUID using a larger alphanumeric alphabet</h3>
   <p>
@@ -52,7 +52,7 @@ date: 2019-09-18 12:00 UTC
   <h3>Reserving digits for preamble</h3>
   <p>
     Say we reserve three digits for a preamble, how many bits can we fit into
-    the remaining 21 digits when base 35 encoded? To find the answer, we must
+    the remaining 21 digits when base 36 encoded? To find the answer, we must
     solve for \(l\), and since the bit is an indivisible unit, the result must
     be rounded down:
 
@@ -63,8 +63,8 @@ date: 2019-09-18 12:00 UTC
     l = \left\lfloor108.56...\right\rfloor = 108 & &
     \end{eqnarray*}$$   
 
-    In other words, 21 digits, base 36 encoded correspond to 108 bits. That's
-    21 bits less than the original GUID.
+    In other words, 21 digits, base 36 encoded correspond to 108 bits. That's 20
+    bits less than the original GUID.
   </p>
   <h3>Making sequential GUIDs random</h3>
   <p>
@@ -74,14 +74,14 @@ date: 2019-09-18 12:00 UTC
     whose <a href="https://blogs.msdn.microsoft.com/dbrowne/2012/07/03/how-to-generate-sequential-guids-for-sql-server-in-net">implementation
     details</a> we shouldn't rely on. Worse still, the algorithm for generating
     sequential GUIDs may have changed over time and may change again in the
-    future. So which 21 bits to drop without disproportionately increasing the
+    future. So which 20 bits to drop without disproportionately increasing the
     risk of a collision?
   </p>
   <p>
     One way to resolve this issue is compute a hash of the original 128
     bits. With <a href="https://en.wikipedia.org/wiki/SHA-1">SHA1</a> for
     instance, regardless of input size, output is always 160 bits. Now instead
-    of dropping 21 bits from the original GUID, we drop 52 bits from the
+    of dropping 20 bits from the original GUID, we drop 52 bits from the
     hash. We can drop any 52 bits as long as we're consistent with which to
     drop; the simplest approach is a bit-wise right-shift by 52 bits.
   </p>
@@ -91,7 +91,7 @@ date: 2019-09-18 12:00 UTC
     this case because we can store the original GUID in a separate field inside
     the destination record.
   <p>  
-  <h3>Multi-process or multi-threading and possible race conditions</h3>
+  <h3>Multi-process and multi-threading and possible race conditions</h3>
   <p>
     It seems we could've settled for a simpler scheme and just generated the 108
     bits at random. Unfortunately, this would introduce a race condition into
@@ -131,10 +131,13 @@ date: 2019-09-18 12:00 UTC
   </p>
   <h3>Summary</h3>
   <p>
-    We end up with the following equation to describe the mapping:
+    We end up with the following equation to describe the mapping. The
+    \(\textrm{lpad\(_{21}\)}\) addition ensures the outcome is always 21
+    digits. Otherwise, at the extreme, outcome from inner functions may result
+    in zero which encoded would become a single zero instead of 21 zeroes:
 
     $$\begin{eqnarray*}    
-    \textrm{map}(\textrm{guid}) = \textrm{encode\(_{36}\)}(\textrm{rshift\(_{52}\)}(\textrm{sha\(_1\)}(\textrm{guid})))\\
+    \textrm{map}(\textrm{guid}) = \textrm{lpad\(_{21}\)}(\textrm{encode\(_{36}\)}(\textrm{rshift\(_{52}\)}(\textrm{sha\(_1\)}(\textrm{guid}))))\\
     \textrm{map}(\textrm{63b0e1db-cd2f-4265-b4f1-eb4b436b6adf}) = \textrm{6yucu7i9kj49yjrwu252e}
     \end{eqnarray*}$$ 
     
