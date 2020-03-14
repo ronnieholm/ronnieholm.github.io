@@ -1,0 +1,163 @@
+---
+layout: post
+title: "2D transformation matrices for translation, scaling, and rotation"
+date: 2020-03-14 12:00 UTC
+---
+
+<div id="post">
+  <p>This post develops the mathematical foundation for the 2D
+    elementary matrices in computer graphics used for translating,
+    scaling, and rotating points. For a hands-on feel for the
+    concepts, the matrices and operations on those are implemented in
+    a graphics application.</p>
+  
+  <p>We start by defining a traditional 2D coordinate system in terms
+    of (1) orthogonal vectors \(\vec u\) and \(\vec v\), representing
+    \(x\) and \(y\) axis and (2) origin \(o\) representing point of
+    origin, commonly \((0,0)\) where \(\vec u\) and \(\vec v\)
+    intersect. Also, terms point and vector are interchangeably, but
+    when explicitly talking about a point, the notation is to
+    capitalize it. Think of point as a special kind of vector.
+  </p>
+  <p>
+    A point \(P\) may be defined in terms of vectors \(\vec u\) and
+    \(\vec v\). To arrive at the point from origin, we move some
+    distance along \(\vec u\), then some distance along \(\vec v\),
+    and offsetting with respect to origin \(O\), our point of
+    reference:
+  </p> 
+  <p>
+    $$P = x\vec u + y\vec v + O\\
+    P = 0.5\vec u + 0.25\vec v + O\\
+    P = 0.5\begin{bmatrix}1\\0\end{bmatrix} + 0.25\begin{bmatrix}0\\1\end{bmatrix} + \begin{bmatrix}0\\0\end{bmatrix}\\
+    P = \begin{bmatrix}0.5\\0\end{bmatrix} + \begin{bmatrix}0\\0.25\end{bmatrix}\\
+    P = \begin{bmatrix}0.5\\0.25\end{bmatrix}$$
+    
+    The fact that \(\vec u\) and \(\vec v\) are unit perpendicular
+    vectors and that \(O\) is the zero vector is convention. More
+    commonly \(P\) is written \((x,y) = (0.5, 0.25)\) where \(x\) and
+    \(y\) are the coordinates of \(P\). Going forward, we'll write
+    \(P\) in matrix form:
+    
+    $$P = \begin{bmatrix}x\ y\ 1\end{bmatrix} \begin{bmatrix}\vec u\\ \vec v\\ O \end{bmatrix} = x\vec u + y\vec v + O$$
+
+    <!-- Difference between vector and point? In Moving objects in space, lecturer refers to first video for the difference -->
+
+    For notational convenience we leave out \(\begin{bmatrix}\vec u\\
+    \vec v\\ O \end{bmatrix}\) but in terms of the math it's still
+    there. \(P\) in matrix form then becomes \(\begin{bmatrix}x\ y\
+    1\end{bmatrix}\). The \(1\) is there to pick up origin \(O\). In
+    order for \(P\) to be a point and not just a vector, we add a
+    point to vector to get a point back.
+  </p>
+
+  <h3>Translation</h3>
+  <p>
+    Translating a point by \(a\) in \(x\) direction and \(b\) in \(y\)
+    direction may be expressed in terms of original and desired
+    vectors:
+  <p>
+  <p>      
+    $$\begin{bmatrix}x & y & 1\end{bmatrix} \rightarrow \begin{bmatrix}x + a & y + b & 1\end{bmatrix}$$      
+  </p>
+  <p>
+    Transforming the vector on the left into the vector on the right
+    means applying an operator \(T_{a,b}\) to the left side. The
+    operator takes in any \(x\) and \(y\) and translates it by \(a\)
+    and \(b\). Expanding the multiplication enables us to verify
+    correctness of \(T_{a,b}\) matrix:
+    
+    $$\begin{bmatrix}x & y & 1\end{bmatrix} \begin{bmatrix}1 & 0 & 0\\0 & 1 & 0\\a & b & 1\end{bmatrix} = \begin{bmatrix}1x + 0y + 1a & 0x + 1y + 1b & 0x + 0y + 1\end{bmatrix} = \begin{bmatrix}x + a & y + b & 1\end{bmatrix}$$
+    
+    Two characteristics of the transformation matrices we'll encounter
+    is that they're sparse and that the last column is always the same
+    to pick up origin \(O\) and carry it over unchanged.
+  </p>
+
+  <h3>Scaling</h3>  
+  <p>
+    Scaling a point by \(a\) in \(x\) direction and \(b\) in \(y\)
+    direction has the effect of shrinking (\(a < 1\)) or expanding
+    (\(a > 1\)) with respect to origin. Expressed in terms of vectors:
+  </p>
+  <p>$$\begin{bmatrix}x & y & 1 \end{bmatrix}\rightarrow \begin{bmatrix}ax & by & 1\end{bmatrix}$$</p>
+ 
+  <p>We define a scaling matrix \(S_{a, b}\) as
+
+    $$\begin{bmatrix}x & y & 1\end{bmatrix}\rightarrow \begin{bmatrix}a & 0 & 0\\ 0 & b & 0\\ 0 & 0 & 1\end{bmatrix} = \begin{bmatrix}ax & by & 1\end{bmatrix}$$
+
+    Scaling only works when the center of the shape is at origin
+    \(O\). This would be the case for a unit square with control
+    points in \((-1,1)\), \((1,1)\), \((1,-1)\), and \((-1,-1)\), and
+    scaling from a \(2 x 2\) to a \(4 x 4\) square is equal to
+    applying \(S_{2, 2}\) to each control of the square.</p>
+   
+  <p>But if instead the unit square has control points \((1,3)\),
+    \((3,3)\), \((3,1)\), and \((1,1)\), then center becomes \(2, 2\)
+    and \(S_{2, 2}\) would scale as well as move the center. In that
+    case, each point relative to the square's center of mass must be
+    translated to origin, then scaled, and then translated back.
+  </p>
+  </p>    
+    $$T_{-2,-2} S_{2,2} T_{2,2}$$
+  </p>
+  <p>
+    For the simple unit square, determining the center is easy. For a
+    general polygon, we'd have to calculate its center of mass.
+  </p>
+   
+  <h3>Rotation</h3>
+  
+  <p>Rotating a point \(\theta\) around origin implies that distance
+    \(r\), radius, between origin and \((x, y)\) and between origin
+    and \((x', y')\) doesn't change:
+    
+    $$\begin{bmatrix}x & y & 1\end{bmatrix} \rightarrow \begin{bmatrix}x' & y' & 1\end{bmatrix}$$
+    
+    With radius \(r\) and angle \(\phi\) between the \(x\) axis and
+    point, current position is
+
+    $$x = r\cos\phi\\
+      y = r\sin\phi$$
+
+    The target point is then the current position \(x\) and \(y\) with
+    the additional rotation by \(\theta\):
+
+    $$\begin{eqnarray*}
+      x' = r\cos(\phi + \theta) & & \\
+      x' = r\cos \phi \cos \theta - r \sin \phi \sin \theta & & \textrm{\{apply identity sum: \(\cos(u + v) = \cos u \cos v - \sin u \sin v\)\}}\\
+      x' = x \cos \phi - y \sin \theta & & \textrm{\{substitute in definitions of \(x\) and \(y\)\}}\\\\
+      y' = r\sin(\phi + \theta) & & \\
+      y' = r \sin \phi \cos \theta + r \cos \phi \sin \theta & & \textrm{\{apply identity sum: \(\sin(u + v) = \sin u \cos v + \cos u \sin v\)\}}\\
+      y' = y \cos \theta + x \sin \theta & &  \textrm{\{substitute in definitions of \(x\) and \(y\)\}}
+    \end{eqnarray*}$$
+
+    Rewriting to matrix form, rotation matrix \(R_\theta\) becomes
+
+    $$\begin{bmatrix}x & y & 1\end{bmatrix} \begin{bmatrix}\cos\theta & \sin\theta & 0\\ -\sin\theta & \cos\theta & 0\\ 0 & 0 & 1\end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
+
+    As with scaling, rotation around origin is assumed. If that isn't
+    the case, then we must first translate, then scale, then
+    translate:
+
+    $$T_{-a,-b} R_\theta T_{a, b}$$
+  </p>
+  <h3>Summary</h3>
+  <p>Collectively, these matrices are known as the elementary matrices
+    in computer graphics. Instead of applying these transformations
+    one at a time to a point, transformation matrices may be
+    multiplied together to a single matrix \(T\) applied to a point.
+  </p>
+  <p>
+    Refer <a href="https://www.youtube.com/watch?v=wArGifkRD2A">Moving
+    Objects in Space</a> for a detailed run-down on each
+    transformation (around 31m30s in 3D versions of the matrices are
+    constructed).
+  </p>
+  
+</div>
+  
+<!--
+  Rotations about an arbitrary axis
+  https://www.youtube.com/watch?v=gRVxv8kWl0Q
+-->
