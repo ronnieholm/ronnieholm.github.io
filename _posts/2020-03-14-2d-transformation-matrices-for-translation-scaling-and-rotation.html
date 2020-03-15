@@ -16,9 +16,8 @@ date: 2020-03-14 12:00 UTC
     \(x\) and \(y\) axis and (2) origin \(O\) representing point of
     origin, commonly \((0,0)\) where \(\vec u\) and \(\vec v\)
     intersect. As <a href="https://youtu.be/01YSK5gIEYQ?list=PL_w_qWAQZtAZhtzPI5pkAtcUVgmzdAP8g&t=1469">outlined</a>,
-    in a vector space points and vectors are different, and only a few
-    operations are allowed: \(Q = P + \vec v\), \(\vec v = Q - P\),
-    and \(Q = P + \alpha \vec v\).
+    points and vectors are different: \(Q = P + \vec v\), \(\vec v = Q
+    - P\), and \(Q = P + \alpha \vec v\).
   </p>
   <p>
     A point \(P\) may be defined in terms of vectors \(\vec u\) and
@@ -42,14 +41,11 @@ date: 2020-03-14 12:00 UTC
     
     $$P = \begin{bmatrix}x\ y\ 1\end{bmatrix} \begin{bmatrix}\vec u\\ \vec v\\ O \end{bmatrix} = x\vec u + y\vec v + O$$
 
-    <!-- Difference between vector and point? In Moving objects in space, lecturer refers to first video for the difference -->
-
-    For notational convenience we leave out \(\begin{bmatrix}\vec u\\
-    \vec v\\ O \end{bmatrix}\) but in terms of the math it's still
-    there. \(P\) in matrix form then becomes \(\begin{bmatrix}x\ y\
-    1\end{bmatrix}\). The \(1\) is there to pick up origin \(O\). In
-    order for \(P\) to be a point and not just a vector, we add a
-    point to vector to get a point back.
+    For brevity we leave out the 3x1 matrix but in terms of the math
+    it's still there. \(P\) in matrix form then becomes
+    \(\begin{bmatrix}x\ y\ 1\end{bmatrix}\). The \(1\) is there to
+    pick up origin \(O\). In order for \(P\) to be a point and not
+    just a vector, we add a point to vector to get a point back.
   </p>
 
   <h3>Translation</h3>
@@ -97,10 +93,10 @@ date: 2020-03-14 12:00 UTC
     \((3,3)\), \((3,1)\), and \((1,1)\), then center becomes \(2, 2\)
     and \(S_{2, 2}\) would scale as well as move the center. In that
     case, each point relative to the square's center of mass must be
-    translated to origin, then scaled, and then translated back.
+    translated to origin, then scaled, and then translated back. In general
   </p>
   </p>    
-    $$T_{-2,-2} S_{2,2} T_{2,2}$$
+    $$T_{-a,-b} S_{c,d} T_{a,b}$$
   </p>
   <p>
     For the simple unit square, determining the center is easy. For a
@@ -148,7 +144,7 @@ date: 2020-03-14 12:00 UTC
     in computer graphics. Instead of applying transformations to a
     point one at a time, transformation matrices can be multiplied
     together into a single transformation matrix \(T\). Applying \(T\)
-    to every control points of a shape speeds up the calculation:
+    to every control point of a shape speeds up the calculation:
 
     $$\begin{bmatrix}x & y & 1\end{bmatrix} T \begin{bmatrix}\vec u\\
     \vec v\\ O \end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
