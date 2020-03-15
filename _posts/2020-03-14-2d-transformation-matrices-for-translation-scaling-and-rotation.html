@@ -38,8 +38,7 @@ date: 2020-03-14 12:00 UTC
     vectors and that \(O\) is the zero vector is convention. More
     commonly \(P\) is written \((x,y) = (0.5, 0.25)\) where \(x\) and
     \(y\) are the coordinates of \(P\). Going forward, we'll write
-    \(P\) in matrix form (when a 3x1 column matrix it's the dot
-    product):
+    \(P\) in matrix form:
     
     $$P = \begin{bmatrix}x\ y\ 1\end{bmatrix} \begin{bmatrix}\vec u\\ \vec v\\ O \end{bmatrix} = x\vec u + y\vec v + O$$
 
@@ -146,10 +145,10 @@ date: 2020-03-14 12:00 UTC
   </p>
   <h3>Summary</h3>
   <p>Collectively, these matrices are known as the elementary matrices
-    in computer graphics. Instead of applying these transformations
-    one at a time to a point, the transformation matrices can be
-    multiplied together to a single matrix \(T\) and applied to a
-    point:
+    in computer graphics. Instead of applying transformations to a
+    point one at a time, transformation matrices can be multiplied
+    together into a single transformation matrix \(T\). Applying \(T\)
+    to every control points of a shape speeds up the calculation:
 
     $$\begin{bmatrix}x & y & 1\end{bmatrix} T \begin{bmatrix}\vec u\\
     \vec v\\ O \end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
