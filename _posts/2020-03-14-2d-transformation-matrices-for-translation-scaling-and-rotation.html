@@ -43,8 +43,7 @@ date: 2020-03-14 12:00 UTC
     For brevity we leave out the 3x1 matrix but in terms of the math
     it's still there. \(P\) in matrix form then becomes
     \(\begin{bmatrix}x\ y\ 1\end{bmatrix}\). The \(1\) is there to
-    pick up origin \(O\). In order for \(P\) to be a point and not
-    just a vector, we add a point to vector to get a point back.
+    pick up origin \(O\).
   </p>
 
   <h3>Translation</h3>
@@ -142,10 +141,10 @@ date: 2020-03-14 12:00 UTC
   <p>Collectively, these matrices are known as the elementary matrices
     in computer graphics. Instead of applying transformations to a
     point one at a time, transformation matrices can be multiplied
-    together into a single transformation matrix \(T\). Applying \(T\)
+    together into a single transformation matrix \(M\). Applying \(M\)
     to every control point of a shape speeds up the calculation:
 
-    $$\begin{bmatrix}x & y & 1\end{bmatrix} T \begin{bmatrix}\vec u\\
+    $$\begin{bmatrix}x & y & 1\end{bmatrix} M \begin{bmatrix}\vec u\\
     \vec v\\ O \end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
 
   </p>
