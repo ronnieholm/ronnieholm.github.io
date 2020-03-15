@@ -16,8 +16,8 @@ date: 2020-03-14 12:00 UTC
     \(x\) and \(y\) axis and (2) origin \(O\) representing point of
     origin, commonly \((0,0)\) where \(\vec u\) and \(\vec v\)
     intersect. As <a href="https://youtu.be/01YSK5gIEYQ?list=PL_w_qWAQZtAZhtzPI5pkAtcUVgmzdAP8g&t=1469">outlined</a>,
-    points and vectors are different: \(Q = P + \vec v\), \(\vec v = Q
-    - P\), and \(Q = P + \alpha \vec v\).
+    points and vectors are different: \(Q = P + \vec v\) and \(\vec v
+    = Q - P\).
   </p>
   <p>
     A point \(P\) may be defined in terms of vectors \(\vec u\) and
@@ -30,14 +30,13 @@ date: 2020-03-14 12:00 UTC
     $$P = x\vec u + y\vec v + O\\
     P = 0.5\vec u + 0.25\vec v + O\\
     P = 0.5\begin{bmatrix}1\\0\end{bmatrix} + 0.25\begin{bmatrix}0\\1\end{bmatrix} + \begin{bmatrix}0\\0\end{bmatrix}\\
-    P = \begin{bmatrix}0.5\\0\end{bmatrix} + \begin{bmatrix}0\\0.25\end{bmatrix}\\
-    P = \begin{bmatrix}0.5\\0.25\end{bmatrix}$$
+    P = \begin{bmatrix}0.5\\0\end{bmatrix} + \begin{bmatrix}0\\0.25\end{bmatrix} = \begin{bmatrix}0.5\\0.25\end{bmatrix}$$
     
     The fact that \(\vec u\) and \(\vec v\) are unit perpendicular
     vectors and that \(O\) is the zero vector is convention. More
     commonly \(P\) is written \((x,y) = (0.5, 0.25)\) where \(x\) and
     \(y\) are the coordinates of \(P\). Going forward, we'll write
-    \(P\) in matrix form:
+    points in matrix form:
     
     $$P = \begin{bmatrix}x\ y\ 1\end{bmatrix} \begin{bmatrix}\vec u\\ \vec v\\ O \end{bmatrix} = x\vec u + y\vec v + O$$
 
