@@ -88,10 +88,11 @@ date: 2020-03-14 12:00 UTC
     2}\) to each control of the square.</p>
    
   <p>But if instead the unit square has control points \((1,3)\),
-    \((3,3)\), \((3,1)\), and \((1,1)\), then center becomes \(2, 2\)
-    and \(S_{2, 2}\) would scale as well as move the center. In that
-    case, each point relative to the square's center of mass must be
-    translated to origin, then scaled, and then translated back. In general
+    \((3,3)\), \((3,1)\), and \((1,1)\), then center becomes \((2,
+    2)\) and \(S_{2, 2}\) would scale as well as move the center. In
+    that case, each point relative to the square's center of mass must
+    be translated to origin, then scaled, and then translated back. In
+    general
   </p>
   </p>    
     $$T_{-a,-b} S_{c,d} T_{a,b}$$
@@ -136,31 +137,24 @@ date: 2020-03-14 12:00 UTC
     translate:
 
     $$T_{-a,-b} R_\theta T_{a, b}$$
+
+    If both scaling and rotation is required, translation center of
+    mass to origin and back need happen only once.
   </p>
   <h3>Summary</h3>
-  <p>Collectively, these matrices are known as the elementary matrices
-    in computer graphics. Instead of applying transformations to a
-    point one at a time, transformation matrices can be multiplied
-    together into a single transformation matrix \(M\). Applying \(M\)
-    to every control point of a shape speeds up the calculation:
+  <p>Translation, scaling, and rotation matrices are collectively
+    known as the elementary matrices in computer graphics. Rather than
+    apply transformations to a point one matrix multiplication at a
+    time, transformation matrices combine into a single matrix \(M\)
+    for reuse across points:
 
     $$\begin{bmatrix}x & y & 1\end{bmatrix} M \begin{bmatrix}\vec u\\
     \vec v\\ O \end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
 
+    Refer <a href="https://www.youtube.com/watch?v=wArGifkRD2A">Lecture
+    3: Moving Objects in Space</a> for a run-down of each
+    transformation. Around 31m30s 3D versions of matrices are
+    introduced. The entire lecture series
+    is <a href="https://www.youtube.com/watch?v=01YSK5gIEYQ&list=PL_w_qWAQZtAZhtzPI5pkAtcUVgmzdAP8g&index=1">available</a>.
   </p>
-  <p>
-    Refer <a href="https://www.youtube.com/watch?v=wArGifkRD2A">Moving
-    Objects in Space</a> for a detailed run-down on each
-    transformation (around 31m30s in 3D versions of the matrices are
-    constructed).
-  </p>
-  
 </div>
-  
-<!--
-  Rotations about an arbitrary axis
-  https://www.youtube.com/watch?v=gRVxv8kWl0Q
-
-  Complete play list (Moving objects in space is lecture 3)
-  https://www.youtube.com/watch?v=01YSK5gIEYQ&list=PL_w_qWAQZtAZhtzPI5pkAtcUVgmzdAP8g&index=1
--->
