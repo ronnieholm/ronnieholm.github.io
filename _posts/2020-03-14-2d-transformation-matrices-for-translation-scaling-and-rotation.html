@@ -146,7 +146,11 @@ date: 2020-03-14 12:00 UTC
   <p>Collectively, these matrices are known as the elementary matrices
     in computer graphics. Instead of applying these transformations
     one at a time to a point, transformation matrices may be
-    multiplied together to a single matrix \(T\) applied to a point.
+    multiplied together to a single matrix \(T\) applied to a point:
+
+    $$\begin{bmatrix}x & y & 1\end{bmatrix} T \begin{bmatrix}\vec u\\
+    \vec v\\ O \end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
+
   </p>
   <p>
     Refer <a href="https://www.youtube.com/watch?v=wArGifkRD2A">Moving
