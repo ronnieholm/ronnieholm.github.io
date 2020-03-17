@@ -5,101 +5,113 @@ date: 2020-03-14 12:00 UTC
 ---
 
 <div id="post">
-  <p>This post develops the mathematical foundation for the 2D
-    elementary matrices in computer graphics used for translating,
-    scaling, and rotating points. For a hands-on feel for the
-    concepts, the matrices and operations on those are implemented in
-    a graphics application.</p>
+  <p>This post develops the foundational matrices for translation,
+    scaling, and rotation of control points forming a shape. In
+    graphics applications, these elementary translation matrices
+    provide an efficient and uniform way of manipulating objects on
+    screen. One such demo application implementing the concepts is
+    available on Github:</p>
+
+  <!-- animated gif -->
+
+  <h3>The orthogonal coordinate system</h3>
   
-  <p>We start by defining a traditional 2D coordinate system in terms
-    of (1) orthogonal vectors \(\vec u\) and \(\vec v\), representing
-    \(x\) and \(y\) axis and (2) origin \(O\) representing point of
-    origin, commonly \((0,0)\) where \(\vec u\) and \(\vec v\)
-    intersect. As <a href="https://youtu.be/01YSK5gIEYQ?list=PL_w_qWAQZtAZhtzPI5pkAtcUVgmzdAP8g&t=1469">outlined</a>,
-    points and vectors are different: \(Q = P + \vec v\) and \(\vec v
-    = Q - P\).
+  <p>We start by formalizing a traditional 2D coordinate system. It
+    may be defined in terms of (1) orthogonal vectors \(\vec u\) and
+    \(\vec v\), for the \(x\) and \(y\) axis and (2) origin \(O\) for
+    the point of origin. Origin is the point of intersection between
+    \(\vec u\) and \(\vec v\) and is commonly \((0,0)\). The
+    <a href="https://youtu.be/01YSK5gIEYQ?list=PL_w_qWAQZtAZhtzPI5pkAtcUVgmzdAP8g&t=1469">difference</a>
+    between point and vector is best illustrated by a few examples:
+    \(Q = P + \vec v\) and \(\vec v = Q - P\).
   </p>
   <p>
     A point \(P\) may be defined in terms of vectors \(\vec u\) and
-    \(\vec v\). To arrive at the point from origin, we move some
-    distance along \(\vec u\), then some distance along \(\vec v\),
-    and offsetting with respect to origin \(O\), our point of
-    reference:
+    \(\vec v\). To arrive at \(P\) we start at origin \(O\), then move
+    some distance along \(\vec u\) followed by a move some distance
+    along \(\vec v\):
   </p> 
   <p>
     $$P = x\vec u + y\vec v + O\\
     P = 0.5\vec u + 0.25\vec v + O\\
-    P = 0.5\begin{bmatrix}1\\0\end{bmatrix} + 0.25\begin{bmatrix}0\\1\end{bmatrix} + \begin{bmatrix}0\\0\end{bmatrix}\\
-    P = \begin{bmatrix}0.5\\0\end{bmatrix} + \begin{bmatrix}0\\0.25\end{bmatrix} = \begin{bmatrix}0.5\\0.25\end{bmatrix}$$
-    
-    The fact that \(\vec u\) and \(\vec v\) are unit perpendicular
-    vectors and that \(O\) is the zero vector is convention. More
-    commonly \(P\) is written \((x,y) = (0.5, 0.25)\) where \(x\) and
-    \(y\) are the coordinates of \(P\). Going forward, we'll write
-    points in matrix form:
+    P = 0.5\begin{bmatrix}1\\0\end{bmatrix} + 0.25\begin{bmatrix}0\\1\end{bmatrix} + \begin{bmatrix}0\\0\end{bmatrix} = \begin{bmatrix}0.5\\0.25\end{bmatrix}$$
+
+    Convention dictates that \(\vec u\) and \(\vec v\) are
+    perpendicular unit vectors, that \(O\) is the zero vector, and
+    that \(P\) is commonly written \((x,y) = (0.5, 0.25)\) with \(x\)
+    and \(y\) being the coordinates of \(P\). Going forward, we'll
+    also write points in matrix form:
     
     $$P = \begin{bmatrix}x\ y\ 1\end{bmatrix} \begin{bmatrix}\vec u\\ \vec v\\ O \end{bmatrix} = x\vec u + y\vec v + O$$
 
-    For brevity we leave out the 3x1 matrix but in terms of the math
-    it's still there. \(P\) in matrix form then becomes
-    \(\begin{bmatrix}x\ y\ 1\end{bmatrix}\). The \(1\) is there to
-    pick up origin \(O\).
+    For brevity the 3x1 matrix is mostly left out, but computation
+    wise is still there. \(P\) in matrix form is then
+    \(\begin{bmatrix}x\ y\ 1\end{bmatrix}\) with \(1\) added to carry
+    over origin \(O\). Applying translation, scaling, and rotation,
+    \(O\) must remain unaffected.
   </p>
 
   <h3>Translation</h3>
   <p>
-    Translating a point by \(a\) in \(x\) direction and \(b\) in \(y\)
-    direction may be expressed in terms of original and desired
-    vectors:
+    Translating a point by \(a\) in \(x\) direction and by \(b\) in
+    \(y\) direction may be expressed by the following relationship
+    between source and destination vectors:
   <p>
   <p>      
     $$\begin{bmatrix}x & y & 1\end{bmatrix} \rightarrow \begin{bmatrix}x + a & y + b & 1\end{bmatrix}$$      
   </p>
   <p>
-    Transforming the vector on the left into the vector on the right
-    means applying an operator \(T_{a,b}\) to the left side. The
-    operator takes in any \(x\) and \(y\) and translates it by \(a\)
-    and \(b\). Expanding the multiplication enables us to verify
-    correctness of \(T_{a,b}\) matrix:
+    Transforming any left matrix to a right matrix is akin to applying
+    a postfix operator to the left side. With respect to translation,
+    the \(T_{a,b}\) operator is matrix multiplication of the left side
+    with a special translation matrix parameterized by \(a\) and
+    \(b\). Expanding the multiplication allows us to verify the
+    correctness of \(T_{a,b}\):
     
     $$\begin{bmatrix}x & y & 1\end{bmatrix} \begin{bmatrix}1 & 0 & 0\\0 & 1 & 0\\a & b & 1\end{bmatrix} = \begin{bmatrix}1x + 0y + 1a & 0x + 1y + 1b & 0x + 0y + 1\end{bmatrix} = \begin{bmatrix}x + a & y + b & 1\end{bmatrix}$$
     
-    Two characteristics of the transformation matrices we'll encounter
-    is that they're sparse and that the last column is always the same
-    to pick up origin \(O\) and carry it over unchanged.
+    Translation, scaling, and rotation matrices are characterized by
+    their sparseness and the last column always being the same to
+    carry over origin \(O\).
   </p>
 
   <h3>Scaling</h3>  
   <p>
     Scaling a point by \(a\) in \(x\) direction and \(b\) in \(y\)
-    direction has the effect of shrinking (\(a < 1\)) or expanding
-    (\(a > 1\)) with respect to origin. Expressed in terms of vectors:
+    direction shrinks, if \(a < 1\), or expands, if \(a > 1\), the
+    point with respect to origin \(O\). The relationship between
+    source and destination vectors would be the following:
   </p>
   <p>$$\begin{bmatrix}x & y & 1 \end{bmatrix}\rightarrow \begin{bmatrix}ax & by & 1\end{bmatrix}$$</p>
  
-  <p>We define a scaling matrix \(S_{a, b}\) as
+  <p>To satisfy this relationship requires a scaling matrix \(S_{a,
+  b}\) as follows:
 
     $$\begin{bmatrix}x & y & 1\end{bmatrix}\rightarrow \begin{bmatrix}a & 0 & 0\\ 0 & b & 0\\ 0 & 0 & 1\end{bmatrix} = \begin{bmatrix}ax & by & 1\end{bmatrix}$$
 
-    Scaling only works when the center of the shape is at origin
-    \(O\). This would be the case for a unit square with control
-    points in \((-1,1)\), \((1,1)\), \((1,-1)\), and \((-1,-1)\), and
-    scaling from a 2x2 to a 4x4 square is equal to applying \(S_{2,
-    2}\) to each control of the square.</p>
-   
-  <p>But if instead the unit square has control points \((1,3)\),
-    \((3,3)\), \((3,1)\), and \((1,1)\), then center becomes \((2,
-    2)\) and \(S_{2, 2}\) would scale as well as move the center. In
-    that case, each point relative to the square's center of mass must
-    be translated to origin, then scaled, and then translated back. In
-    general
+    Scaling works as intended when for a set of points their centroid
+    \(C = O\). A unit square with control points \(S =
+    \{(-1,1),(1,1),(1,-1)\}\) satisfies this condition. Applying
+    \(S_{2,2}\) to each point has the effect of scaling from a 2x2 to
+    a 4x4 square.</p>
+
+  <!-- https://math.stackexchange.com/questions/1801867/finding-the-centre-of-an-abritary-set-of-points-in-two-dimensions -->
+  
+  <p>On the other hand, a unit square with control points \(S =
+    \{(1,3),(3,3),(3,1)\}\) has a centroid \(C = (2, 2)\). Applying
+    \(S_{2, 2}\) to each point has the effect of scaling from a 2x2 to
+    4x4 square <em>and</em> for resulting points move centroid
+    \(C\). To prevent this, each point is first translated such that
+    \(C = O\), scaled, and then translated back:
   </p>
   </p>    
     $$T_{-a,-b} S_{c,d} T_{a,b}$$
   </p>
   <p>
-    For the simple unit square, determining the center is easy. For a
-    general polygon, we'd have to calculate its center of mass.
+    Calculating centroid \(C\) of a set of points, assuming each has
+    equal weight, is defined by
+
+    $$(\overline{x},\overline{y}) = \left(\frac{1}{n}\sum_{i=1}^{n}x_{i},\frac{1}{n}\sum_{i=1}^{n}y_{i}\right)$$
   </p>
    
   <h3>Rotation</h3>
@@ -138,8 +150,8 @@ date: 2020-03-14 12:00 UTC
 
     $$T_{-a,-b} R_\theta T_{a, b}$$
 
-    If both scaling and rotation is required, translation center of
-    mass to origin and back need happen only once.
+    If both scaling and rotation is needed, the translation of center
+    of mass to origin and back need happen only once.
   </p>
   <h3>Summary</h3>
   <p>Translation, scaling, and rotation matrices are collectively
@@ -151,10 +163,11 @@ date: 2020-03-14 12:00 UTC
     $$\begin{bmatrix}x & y & 1\end{bmatrix} M \begin{bmatrix}\vec u\\
     \vec v\\ O \end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
 
-    Refer <a href="https://www.youtube.com/watch?v=wArGifkRD2A">Lecture
-    3: Moving Objects in Space</a> for a run-down of each
-    transformation. Around 31m30s 3D versions of matrices are
-    introduced. The entire lecture series
-    is <a href="https://www.youtube.com/watch?v=01YSK5gIEYQ&list=PL_w_qWAQZtAZhtzPI5pkAtcUVgmzdAP8g&index=1">available</a>.
+    Refer
+    to <a href="https://www.youtube.com/watch?v=wArGifkRD2A">Lecture
+    3: Moving Objects in Space</a> of
+    this <a href="https://www.youtube.com/watch?v=01YSK5gIEYQ&list=PL_w_qWAQZtAZhtzPI5pkAtcUVgmzdAP8g&index=1">lecture
+    series</a> for a run-down of each transformation. Around 31m30s 3D
+    versions of matrices are introduced.
   </p>
 </div>
