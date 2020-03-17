@@ -101,17 +101,18 @@ date: 2020-03-14 12:00 UTC
     \{(1,3),(3,3),(3,1)\}\) has a centroid \(C = (2, 2)\). Applying
     \(S_{2, 2}\) to each point has the effect of scaling from a 2x2 to
     4x4 square <em>and</em> for resulting points move centroid
-    \(C\). To prevent this, each point is first translated such that
+    \(C\). To prevent this, each point must first translated such that
     \(C = O\), scaled, and then translated back:
   </p>
   </p>    
     $$T_{-a,-b} S_{c,d} T_{a,b}$$
   </p>
   <p>
-    Calculating centroid \(C\) of a set of points, assuming each has
-    equal weight, is defined by
+    The centroid \(C\) of a set of points, assuming each has equal
+    weight, is defined as follows with above \(a = \overline{x}\) and
+    \(b = \overline{y}\):
 
-    $$(\overline{x},\overline{y}) = \left(\frac{1}{n}\sum_{i=1}^{n}x_{i},\frac{1}{n}\sum_{i=1}^{n}y_{i}\right)$$
+    $$\left(\overline{x},\overline{y}\right) = \left(\frac{1}{n}\sum_{i=1}^{n}x_{i},\frac{1}{n}\sum_{i=1}^{n}y_{i}\right)$$
   </p>
    
   <h3>Rotation</h3>
