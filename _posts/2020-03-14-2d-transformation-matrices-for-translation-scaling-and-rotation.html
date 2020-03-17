@@ -14,7 +14,7 @@ date: 2020-03-14 12:00 UTC
 
   <!-- animated gif -->
 
-  <h3>The orthogonal coordinate system</h3>
+  <h3>Orthogonal coordinate system</h3>
   
   <p>We start by formalizing a traditional 2D coordinate system. It
     may be defined in terms of (1) orthogonal vectors \(\vec u\) and
@@ -109,28 +109,27 @@ date: 2020-03-14 12:00 UTC
   </p>
   <p>
     The centroid \(C\) of a set of points, assuming each has equal
-    weight, is defined as follows with above \(a = \overline{x}\) and
-    \(b = \overline{y}\):
+    weight, is defined as
 
-    $$\left(\overline{x},\overline{y}\right) = \left(\frac{1}{n}\sum_{i=1}^{n}x_{i},\frac{1}{n}\sum_{i=1}^{n}y_{i}\right)$$
+    $$\left(a = \overline{x}, b = \overline{y}\right) = \left(\frac{1}{n}\sum_{i=1}^{n}x_{i},\frac{1}{n}\sum_{i=1}^{n}y_{i}\right)$$
   </p>
    
   <h3>Rotation</h3>
   
-  <p>Rotating a point \(\theta\) around origin implies that distance
-    \(r\), radius, between origin and \((x, y)\) and between origin
-    and \((x', y')\) doesn't change:
+  <p>Rotating a point by \(\theta\) around origin implies that radius
+    from origin to \((x, y)\) and radius from origin to \((x', y')\)
+    remain unaffected:
     
     $$\begin{bmatrix}x & y & 1\end{bmatrix} \rightarrow \begin{bmatrix}x' & y' & 1\end{bmatrix}$$
     
-    With radius \(r\) and angle \(\phi\) between the \(x\) axis and
-    point, current position is
+    With radius \(r\) and angle \(\phi\) between \(x\) axis and point
+    left side becomes
 
     $$x = r\cos\phi\\
       y = r\sin\phi$$
 
-    The target point is then the current position \(x\) and \(y\) with
-    the additional rotation by \(\theta\):
+    Right side is then \(x\) and \(y\) with an additional rotation
+    \(\theta\) added:
 
     $$\begin{eqnarray*}
       x' = r\cos(\phi + \theta) & & \\
@@ -141,25 +140,24 @@ date: 2020-03-14 12:00 UTC
       y' = y \cos \theta + x \sin \theta & &  \textrm{\{substitute in definitions of \(x\) and \(y\)\}}
     \end{eqnarray*}$$
 
-    Rewriting to matrix form, rotation matrix \(R_\theta\) becomes
+    In matrix form, rotation matrix \(R_\theta\) becomes
 
     $$\begin{bmatrix}x & y & 1\end{bmatrix} \begin{bmatrix}\cos\theta & \sin\theta & 0\\ -\sin\theta & \cos\theta & 0\\ 0 & 0 & 1\end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
 
-    As with scaling, rotation around origin is assumed. If that isn't
-    the case, then we must first translate, then scale, then
-    translate:
+    As with scaling, rotation must happen around origin, possibly
+    requiring two translations:
 
     $$T_{-a,-b} R_\theta T_{a, b}$$
 
-    If both scaling and rotation is needed, the translation of center
-    of mass to origin and back need happen only once.
+    If both scaling and rotation is needed, the translation back and
+    forth need happen only once.
   </p>
   <h3>Summary</h3>
-  <p>Translation, scaling, and rotation matrices are collectively
-    known as the elementary matrices in computer graphics. Rather than
-    apply transformations to a point one matrix multiplication at a
-    time, transformation matrices combine into a single matrix \(M\)
-    for reuse across points:
+  <p>The translation, scaling, and rotation matrices are collectively
+    referred to as the elementary matrices in computer
+    graphics. Rather than apply transformations to a point one
+    transformation at a time, transformation matrices combine into a
+    single matrix \(M\) for reuse across points:
 
     $$\begin{bmatrix}x & y & 1\end{bmatrix} M \begin{bmatrix}\vec u\\
     \vec v\\ O \end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
