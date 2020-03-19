@@ -78,9 +78,8 @@ date: 2020-03-14 12:00 UTC
   <h3>Scaling</h3>  
   <p>
     Scaling a point by \(a\) in \(x\) direction and \(b\) in \(y\)
-    direction shrinks, if \(a < 1\), or expands, if \(a > 1\), the
-    point with respect to origin \(O\). The relationship between
-    source and destination vectors would be the following:
+    direction happens with respect to origin \(O\). The relationship
+    between source and destination vectors is
   </p>
   <p>$$\begin{bmatrix}x & y & 1 \end{bmatrix}\rightarrow \begin{bmatrix}ax & by & 1\end{bmatrix}$$</p>
  
@@ -90,15 +89,13 @@ date: 2020-03-14 12:00 UTC
     $$\begin{bmatrix}x & y & 1\end{bmatrix}\rightarrow \begin{bmatrix}a & 0 & 0\\ 0 & b & 0\\ 0 & 0 & 1\end{bmatrix} = \begin{bmatrix}ax & by & 1\end{bmatrix}$$
 
     Scaling works as intended when for a set of points their centroid
-    \(C = O\). A unit square with control points \(S =
-    \{(-1,1),(1,1),(1,-1)\}\) satisfies this condition. Applying
+    \(C = O\). A unit square with control points
+    \({(-1,1),(1,1),(1,-1)\}\) satisfies this condition. Applying
     \(S_{2,2}\) to each point has the effect of scaling from a 2x2 to
     a 4x4 square.</p>
-
-  <!-- https://math.stackexchange.com/questions/1801867/finding-the-centre-of-an-abritary-set-of-points-in-two-dimensions -->
   
-  <p>On the other hand, a unit square with control points \(S =
-    \{(1,3),(3,3),(3,1)\}\) has a centroid \(C = (2, 2)\). Applying
+  <p>On the other hand, a unit square with control points
+    \(\{(1,3),(3,3),(3,1)\}\) has a centroid \(C = (2, 2)\). Applying
     \(S_{2, 2}\) to each point has the effect of scaling from a 2x2 to
     4x4 square <em>and</em> for resulting points move centroid
     \(C\). To prevent this, each point must first translated such that
@@ -155,9 +152,9 @@ date: 2020-03-14 12:00 UTC
   <h3>Summary</h3>
   <p>The translation, scaling, and rotation matrices are collectively
     referred to as the elementary matrices in computer
-    graphics. Rather than apply transformations to a point one
-    transformation at a time, transformation matrices combine into a
-    single matrix \(M\) for reuse across points:
+    graphics. Rather than apply transformations to a point one at a
+    time, transformation matrices combine into a single matrix \(M\)
+    for reuse across points:
 
     $$\begin{bmatrix}x & y & 1\end{bmatrix} M \begin{bmatrix}\vec u\\
     \vec v\\ O \end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
