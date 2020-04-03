@@ -38,10 +38,11 @@ service.</p>
 <li><p>ASP.NET Web API making secured calls to MS Graph.</p>
 </ol>
 
-<p>Components secured by AAD, end-users sign-in or authenticate to (1)
-and (2) with their AAD credentials. AAD issues signed tokens which (1)
-and (2) passed along with calls to (3) which similarly requests a
-signed token and passes along with calls to (4).</p>
+<p>When these components are secured by AAD, end-users sign-in or
+authenticate to (1) and (2) with their AAD credentials. AAD issues
+signed tokens which (1) and (2) passed along with calls to (3) which
+similarly requests a signed token and passes it along with calls to
+(4).</p>
 
 <p>Reading along, keep in mind that authorization is orthogonal to
 authentication and that authorization requires authentication. OAuth2
@@ -57,7 +58,7 @@ username, full name, and the like, but is never passed to (3).</p>
 
 <h3>Types of app registrations</h3>
 
-<p>Creating a new App registration inside the Azure portal, for
+<p>Creating a new App registration inside the Azure portal, for the
 application type we have a choice between "Web app/API" and
 "Native". These map to the three OAuth2
 <a href="https://tools.ietf.org/html/rfc6749#section-2.1">client
@@ -65,18 +66,12 @@ types</a> of web application, user-agent-based application (a fancy
 term for a browser hosting a JavaScript application), and native
 application.</p>
 
-<p>With AAD, user-agent-based application maps to "Web app/API"
+<p>With AAD, the Angular app maps to "Web app/API"
 with <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/reference-app-manifest">oauth2AllowImplicitFlow</a>
 turned on in the registration manifest (this doesn't disable other
-grant types). Because AAD identifies an app by its client ID, AAD
-enables implicit grant type for whatever endpoint the app requests
-access to. During configuration, however, we don't enable
-oauth2AllowImplicitFlow in the manifest for iOS and Web API.</p>
-
-<p>From these definitions, it's clear that the iOS app maps to
-"Native" and that both Angular and Web API maps to "Web app/API". But
-does that mean that Angular and Web API should run under the same
-registration?</p>
+grant types), iOS app maps to "Native" and Web API maps to "Web
+app/API". But does that mean that Angular and Web API should run under
+the same registration?</p>
 
 <h3>Number of app registrations</h3>
 
@@ -151,8 +146,8 @@ You can use the v2.0 endpoint [with MSAL.js, not ADAL.js]
 to <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-app-types#web-apis">build
 a Web API that is secured with OAuth 2.0</a>. However, that Web API
 can receive tokens only from an application that has the same
-Application ID. <b>You cannot access a Web API from a client that has
-a different Application ID</b> [AAD term for client ID]. The client
+Application ID [AAD term for client ID]. <b>You cannot access a Web
+API from a client that has a different Application ID</b>. The client
 won't be able to request or obtain permissions to your Web API.
 </blockquote>
 
@@ -188,10 +183,10 @@ security risk. For as long as the authentication server session cookie
 is valid, and kept alive, ADAL.js can request new tokens without user
 interaction.</p>
 
-<p>We can observe the refresh procedure by keeping the Angular
-application idle and Chrome developer tools Network tab open. ADAL.js
-has refresh hardcoded to occur every 3,600 seconds, considering the ID
-token lifetime of 3,900 seconds.</p>
+<p>We can observe the refresh procedure by keeping the Angular app
+idle and Chrome developer tools Network tab open. ADAL.js has refresh
+hardcoded to occur every 3,600 seconds, considering the ID token
+lifetime of 3,900 seconds.</p>
 
 <h3>iOS: ADAL for Objective C and the authorization code grant type</h3>
 
@@ -239,35 +234,35 @@ makes REST calls to MS Graph, another AAD secured endpoint:</p>
 
 <ul>
 <li><p>To lookup security group memberships of authenticated users
-making Web API call. When Angular requests an ID token and access
+making Web API calls. When Angular requests an ID token and access
 token using the implicit grant type and the user is a member of more
 than (currently) five security groups, AAD by design substitutes the
 groups claim for
 a <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js/issues/239">hasgroups
 claim</a> with a value of true. It's up to Web API
 to <a href="https://stackoverflow.com/questions/45501568/azure-jwt-with-property-hasgroups-true-instead-of-groups-property-object">inspect</a>
-the hasgroups claim and if true, retrieve user's groups from MS
-Graph. (Required delegated or application permissions.)</p></li>
+the hasgroups claim and if true, retrieve the user's groups from MS
+Graph. (Requires delegated or application permissions.)</p></li>
 
 <li><p>To lookup an ObjectID given a username provided by Angular when
-a user assigns another access to the app. Within AAD, ObjectID is the
-equivalent of
+one user assigns another user access to the app. Within AAD, ObjectID
+is the equivalent of
 AD's <a href="https://en.wikipedia.org/wiki/Security_Identifier">security
 identifier</a>, i.e., both a GUID by which Web API identifies a user
 and a key by which it stores user information. Inside Web API, as
 users leave an organization and are disabled in AAD, we want to
-minimize dangling user references (being unable to resolve account and
-display names). That's why, besides ObjectID, Web API also stores the
-user's account and display names. (Requires delegated or application
-permissions.)</p></li>
+minimize dangling user references (being unable to resolve accounts
+and display names). That's why, besides ObjectID, Web API also stores
+the user's account and display names. (Requires delegated or
+application permissions.)</p></li>
 
 <li><p>To periodically execute non-interactive batch queries against
-AAD to identify users who've been disabled. With hundreds of users of
-the app, we require a notification mechanism to re-assign these users'
-active tasks. Also, time will tell if MS Graph queries triggered by
-each Web API request becomes a bottleneck, in which case batch
-querying or caching users and groups is an option. (Requires
-application permissions.)</p></li>
+AAD to identify disabled users. With hundreds of app users, we require
+a notification mechanism to re-assign disabled users' active
+tasks. Time will tell if MS Graph queries triggered by each Web API
+request becomes a bottleneck, in which case batch querying or caching
+users and groups is an option. (Requires application
+permissions.)</p></li>
 </ul>
 
 <p>Following each need for making MS Graph calls is the permissions
@@ -280,7 +275,7 @@ signed-in user calling Web API.</p>
 <p>The hasgroups claim substitution mentioned above occurs due to a
 limitation in the length of the URL by which the implicit grant type
 returns its token to the client. The token comes back Base64 encoded
-in the URL fragment and larger claims translate to larger
+in the URL fragment and a larger claim translate to a larger
 payload. Tokens returned through the authorization code grant type
 aren't subject to this URL length limitation as they're returned in
 the response body.</p>
@@ -367,7 +362,7 @@ auto-configures and supports key rotation as well.
 are essential: (1)
 the <a href="https://github.com/AzureAD/azure-activedirectory-identitymodel-extensions-for-dotnet/blob/master/src/Microsoft.IdentityModel.Protocols/Configuration/ConfigurationManager.cs#L177">ConfigurationManager</a>
 class and its GetConfigurationAsync
-method. The <a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">tutorial</a>
+method. This <a href="https://developer.okta.com/blog/2018/03/23/token-authentication-aspnetcore-complete-guide">tutorial</a>
 shows calling the method in Startup.cs to HTTP GET the metadata
 discovery URL and through it the jwks_uri URL. Web API then parses
 their JSON payloads and caches those inside ConfigurationManager for
@@ -436,7 +431,7 @@ concepts work together.</p></li>
 future, we ended up with three app registrations. Besides registration
 details, to understand what's going on as part of each component's
 authentication and authorization cycle, the post outlined relevant
-parts of OAuth2 and OpenID Connect standards. Without such knowledge,
-debugging often amounts to time consuming guess work.</p>
+parts of the OAuth2 and OpenID Connect standards. Without such
+knowledge, debugging often amounts to time consuming guess work.</p>
 
 </div>
