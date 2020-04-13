@@ -3,37 +3,20 @@ layout: default
 ---
 
 <div class="container">
-  <div class="row">
-    <div class="col-md-8">
-      <p></p>
-      <p>
-        <img width="150px" height="40px" src="https://tivolimediebank.tivoli.dk/presse/themes/tivoli/images/logo.png" alt="tivoli"></img>
-        <img width="150px" height="40px" src="https://eboksopensites.eboksappserviceenvironment.p.azurewebsites.net/media/2337/e-boks_rgb_pos.jpg" alt="e-Boks"></img>
-        <img width="150px" height="100px" src="https://api.colourbox.com/publicmedia302/large/21233226/media.jpg" alt="Djøf"></img>
-        <img width="150px" height="70px" src="https://orstedcdn.azureedge.net/-/media/WWW/Images/DCS/2017/Iconer/logo.ashx?mw=480&rev=7c91af047dfe4d18bb7fe29a1ae113f4&hash=3E9E5F0CA913FB55DC361D3908DF33B2" alt="Ørsted"></img>
-
-        <img width="150px" height="150px" src="https://media.licdn.com/dms/image/C4D0BAQFDtZarjUDDiQ/company-logo_200_200/0?e=1584576000&v=beta&t=9ZVGCaiM6123Vkhd6KQtmYiEVbvtrRu8p4AzL0hL9Lg" alt="Domstolsstyrelsen"></img>
-        <img width="150px" height="100px" src="https://www.processio.dk/media/1040/rigspoliti.png" alt="Rigspolitiet"></img>	
-        <img width="150px" height="70px" src="https://www.bane.dk/-/media/Bane/Om-Banedanmark/Visuelt-Design/Logo-2.jpg" alt="Banedanmark"></img>	
-        <img width="150px" height="70px" src="https://www.nordea.com/Images/33-112350/Nordea_Masterbrand_500px_RGB.png" alt="Nordea"></img>
-      </p>
-    </div>
-    
-    <div id="sidebar" class="col-md-4">
-      <h2>About me</h2>
-      <div>
-        <p>Hi. I'm Ronnie Holm. Bugfree Consulting is my one-man consultancy and
-        software house. I’m on a mission to bring more high quality software
-        into the world.</p>
-
-	<p></p>
-        <p style="background-color:#222222; color:white;">
-	  I offer contract work in <font color="red">cross platform
-	  development</font> using the <font color="yellow">latest</font>
-	  iterations of the <font color="lightgreen">Microsoft technology
-	  stack</font>. This includes .NET Core, SQL Server, and Azure. I focus
-	  on software development, devOps, and Security consultancy.
-	</p>
-      </div>
-    </div>        
+	<div class="row">
+		<div class="col-md-12">
+			<h1>{{page.title}}</h1>
+			<div class="posts">
+				{% for post in site.posts %}
+				<div>
+					<span>
+						{{ post.date | date_to_string }}
+					</span>
+					&raquo;
+					<a href="{{ post.url }}">{{ post.title }}</a>
+				</div>
+				{% endfor %}
+			</div>
+		</div>
+	</div>
 </div>
