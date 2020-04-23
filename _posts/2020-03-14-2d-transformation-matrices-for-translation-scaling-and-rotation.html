@@ -5,19 +5,19 @@ date: 2020-03-14 12:00 UTC
 ---
 
 <div id="post">
-  <p>(A demo is available on
+  <p>(A demo application is available on
     <a href="https://github.com/ronnieholm/GraphicsEngine">Github</a>.)</p>
   
   <p>This post develops the foundational matrices for translation,
-    scaling, and rotation of control points. In graphics applications,
+    scaling, and rotation of control points. In computer graphics,
     these matrices provide an efficient and uniform way of
-    manipulating objects.</p>
+    manipulating points.</p>
 
   <h3>Orthogonal coordinate system</h3>
   
   <p>We start by formalizing a traditional 2D coordinate system. It
     may be defined in terms of (1) orthogonal vectors \(\vec u\) and
-    \(\vec v\), for the \(x\) and \(y\) axis and (2) origin \(O\) for
+    \(\vec v\) for the \(x\) and \(y\) axis and (2) origin \(O\) for
     the point of origin. Origin is the point of intersection between
     \(\vec u\) and \(\vec v\) and is commonly \((0,0)\). The
     <a href="https://youtu.be/01YSK5gIEYQ?list=PL_w_qWAQZtAZhtzPI5pkAtcUVgmzdAP8g&t=1469">difference</a>
@@ -25,10 +25,10 @@ date: 2020-03-14 12:00 UTC
     \(Q = P + \vec v\) and \(\vec v = Q - P\).
   </p>
   <p>
-    A point \(P\) may be defined in terms of vectors \(\vec u\) and
-    \(\vec v\). To arrive at \(P\) we start at origin \(O\), then move
-    some distance along \(\vec u\) followed by a move some distance
-    along \(\vec v\):
+    A point \(P\) may be defined in terms of the vectors \(\vec u\)
+    and \(\vec v\). To arrive at \(P\) we start at origin \(O\), then
+    move some distance along \(\vec u\) followed by a move some
+    distance along \(\vec v\):
   </p> 
   <p>
     $$P = x\vec u + y\vec v + O\\
@@ -43,11 +43,11 @@ date: 2020-03-14 12:00 UTC
     
     $$P = \begin{bmatrix}x\ y\ 1\end{bmatrix} \begin{bmatrix}\vec u\\ \vec v\\ O \end{bmatrix} = x\vec u + y\vec v + O$$
 
-    For brevity the 3x1 matrix is mostly left out, but computation
-    wise is still there. \(P\) in matrix form is then
-    \(\begin{bmatrix}x\ y\ 1\end{bmatrix}\) with \(1\) added to carry
-    over origin \(O\). Applying translation, scaling, and rotation,
-    \(O\) must remain unaffected.
+    For brevity, the 3x1 matrix is mostly left out, but it's still
+    there. \(P\) in matrix form is then \(\begin{bmatrix}x\ y\
+    1\end{bmatrix}\) with \(1\) added to carry over origin
+    \(O\). Applying translation, scaling, and rotation, \(O\) must
+    remain unaffected.
   </p>
 
   <h3>Translation</h3>
@@ -70,7 +70,7 @@ date: 2020-03-14 12:00 UTC
     $$\begin{bmatrix}x & y & 1\end{bmatrix} \begin{bmatrix}1 & 0 & 0\\0 & 1 & 0\\a & b & 1\end{bmatrix} = \begin{bmatrix}1x + 0y + 1a & 0x + 1y + 1b & 0x + 0y + 1\end{bmatrix} = \begin{bmatrix}x + a & y + b & 1\end{bmatrix}$$
     
     Translation, scaling, and rotation matrices are characterized by
-    their sparseness and the last column always being the same to
+    their sparseness and that the last column is always the same to
     carry over origin \(O\).
   </p>
 
@@ -96,9 +96,9 @@ date: 2020-03-14 12:00 UTC
   <p>On the other hand, a unit square with control points
     \(\{(1,3),(3,3),(3,1)\}\) has a centroid \(C = (2, 2)\). Applying
     \(S_{2, 2}\) to each point has the effect of scaling from a 2x2 to
-    4x4 square <em>and</em> for resulting points move centroid
-    \(C\). To prevent this, each point must first translated such that
-    \(C = O\), scaled, and then translated back:
+    a 4x4 square <em>and</em> move the centroid \(C\). To prevent this
+    movement, each point must be first translated such that \(C = O\),
+    then scaled, and finally translated back:
   </p>
   </p>    
     $$T_{-a,-b} S_{c,d} T_{a,b}$$
@@ -118,8 +118,8 @@ date: 2020-03-14 12:00 UTC
     
     $$\begin{bmatrix}x & y & 1\end{bmatrix} \rightarrow \begin{bmatrix}x' & y' & 1\end{bmatrix}$$
     
-    With radius \(r\) and angle \(\phi\) between \(x\) axis and point
-    left side becomes
+    With radius \(r\) and angle \(\phi\) between \(x\) axis and point,
+    the left side becomes
 
     $$x = r\cos\phi\\
       y = r\sin\phi$$
@@ -136,7 +136,7 @@ date: 2020-03-14 12:00 UTC
       y' = y \cos \theta + x \sin \theta & &  \textrm{\{substitute in definitions of \(x\) and \(y\)\}}
     \end{eqnarray*}$$
 
-    In matrix form, rotation matrix \(R_\theta\) becomes
+    In matrix form, the rotation matrix \(R_\theta\) becomes
 
     $$\begin{bmatrix}x & y & 1\end{bmatrix} \begin{bmatrix}\cos\theta & \sin\theta & 0\\ -\sin\theta & \cos\theta & 0\\ 0 & 0 & 1\end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
 
@@ -148,12 +148,14 @@ date: 2020-03-14 12:00 UTC
     If both scaling and rotation is needed, the translation back and
     forth need happen only once.
   </p>
+  
   <h3>Summary</h3>
+
   <p>The translation, scaling, and rotation matrices are collectively
     referred to as the elementary matrices in computer
     graphics. Rather than apply transformations to a point one at a
-    time, transformation matrices combine into a single matrix \(M\)
-    for reuse across points:
+    time, transformation matrices may be combined into a single matrix
+    \(M\) for reuse across points:
 
     $$\begin{bmatrix}x & y & 1\end{bmatrix} M \begin{bmatrix}\vec u\\
     \vec v\\ O \end{bmatrix} = \begin{bmatrix}x' & y' & 1 \end{bmatrix}$$
