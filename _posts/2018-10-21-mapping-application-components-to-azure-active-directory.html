@@ -40,7 +40,7 @@ service.</p>
 
 <p>When these components are secured by AAD, end-users sign-in or
 authenticate to (1) and (2) with their AAD credentials. AAD issues
-signed tokens which (1) and (2) passed along with calls to (3) which
+signed tokens which (1) and (2) passes along with calls to (3) which
 similarly requests a signed token and passes it along with calls to
 (4).</p>
 
@@ -105,14 +105,14 @@ JavaScript.</p></li>
 <li><p>An Angular app may be consuming many endpoints: one or more of
 our Web APIs and MS Graph, SharePoint, and so on. In this case, we
 shouldn't tie Angular to any one API by sharing its app
-registration. Especially since the monetary cost of app registrations
-is zero.</p></li>
+registration. Especially since an app registration carry no monetary
+cost.</p></li>
 
 <li><p>App registration metadata differ between an Angular app and a
 Web API. Maybe not in a significant way at first, but over time
 they're likely to drift apart. At that point, we must either split the
 registration, requiring end-user consent once again or admin consent
-on their behalf, or make the single registration contain settings of
+on end-users behalf, or make the single registration contain settings of
 both, if possible.</p></li>
 
 <li><p>By design, an Angular app uses
@@ -120,7 +120,7 @@ the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-
 grant type</a> (of authorization flow or method of acquiring an access
 token) whereas Web API doesn't. An Angular app also requires advance
 registration of reply URLs to prevent a rogue app from requesting a
-token from AAD and have it sent to its reply URL. Over time an Angular
+token from AAD and have the token sent to its reply URL. Over time an Angular
 app will likely access a different set of APIs than any one Web
 API. In our use case for instance, only Web API calls MS Graph. Thus,
 Angular app and Web API have registration settings specific to each,
@@ -154,7 +154,7 @@ won't be able to request or obtain permissions to your Web API.
 <p>It's an inherent limitation with MS' OAuth2 implementation and not
 the OAuth2 standard itself. In our case, we have separate app
 registrations for iOS and Angular, causing their application IDs to
-differ from that of Web API.</p>
+differ.</p>
 
 <p>Despite
 known <a href="https://tools.ietf.org/html/rfc6749#section-10.16">security
@@ -241,8 +241,9 @@ groups claim for
 a <a href="https://github.com/AzureAD/azure-activedirectory-library-for-js/issues/239">hasgroups
 claim</a> with a value of true. It's up to Web API
 to <a href="https://stackoverflow.com/questions/45501568/azure-jwt-with-property-hasgroups-true-instead-of-groups-property-object">inspect</a>
-the hasgroups claim and if true, retrieve the user's groups from MS
-Graph. (Requires delegated or application permissions.)</p></li>
+the hasgroups claim of the received token and if true, retrieve the
+user's groups from MS Graph. (Requires delegated or application
+permissions.)</p></li>
 
 <li><p>To lookup an ObjectID given a username provided by Angular when
 one user assigns another user access to the app. Within AAD, ObjectID
@@ -268,7 +269,7 @@ permissions.)</p></li>
 <p>Following each need for making MS Graph calls is the permissions
 required (actually permission type or grouping as it's the container
 for permissions). Application refers to Web API making
-service-to-service MS Graph calls with its own identity. Delegated
+service-to-service MS Graph calls with its own identity and delegated
 that Web API makes service-to-service MS Graph calls on behalf of the
 signed-in user calling Web API.</p>
 
@@ -298,7 +299,7 @@ the token endpoint its client ID, a pre-established shared client
 secret, and the resource ID of MS Graph. Had we used delegated
 permissions, we'd have to use
 the <a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/v1-oauth2-on-behalf-of-flow">on-behalf-of
-grant type</a>. And before calling MS Graph, Web API would have to
+grant type</a>. Before calling MS Graph, Web API would have to
 call the token endpoint to exchange the user provided access token for
 one supporting delegation as
 shown <a href="https://joonasw.net/view/azure-ad-on-behalf-of-aspnet-core">here</a>.</p>
